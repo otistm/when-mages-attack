@@ -8,7 +8,6 @@
  */
 export type GamePhase = 
   | 'menu'         // Main menu
-  | 'exploration'  // 3D world exploration (new core loop)
   | 'draft'        // Selecting starting cards
   | 'shop'         // Buying and crafting
   | 'crafting'     // Crafting scene

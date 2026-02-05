@@ -743,12 +743,15 @@ function BookSlot({ slotIndex: _slotIndex, page, onDrop, onDragOver, onDragStart
         }}
       >
         {/* Background image */}
-        <div className="absolute inset-0">
+        <div className="absolute inset-0 overflow-hidden">
           <img
             src={imagePath}
             alt={def.name}
             className="w-full h-full object-cover"
-            style={{ objectPosition: 'center center' }}
+            style={{ 
+              objectPosition: def.imagePosition || 'center center',
+              transform: def.imageScale ? `scale(${def.imageScale})` : undefined,
+            }}
           />
         </div>
         
@@ -905,12 +908,15 @@ function GrimoirePage({
       }}
     >
       {/* Background image */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 overflow-hidden">
         <img
           src={imagePath}
           alt={def.name}
           className="w-full h-full object-cover"
-          style={{ objectPosition: 'center center' }}
+          style={{ 
+            objectPosition: def.imagePosition || 'center center',
+            transform: def.imageScale ? `scale(${def.imageScale})` : undefined,
+          }}
         />
       </div>
       
@@ -1017,12 +1023,15 @@ function CraftingSlotPage({
       }}
     >
       {/* Background image */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 overflow-hidden">
         <img
           src={imagePath}
           alt={def.name}
           className="w-full h-full object-cover"
-          style={{ objectPosition: 'center center' }}
+          style={{ 
+            objectPosition: def.imagePosition || 'center center',
+            transform: def.imageScale ? `scale(${def.imageScale})` : undefined,
+          }}
         />
       </div>
       

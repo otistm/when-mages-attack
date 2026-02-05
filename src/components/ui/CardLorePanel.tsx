@@ -75,6 +75,27 @@ export function CardLorePanel() {
           </p>
         </div>
 
+        {/* Full Card Image */}
+        {card.imagePath && (
+          <div 
+            className="relative w-full"
+            style={{ 
+              borderBottom: '3px solid #111111',
+              backgroundColor: '#0a0a12',
+            }}
+          >
+            <img
+              src={card.imagePath}
+              alt={card.name}
+              className="w-full h-auto object-contain"
+              style={{ 
+                maxHeight: '200px',
+                display: 'block',
+              }}
+            />
+          </div>
+        )}
+
         {/* Flavor Text - flat background */}
         <div 
           className="px-4 py-3" 

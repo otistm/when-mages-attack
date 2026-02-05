@@ -129,7 +129,7 @@ export function scaleToFitBudget(
   tier: number
 ): CardStats {
   const budget = TIER_BUDGETS[tier] ?? TIER_BUDGETS[1];
-  const abilityCost = abilities.reduce((sum, a) => sum + a.powerCost, 0);
+  const abilityCost = abilities.reduce((sum, a) => sum + (a.powerCost ?? 0), 0);
   const availableBudget = budget - abilityCost;
   const currentCost = calculateStatCost(stats);
   
@@ -179,7 +179,7 @@ export function mergeAbilities(
   );
   
   // Sort by power cost (keep the best ones)
-  unique.sort((a, b) => b.powerCost - a.powerCost);
+  unique.sort((a, b) => (b.powerCost ?? 0) - (a.powerCost ?? 0));
   
   // Cap at 3 abilities
   return unique.slice(0, 3);

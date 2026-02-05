@@ -145,7 +145,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
     name: 'Rusty Shiv',
     description: 'A corroded blade of questionable origin. High damage, fragile construction.',
     flavorText: '"Found behind the dumpster of the Alchemy Lab. Tetanus is a form of poison damage, theoretically." — Field Recovery Notes',
-    type: 'CONSTRUCT',
+    type: 'SPELL',
     rarity: 'common',
     tier: 1,
     tags: ['weapon', 'metal', 'sharp', 'melee'],

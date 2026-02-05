@@ -69,8 +69,19 @@ export type CombatTag =
   | 'tank'
   | 'assassin';
 
+// Special tags for specific cards
+export type SpecialTag = 
+  | 'paper'
+  | 'ink'
+  | 'guardian'
+  | 'boss'
+  | 'magical'
+  | 'slime'
+  | 'specimen'
+  | 'glass_cannon';
+
 // All possible tags
-export type Tag = ElementTag | MaterialTag | PropertyTag | BehaviorTag | CategoryTag | AttributeTag | CombatTag;
+export type Tag = ElementTag | MaterialTag | PropertyTag | BehaviorTag | CategoryTag | AttributeTag | CombatTag | SpecialTag;
 
 /**
  * Base stats for any card
@@ -107,7 +118,10 @@ export type AbilityTrigger =
   | 'onDamaged'    // When minion takes damage
   | 'onDeath'      // When minion dies
   | 'onTick'       // Every combat tick
-  | 'onCast';      // When spell is cast
+  | 'onCast'       // When spell is cast
+  | 'onAttack'     // When minion attacks
+  | 'onCooldown'   // Cooldown-based trigger
+  | 'passive';     // Always active
 
 /**
  * Ability effect context passed to ability functions
@@ -129,8 +143,8 @@ export interface CardAbility {
   id: string;
   name: string;
   description: string;
-  trigger: AbilityTrigger;
-  powerCost: number;       // For balance calculations
+  trigger?: AbilityTrigger;
+  powerCost?: number;       // For balance calculations
   cooldown?: number;       // Cooldown in seconds (for onTick abilities)
   // Effect is implemented via ID lookup in ability registry
 }
@@ -159,6 +173,8 @@ export interface CardDefinition {
   meshPath?: string;       // Path to 3D model
   iconPath?: string;       // Path to card icon
   imagePath?: string;      // Path to card image for UI
+  imageScale?: number;     // Scale factor for image display (1 = normal, 0.5 = zoomed out)
+  imagePosition?: string;  // CSS object-position value (e.g., 'center top', '50% 30%')
   color: string;           // Primary color (hex)
   emissiveColor?: string;  // Glow color (hex)
   
@@ -236,7 +252,7 @@ export function calculatePowerBudget(stats: CardStats, abilities: CardAbility[])
   total += stats.attackSpeed * POWER_COSTS.attackSpeed;
   
   // Add ability costs
-  total += abilities.reduce((sum, a) => sum + a.powerCost, 0);
+  total += abilities.reduce((sum, a) => sum + (a.powerCost ?? 0), 0);
   
   return total;
 }

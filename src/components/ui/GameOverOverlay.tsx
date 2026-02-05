@@ -17,10 +17,10 @@ export function GameOverOverlay() {
   const clearAllCards = useCardStore((state) => state.clearAll);
   const resetCrafting = useCraftingStore((state) => state.reset);
   
-  // Check for game over based on health
+  // Check for game over based on health (disabled in dev mode for testing)
   const playerDead = player.health <= 0;
   const enemyDead = enemy.health <= 0;
-  const gameOver = playerDead || enemyDead;
+  const gameOver = import.meta.env.DEV ? false : (playerDead || enemyDead);
   const winner = enemyDead ? 'player' : playerDead ? 'enemy' : null;
   
   // Track if we've already cleared the combat scene

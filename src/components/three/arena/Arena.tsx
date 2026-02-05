@@ -20,7 +20,8 @@ import { ArenaFloor } from './ArenaFloor';
 import { CardSlotTracker } from './CardSlotTracker';
 import { SpawnedToaster } from './SpawnedToaster';
 import { MinionManager } from '../minions/MinionManager';
-import { ImpactEffects, SpawnEffects, ToastProjectile, DamageNumbers } from '../effects';
+import { ImpactEffects, SpawnEffects, ToastProjectile, ShivProjectile, DamageNumbers } from '../effects';
+import { ShivRotationDebug } from '../debug/ShivRotationDebug';
 import { useCameraShake } from '@/hooks/useCameraShake';
 import { useCombatStore } from '@/stores/combatStore';
 import { useGameStore } from '@/stores/gameStore';
@@ -28,6 +29,14 @@ import { useUIStore } from '@/stores/uiStore';
 import { useCardStore } from '@/stores/cardStore';
 import { ARENA, CARD_SLOTS, CardDefinition, CardSlotConfig, StatusEffectConfig } from '@/types';
 import { getCardDefinition } from '@/data/cards';
+
+// ============================================================
+// DEBUG FLAG: Set to true to show model rotation debug controls
+// Use this to tweak rotation/scale/speed for any new models
+// ============================================================
+const SHOW_MODEL_DEBUG = false;
+
+type ProjectileType = 'toast' | 'shiv';
 
 interface Projectile {
   id: string;
@@ -38,6 +47,7 @@ interface Projectile {
   delay: number;
   statusEffect?: StatusEffectConfig;
   sourceCardId?: string;
+  projectileType: ProjectileType;
 }
 
 interface SpawnedConstruct {
@@ -125,8 +135,8 @@ export function Arena() {
   const applyStatusEffect = useGameStore((state) => state.applyStatusEffect);
   const tickStatusEffects = useGameStore((state) => state.tickStatusEffects);
   
-  // Check for game over
-  const gameOver = player.health <= 0 || enemy.health <= 0;
+  // Check for game over (disabled in dev mode for testing)
+  const gameOver = import.meta.env.DEV ? false : (player.health <= 0 || enemy.health <= 0);
   
   // Tick status effects (burn damage, etc.)
   useFrame((_, delta) => {
@@ -162,27 +172,49 @@ export function Arena() {
     const statusEffect = card?.statusEffect;
     const sourceCardId = card?.id;
     
-    // Spawn two toasts
     const newProjectiles: Projectile[] = [];
     
-    for (let i = 0; i < 2; i++) {
-      // Find a target - prefer minions, fall back to HP bar
-      const closestEnemy = getClosestEnemy(position, 'player');
+    // Determine projectile type based on card
+    const isShivCard = sourceCardId?.includes('shiv') || sourceCardId?.includes('blade');
+    
+    if (isShivCard) {
+      // Shiv cards: Stabbing projectile from player HP bar area toward enemy
+      // Start position is near the player's throne/HP bar (positive Z, bottom of arena)
+      // The shiv emerges, thrusts to enemy HP bar, then retracts back
+      const shivStartZ = ARENA.playerThroneZ - 1; // Near player HP bar
       
       newProjectiles.push({
-        id: `toast-${projectileIdCounter++}`,
-        startPosition: [
-          startX + (i === 0 ? -0.2 : 0.2), 
-          startY + 0.2, 
-          startZ
-        ],
-        targetMinionId: closestEnemy?.id,
+        id: `shiv-${projectileIdCounter++}`,
+        startPosition: [startX, 2, shivStartZ], // Higher Y for visibility in top-down
         targetTeam: 'enemy',
-        damage: i === 0 ? Math.ceil(damage / 2) : Math.floor(damage / 2),
-        delay: i * 0.08, // Slight stagger between toasts
+        damage,
+        delay: 0,
         statusEffect,
         sourceCardId,
+        projectileType: 'shiv',
       });
+    } else {
+      // Default: Spawn two toasts
+      for (let i = 0; i < 2; i++) {
+        // Find a target - prefer minions, fall back to HP bar
+        const closestEnemy = getClosestEnemy(position, 'player');
+        
+        newProjectiles.push({
+          id: `toast-${projectileIdCounter++}`,
+          startPosition: [
+            startX + (i === 0 ? -0.2 : 0.2), 
+            startY + 0.2, 
+            startZ
+          ],
+          targetMinionId: closestEnemy?.id,
+          targetTeam: 'enemy',
+          damage: i === 0 ? Math.ceil(damage / 2) : Math.floor(damage / 2),
+          delay: i * 0.08, // Slight stagger between toasts
+          statusEffect,
+          sourceCardId,
+          projectileType: 'toast',
+        });
+      }
     }
 
     if (newProjectiles.length > 0) {
@@ -211,16 +243,10 @@ export function Arena() {
     }]);
   }, []);
   
-  // Handle projectile impact
-  const handleProjectileComplete = useCallback((
-    id: string,
-    impactPosition: [number, number, number]
-  ) => {
+  // Handle projectile hit (apply damage but don't remove yet)
+  const handleProjectileHit = useCallback((id: string) => {
     const proj = projectiles.find(p => p.id === id);
-    if (!proj) {
-      setProjectiles((prev) => prev.filter((p) => p.id !== id));
-      return;
-    }
+    if (!proj) return;
     
     const damage = proj.damage;
     
@@ -241,9 +267,21 @@ export function Arena() {
         }
       }
     }
-    
-    setProjectiles((prev) => prev.filter((p) => p.id !== id));
   }, [projectiles, damageMinion, damagePlayer, damageEnemy, applyStatusEffect]);
+
+  // Remove projectile from list (call after animation completes)
+  const handleProjectileRemove = useCallback((id: string) => {
+    setProjectiles((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  // Handle projectile impact (for projectiles that hit and remove immediately like toast)
+  const handleProjectileComplete = useCallback((
+    id: string,
+    impactPosition: [number, number, number]
+  ) => {
+    handleProjectileHit(id);
+    handleProjectileRemove(id);
+  }, [handleProjectileHit, handleProjectileRemove]);
 
   // Get current target position for a projectile
   const getTargetPosition = useCallback((proj: Projectile): [number, number, number] => {
@@ -311,10 +349,12 @@ export function Arena() {
       
       {/* Spawned constructs (toasters, etc.) */}
       {constructs.map((construct) => {
-        // Check if this is an infernal toaster (has burn status effect)
+        const cardId = construct.card.id;
+        
+        // Default: Toaster-type constructs
         const isInfernal = !!construct.card.statusEffect || 
-          construct.card.id === 'burning_toaster' || 
-          construct.card.id === 'infernal_toaster';
+          cardId === 'burning_toaster' || 
+          cardId === 'infernal_toaster';
         
         return (
           <SpawnedToaster
@@ -330,19 +370,40 @@ export function Arena() {
       })}
       
       {/* Projectiles with homing behavior */}
-      {projectiles.map((proj) => (
-        <ToastProjectile
-          key={proj.id}
-          id={proj.id}
-          startPosition={proj.startPosition}
-          endPosition={getTargetPosition(proj)}
-          damage={proj.damage}
-          delay={proj.delay}
-          targetTeam={proj.targetTeam}
-          statusEffect={proj.statusEffect}
-          onComplete={(id) => handleProjectileComplete(id, getTargetPosition(proj))}
-        />
-      ))}
+      {projectiles.map((proj) => {
+        const targetPos = getTargetPosition(proj);
+        
+        if (proj.projectileType === 'shiv') {
+          return (
+            <ShivProjectile
+              key={proj.id}
+              id={proj.id}
+              startPosition={proj.startPosition}
+              endPosition={targetPos}
+              damage={proj.damage}
+              delay={proj.delay}
+              targetTeam={proj.targetTeam}
+              statusEffect={proj.statusEffect}
+              onHit={handleProjectileHit}
+              onComplete={handleProjectileRemove}
+            />
+          );
+        }
+        
+        return (
+          <ToastProjectile
+            key={proj.id}
+            id={proj.id}
+            startPosition={proj.startPosition}
+            endPosition={targetPos}
+            damage={proj.damage}
+            delay={proj.delay}
+            targetTeam={proj.targetTeam}
+            statusEffect={proj.statusEffect}
+            onComplete={(id) => handleProjectileComplete(id, targetPos)}
+          />
+        );
+      })}
       
       {/* Arena walls (invisible colliders) */}
       <ArenaWalls />
@@ -354,6 +415,9 @@ export function Arena() {
       <ImpactEffects />
       <SpawnEffects />
       <DamageNumbers />
+      
+      {/* Debug: Model rotation controls (dev mode only, set SHOW_MODEL_DEBUG to true to enable) */}
+      {import.meta.env.DEV && SHOW_MODEL_DEBUG && <ShivRotationDebug />}
     </group>
   );
 }

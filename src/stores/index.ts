@@ -10,6 +10,3 @@ export { useUIStore } from './uiStore';
 export { useDamageStore } from './damageStore';
 export { useCardStore } from './cardStore';
 export { useCombatStore } from './combatStore';
-export { useInputStore } from './inputStore';
-export { useInteractionStore } from './interactionStore';
-export { usePuzzleStore } from './puzzleStore';

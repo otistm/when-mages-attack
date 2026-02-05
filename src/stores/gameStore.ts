@@ -88,7 +88,7 @@ interface GameState {
 export const useGameStore = create<GameState>()(
   subscribeWithSelector((set, get) => ({
     // Initial state
-    phase: 'exploration',  // Start in exploration mode for vertical slice
+    phase: 'crafting',  // Start at crafting for autobattler flow
     combatPhase: 'countdown',
     isLoading: false,
     

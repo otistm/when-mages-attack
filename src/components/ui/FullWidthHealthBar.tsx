@@ -47,6 +47,12 @@ const STATUS_CONFIG: Record<StatusEffectType, {
     icon: '☠️',
     animation: 'animate-pulse',
   },
+  blighted: {
+    color: '#9333ea',
+    bgColor: 'rgba(147, 51, 234, 0.3)',
+    icon: '💀',
+    animation: 'animate-pulse',
+  },
 };
 
 // Fire particle component for burn effect
