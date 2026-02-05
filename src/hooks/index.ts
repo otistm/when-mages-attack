@@ -1,0 +1,1 @@
+export { useCameraShake } from './useCameraShake';
