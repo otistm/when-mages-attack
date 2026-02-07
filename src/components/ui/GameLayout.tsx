@@ -19,7 +19,7 @@ interface GameLayoutProps {
 
 export function GameLayout({ children }: GameLayoutProps) {
   return (
-    <div className="fixed inset-0 flex flex-col" style={{ background: '#0a0a1a' }}>
+    <div className="fixed inset-0 flex flex-col overflow-hidden" style={{ background: '#0a0a1a' }}>
       {/* Enemy Card Row - Top */}
       <div className="shrink-0 w-full bg-gradient-to-b from-red-950/40 to-transparent">
         <CardRow side="enemy" />

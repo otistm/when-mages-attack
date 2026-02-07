@@ -18,7 +18,7 @@ export function GameHUD() {
   return (
     <div className="absolute inset-0 pointer-events-none">
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start">
+      <div className="absolute top-0 left-0 right-0 flex justify-between items-start" style={{ padding: 'var(--space-md)' }}>
         {/* Player health (left) */}
         <div className="pointer-events-auto">
           <HealthBar side="player" />
@@ -36,7 +36,7 @@ export function GameHUD() {
       </div>
       
       {/* Bottom bar */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 flex justify-between items-end">
+      <div className="absolute bottom-0 left-0 right-0 flex justify-between items-end" style={{ padding: 'var(--space-md)' }}>
         {/* Gold display (left) */}
         <div className="pointer-events-auto">
           <GoldDisplay />

@@ -35,7 +35,7 @@ export function PhaseIndicator() {
     <div className="text-center">
       {/* Phase name */}
       <div
-        className={`text-2xl font-display font-bold ${PHASE_COLORS[phase]} 
+        className={`text-game-subheading font-display font-bold ${PHASE_COLORS[phase]} 
                     drop-shadow-[0_0_10px_currentColor] transition-colors duration-300`}
       >
         {PHASE_LABELS[phase]}
@@ -43,7 +43,7 @@ export function PhaseIndicator() {
       
       {/* Turn counter */}
       {run && phase !== 'menu' && (
-        <div className="text-sm text-white/60 font-body mt-1">
+        <div className="text-game-caption text-white/60 font-body mt-1">
           Turn {run.turn}
         </div>
       )}

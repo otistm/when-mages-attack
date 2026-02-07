@@ -64,12 +64,12 @@ export function GameOverOverlay() {
       }}
     >
       <div 
-        className="flex flex-col items-center gap-8"
-        style={{ animation: 'zoomIn 0.5s ease-out' }}
+        className="flex flex-col items-center"
+        style={{ animation: 'zoomIn 0.5s ease-out', gap: 'var(--space-xl)' }}
       >
         {/* Title */}
         <h1 
-          className="text-7xl font-bold"
+          className="text-game-title font-bold"
           style={{
             color: isPlayerWin ? '#FFD700' : '#FF6B6B',
             textShadow: isPlayerWin 
@@ -83,7 +83,7 @@ export function GameOverOverlay() {
         </h1>
         
         {/* Subtitle */}
-        <p className="text-xl text-white/70 italic">
+        <p className="text-game-subheading text-white/70 italic">
           {isPlayerWin 
             ? 'The enemy has been vanquished!' 
             : 'Your grimoire needs more power...'}
@@ -92,11 +92,12 @@ export function GameOverOverlay() {
         {/* Play Again Button */}
         <button
           onClick={handlePlayAgain}
-          className="px-10 py-4 text-xl font-bold text-white rounded-xl cursor-pointer transition-all hover:scale-105 active:scale-95"
+          className="text-game-subheading font-bold text-white rounded-xl cursor-pointer transition-all hover:scale-105 active:scale-95"
           style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             boxShadow: '0 4px 20px rgba(102, 126, 234, 0.4)',
             border: 'none',
+            padding: 'var(--space-md) var(--space-2xl)',
           }}
         >
           Play Again

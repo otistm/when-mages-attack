@@ -139,12 +139,12 @@ export function ActionButtons() {
   const isDisabled = phase === 'combat';
   
   return (
-    <div className="flex gap-3">
+    <div className="flex" style={{ gap: 'var(--space-sm)' }}>
       <button
         onClick={handlePrimaryAction}
         disabled={isDisabled}
         className={`
-          px-6 py-3 rounded-lg font-display text-lg font-bold
+          rounded-lg font-display text-game-body font-bold
           transition-all duration-200
           ${isDisabled
             ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
@@ -152,6 +152,7 @@ export function ActionButtons() {
           }
           shadow-lg shadow-arcane-gold/20
         `}
+        style={{ padding: 'var(--space-sm) var(--space-lg)' }}
       >
         {getButtonLabel()}
       </button>

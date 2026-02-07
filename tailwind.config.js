@@ -6,6 +6,20 @@ export default {
   ],
   theme: {
     extend: {
+      screens: {
+        'xs': '480px',
+        'game-sm': '1024px',
+        'game-md': '1280px',
+        'game-lg': '1920px',
+      },
+      fontSize: {
+        'game-title': ['var(--font-game-title)', { lineHeight: '1.1' }],
+        'game-heading': ['var(--font-game-heading)', { lineHeight: '1.2' }],
+        'game-subheading': ['var(--font-game-subheading)', { lineHeight: '1.3' }],
+        'game-body': ['var(--font-game-body)', { lineHeight: '1.5' }],
+        'game-caption': ['var(--font-game-caption)', { lineHeight: '1.4' }],
+        'game-micro': ['var(--font-game-micro)', { lineHeight: '1.3' }],
+      },
       colors: {
         arcane: {
           dark: '#0a0a1a',

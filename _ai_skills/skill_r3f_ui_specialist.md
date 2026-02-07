@@ -649,7 +649,55 @@ export default {
 
 ---
 
-## **8. References**
+## **8. Handheld Layout System**
+
+The game supports a dual-layout system for handheld devices (ROG Ally, Steam Deck, etc.). When `useLayoutMode()` returns `'handheld'`, the UI switches to touch-optimized layouts.
+
+### **A. Combat (HandheldGameLayout)**
+
+- Arena fills the full screen
+- Enemy cards are hidden (autobattler - they fight automatically)
+- HP bars become compact 12px overlay bars at the top/bottom of the arena
+- Player cards go in a horizontal scrollable tray at the bottom (~25vh)
+- Tapping a card opens a `CardBottomSheet` (bottom drawer) instead of the side `CardLorePanel`
+- All tap targets are at least 44x44px
+
+### **B. Crafting (HandheldCraftingScene)**
+
+- Uses **tap-to-place** instead of drag-and-drop
+- Crafting chambers are compact side-by-side
+- Grimoire pages are in a horizontal scrollable strip
+- Book slots are in a horizontal scrollable strip with larger targets
+- Long-press a card to see its details in a `CardBottomSheet`
+- Ready button spans full width
+
+### **C. Tap-to-Place Interaction**
+
+State managed in `useUIStore`:
+
+```tsx
+const selectedCardForPlacement = useUIStore(s => s.selectedCardForPlacement);
+const setSelectedCardForPlacement = useUIStore(s => s.setSelectedCardForPlacement);
+```
+
+Flow: tap a page to select → tap a slot to place → tap again to deselect.
+
+### **D. Layout Mode Toggle**
+
+The `UIScaleControl` panel (gear icon, bottom-left) includes a desktop/handheld toggle with visual icons and a toggle switch. Users can force either layout regardless of their device.
+
+### **E. Key Files**
+
+- `src/hooks/useLayoutMode.ts` — mode detection and toggle
+- `src/hooks/useIsTouchDevice.ts` — touch detection
+- `src/components/ui/HandheldGameLayout.tsx` — handheld combat
+- `src/components/ui/HandheldCardTray.tsx` — horizontal card strip
+- `src/components/ui/CardBottomSheet.tsx` — bottom sheet card details
+- `src/components/ui/crafting/HandheldCraftingScene.tsx` — handheld crafting
+
+---
+
+## **9. References**
 
 * **Tailwind CSS:** [Official Documentation](https://tailwindcss.com/docs)
 * **Framer Motion:** [Animation Library](https://www.framer.com/motion/)

@@ -161,7 +161,7 @@ function StatusIndicator({ effect }: { effect: { type: StatusEffectType; duratio
       className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${config.animation}`}
       style={{ backgroundColor: config.bgColor }}
     >
-      <span className="text-sm">{config.icon}</span>
+      <span className="text-game-caption">{config.icon}</span>
       <div 
         className="w-8 h-1.5 rounded-full overflow-hidden"
         style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
@@ -260,12 +260,12 @@ export function FullWidthHealthBar({ side }: FullWidthHealthBarProps) {
   const healthText = `${Math.ceil(stateData.health)}/${stateData.maxHealth}`;
   
   return (
-    <div className={`w-full px-3 py-1.5 ${barBg} isolate`}>
-      <div className="flex items-center gap-3">
+    <div className={`w-full ${barBg} isolate`} style={{ padding: 'var(--space-xs) var(--space-sm)' }}>
+      <div className="flex items-center" style={{ gap: 'var(--space-sm)' }}>
         {/* Label */}
         <span 
-          className="text-xs font-bold uppercase tracking-wider min-w-[60px]"
-          style={{ color: isBurning ? '#ff6b35' : isPlayer ? '#4ade80' : '#f87171' }}
+          className="text-game-caption font-bold uppercase tracking-wider"
+          style={{ color: isBurning ? '#ff6b35' : isPlayer ? '#4ade80' : '#f87171', minWidth: 'clamp(40px, 5vw, 60px)' }}
         >
           {label}
         </span>
@@ -273,8 +273,9 @@ export function FullWidthHealthBar({ side }: FullWidthHealthBarProps) {
         {/* Bar container - tracked for projectile targeting */}
         <div 
           ref={barRef}
-          className={`flex-1 h-5 rounded-sm overflow-visible border ${borderColor} shadow-lg ${glowColor} transition-all duration-200 relative`}
+          className={`flex-1 rounded-sm overflow-visible border ${borderColor} shadow-lg ${glowColor} transition-all duration-200 relative`}
           style={{ 
+            height: 'var(--hp-bar-height)',
             backgroundColor: isBurning ? 'rgba(50,20,0,0.6)' : 'rgba(0,0,0,0.4)',
             ...statusBorderStyle,
           }}
@@ -336,7 +337,7 @@ export function FullWidthHealthBar({ side }: FullWidthHealthBarProps) {
                   return (
                     <span 
                       key={effect.type}
-                      className={`text-xs font-bold uppercase tracking-wider ${config.animation}`}
+                      className={`text-game-caption font-bold uppercase tracking-wider ${config.animation}`}
                       style={{
                         color: config.color,
                         textShadow: `0 0 8px ${config.color}, 0 1px 2px rgba(0,0,0,0.8)`,
@@ -373,8 +374,8 @@ export function FullWidthHealthBar({ side }: FullWidthHealthBarProps) {
         
         {/* Health text */}
         <span 
-          className="text-xs font-mono font-bold min-w-[70px] text-right"
-          style={{ color: isBurning ? '#ffaa00' : isPlayer ? '#4ade80' : '#f87171' }}
+          className="text-game-caption font-mono font-bold text-right"
+          style={{ color: isBurning ? '#ffaa00' : isPlayer ? '#4ade80' : '#f87171', minWidth: 'clamp(50px, 6vw, 70px)' }}
         >
           {healthText}
         </span>

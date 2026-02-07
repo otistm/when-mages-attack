@@ -24,6 +24,10 @@ interface UIState {
   hoveredCard: HoveredCard | null;
   setHoveredCard: (card: CardDefinition | null, screenX?: number, screenY?: number) => void;
   
+  // Tap-to-place interaction (handheld/touch)
+  selectedCardForPlacement: string | null;
+  setSelectedCardForPlacement: (cardId: string | null) => void;
+  
   // HP bar position tracking
   playerHPBarRect: HPBarRect | null;
   enemyHPBarRect: HPBarRect | null;
@@ -38,6 +42,12 @@ interface UIState {
 
 export const useUIStore = create<UIState>((set) => ({
   hoveredCard: null,
+  
+  // Tap-to-place
+  selectedCardForPlacement: null,
+  setSelectedCardForPlacement: (cardId) => {
+    set({ selectedCardForPlacement: cardId });
+  },
   
   setHoveredCard: (card, screenX = 0, screenY = 0) => {
     if (card) {

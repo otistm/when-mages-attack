@@ -1,34 +1,53 @@
 /**
- * CardRow - Horizontal row of card slots
- * Used for both player and enemy card displays
+ * HandheldCardTray - Horizontal scrollable card strip for handheld combat
+ * 
+ * Replaces the standard CardRow on handheld devices.
+ * Cards are displayed in a horizontally-scrollable strip at the bottom
+ * of the screen with larger tap targets.
+ * 
+ * Tapping a card shows its details in a CardBottomSheet.
  */
 
 import { useCallback, useState } from 'react';
 import { useCardStore, CardState } from '@/stores/cardStore';
 import { useUIStore } from '@/stores/uiStore';
 import { CARD_SLOTS } from '@/types';
+import { CardDefinition } from '@/types';
 
-interface CardRowProps {
+interface HandheldCardTrayProps {
   side: 'player' | 'enemy';
+  onCardTap?: (card: CardDefinition) => void;
 }
 
-export function CardRow({ side }: CardRowProps) {
+export function HandheldCardTray({ side, onCardTap }: HandheldCardTrayProps) {
   const cards = useCardStore((state) => state.cards);
   const filteredCards = cards.filter(c => c.team === side);
-  
-  const isEnemy = side === 'enemy';
-  
+
   return (
-    <div className="w-full" style={{ padding: 'var(--space-sm) var(--space-md)' }}>
-      <div className="flex gap-2 w-full">
+    <div
+      className="w-full overflow-x-auto overflow-y-hidden shrink-0"
+      style={{
+        height: '25vh',
+        WebkitOverflowScrolling: 'touch',
+        scrollSnapType: 'x mandatory',
+      }}
+    >
+      <div
+        className="flex h-full items-stretch"
+        style={{
+          gap: 'var(--space-sm)',
+          padding: 'var(--space-sm) var(--space-md)',
+          minWidth: 'min-content',
+        }}
+      >
         {CARD_SLOTS.map((slot) => {
           const cardState = filteredCards.find(c => c.slotIndex === slot.index);
           return (
-            <CardSlot
+            <HandheldCardSlot
               key={`${side}-${slot.index}`}
-              slotIndex={slot.index}
               cardState={cardState}
-              isEnemy={isEnemy}
+              isEnemy={side === 'enemy'}
+              onTap={onCardTap}
             />
           );
         })}
@@ -37,92 +56,89 @@ export function CardRow({ side }: CardRowProps) {
   );
 }
 
-interface CardSlotProps {
-  slotIndex: number;
+interface HandheldCardSlotProps {
   cardState?: CardState;
   isEnemy: boolean;
+  onTap?: (card: CardDefinition) => void;
 }
 
-function CardSlot({ slotIndex: _slotIndex, cardState, isEnemy }: CardSlotProps) {
+function HandheldCardSlot({ cardState, isEnemy, onTap }: HandheldCardSlotProps) {
   const emptyBorderColor = isEnemy ? 'rgba(140, 80, 80, 0.4)' : 'rgba(100, 100, 140, 0.4)';
   const emptyBgColor = isEnemy ? 'rgba(46, 26, 26, 0.3)' : 'rgba(26, 26, 46, 0.3)';
-  const slotVar = isEnemy ? 'var(--slot-height-enemy)' : 'var(--slot-height)';
-  
+
   if (!cardState) {
     return (
       <div
-        className="relative flex-1 flex items-center justify-center"
+        className="flex items-center justify-center shrink-0"
         style={{
-          height: slotVar,
+          width: 'clamp(80px, 18vw, 140px)',
+          height: '100%',
           backgroundColor: emptyBgColor,
           border: `2px dashed ${emptyBorderColor}`,
-          borderRadius: '6px',
+          borderRadius: '8px',
+          scrollSnapAlign: 'center',
         }}
       >
-        <div className="text-game-subheading text-white/10 font-bold">+</div>
+        <div className="text-game-heading text-white/10 font-bold">+</div>
       </div>
     );
   }
-  
-  return <Card2D cardState={cardState} isEnemy={isEnemy} />;
+
+  return <HandheldCard2D cardState={cardState} isEnemy={isEnemy} onTap={onTap} />;
 }
 
-interface Card2DProps {
+interface HandheldCard2DProps {
   cardState: CardState;
   isEnemy: boolean;
+  onTap?: (card: CardDefinition) => void;
 }
 
-function Card2D({ cardState, isEnemy }: Card2DProps) {
+function HandheldCard2D({ cardState, isEnemy, onTap }: HandheldCard2DProps) {
   const { card, cooldownProgress, isReady } = cardState;
-  const [hovered, setHovered] = useState(false);
-  
+  const [pressed, setPressed] = useState(false);
+
   const setHoveredCard = useUIStore((state) => state.setHoveredCard);
-  
-  const handleMouseEnter = useCallback(() => {
-    setHovered(true);
-    setHoveredCard(card, window.innerWidth * 0.65, window.innerHeight / 2);
-  }, [card, setHoveredCard]);
-  
-  const handleMouseLeave = useCallback(() => {
-    setHovered(false);
-    setHoveredCard(null);
-  }, [setHoveredCard]);
-  
+
+  const handleTap = useCallback(() => {
+    if (onTap) {
+      onTap(card);
+    } else {
+      // Fallback: set hovered card for bottom sheet
+      setHoveredCard(card, window.innerWidth / 2, window.innerHeight / 2);
+    }
+  }, [card, onTap, setHoveredCard]);
+
   const fillPercent = cooldownProgress * 100;
   const isConstruct = card.type === 'CONSTRUCT';
   const accentColor = card.emissiveColor ?? '#ff6a00';
-  const borderColor = hovered || isReady ? accentColor : '#3a3a5a';
-  
+  const borderColor = isReady ? accentColor : '#3a3a5a';
+
   const getStatusText = () => {
     if (isReady) return 'FIRE!';
     const cooldown = card.cooldown ?? 5;
     return `${Math.ceil(cooldown * (1 - cooldownProgress))}s`;
   };
-  
-  // Hover direction based on side
-  const hoverTransform = isEnemy 
-    ? 'scale(1.02) translateY(4px)' 
-    : 'scale(1.02) translateY(-4px)';
-  
-  const slotVar = isEnemy ? 'var(--slot-height-enemy)' : 'var(--slot-height)';
-  
+
   return (
     <div
-      className="relative flex-1 cursor-pointer"
+      className="relative shrink-0 cursor-pointer"
       style={{
-        height: slotVar,
-        transform: hovered ? hoverTransform : 'scale(1)',
-        transition: 'transform 150ms ease-out',
-        zIndex: hovered ? 10 : 1,
+        width: 'clamp(80px, 18vw, 140px)',
+        height: '100%',
+        transform: pressed ? 'scale(0.95)' : 'scale(1)',
+        transition: 'transform 100ms ease-out',
+        scrollSnapAlign: 'center',
       }}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onClick={handleTap}
+      onTouchStart={() => setPressed(true)}
+      onTouchEnd={() => setPressed(false)}
+      onTouchCancel={() => setPressed(false)}
     >
       <div
         className="relative w-full h-full overflow-hidden"
         style={{
           border: `2px solid ${borderColor}`,
-          borderRadius: '6px',
+          borderRadius: '8px',
         }}
       >
         {/* Background image */}
@@ -134,17 +150,15 @@ function Card2D({ cardState, isEnemy }: Card2DProps) {
             style={{ objectPosition: 'center center' }}
           />
         </div>
-        
+
         {/* Dark gradient overlay */}
-        <div 
+        <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: isEnemy
-              ? 'linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.1) 100%)'
-              : 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.1) 100%)',
+            background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.1) 100%)',
           }}
         />
-        
+
         {/* Cooldown fill overlay */}
         <div
           className="absolute inset-0 pointer-events-none"
@@ -154,7 +168,7 @@ function Card2D({ cardState, isEnemy }: Card2DProps) {
             transition: fillPercent < 5 ? 'none' : 'all 100ms linear',
           }}
         />
-        
+
         {/* Ready flash */}
         {isReady && (
           <div
@@ -162,13 +176,11 @@ function Card2D({ cardState, isEnemy }: Card2DProps) {
             style={{ backgroundColor: accentColor, opacity: 0.15 }}
           />
         )}
-        
+
         {/* Card name */}
-        <div 
-          className={`absolute left-0 right-0 p-1.5 pointer-events-none ${isEnemy ? 'top-0' : 'bottom-0'}`}
-        >
+        <div className="absolute left-0 right-0 bottom-0 p-2 pointer-events-none">
           <h3
-            className="text-game-micro font-bold text-white truncate"
+            className="text-game-caption font-bold text-white truncate"
             style={{
               WebkitTextStroke: '0.5px #000',
               paintOrder: 'stroke fill',
@@ -177,35 +189,35 @@ function Card2D({ cardState, isEnemy }: Card2DProps) {
             {card.name}
           </h3>
         </div>
-        
+
         {/* Stats overlay */}
-        <div 
-          className={`absolute right-1 flex items-center gap-1.5 text-game-micro font-bold pointer-events-none ${isEnemy ? 'top-1' : 'bottom-1'}`}
+        <div
+          className="absolute right-1.5 top-1.5 flex flex-col items-end gap-1 text-game-caption font-bold pointer-events-none"
           style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
         >
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-1 bg-black/40 rounded px-1 py-0.5">
             <span style={{ color: '#ff6b6b' }}>⚔</span>
-            <span className="text-white text-game-micro">{card.baseStats.attack}</span>
+            <span className="text-white">{card.baseStats.attack}</span>
           </div>
-          
-          <div className="flex items-center gap-0.5">
+
+          <div className="flex items-center gap-1 bg-black/40 rounded px-1 py-0.5">
             <span style={{ color: isReady ? accentColor : '#6bb3ff' }}>⏱</span>
-            <span className="text-game-micro" style={{ color: isReady ? accentColor : '#fff' }}>
+            <span style={{ color: isReady ? accentColor : '#fff' }}>
               {getStatusText()}
             </span>
           </div>
-          
+
           {isConstruct && (
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-1 bg-black/40 rounded px-1 py-0.5">
               <span style={{ color: '#6bff6b' }}>♥</span>
-              <span className="text-white text-game-micro">{card.baseStats.hp}</span>
+              <span className="text-white">{card.baseStats.hp}</span>
             </div>
           )}
         </div>
-        
+
         {/* Cooldown progress bar */}
-        <div 
-          className={`absolute left-0 right-0 h-1 ${isEnemy ? 'bottom-0' : 'top-0'}`}
+        <div
+          className="absolute left-0 right-0 top-0 h-1"
           style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
         >
           <div
@@ -222,4 +234,4 @@ function Card2D({ cardState, isEnemy }: Card2DProps) {
   );
 }
 
-export default CardRow;
+export default HandheldCardTray;

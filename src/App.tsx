@@ -7,33 +7,46 @@ import * as THREE from 'three';
 import { Arena } from '@/components/three/arena/Arena';
 import { CameraRig } from '@/components/three/CameraRig';
 import { GameLayout } from '@/components/ui/GameLayout';
+import { HandheldGameLayout } from '@/components/ui/HandheldGameLayout';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { CardLorePanel } from '@/components/ui/CardLorePanel';
 import { GameOverOverlay } from '@/components/ui/GameOverOverlay';
 import { CraftingScene } from '@/components/ui/crafting/CraftingScene';
+import { HandheldCraftingScene } from '@/components/ui/crafting/HandheldCraftingScene';
+import { UIScaleControl } from '@/components/ui/hud/UIScaleControl';
 import { useGameStore } from '@/stores/gameStore';
+import { initUIScale } from '@/hooks/useUIScale';
+import { useLayoutMode } from '@/hooks/useLayoutMode';
+
+// Initialize UI scale before first render (reads localStorage / detects handheld)
+initUIScale();
 
 function App() {
   const phase = useGameStore((state) => state.phase);
+  const { isHandheld } = useLayoutMode();
   const isDev = import.meta.env.DEV;
 
   // Crafting phase renders its own full-screen scene
   if (phase === 'crafting') {
     return (
       <>
-        <CraftingScene />
+        {isHandheld ? <HandheldCraftingScene /> : <CraftingScene />}
+        <UIScaleControl />
         {/* Phase indicator (dev) */}
         {isDev && (
           <div className="fixed top-2 right-2 bg-arcane-purple/80 px-2 py-0.5 rounded text-xs font-mono z-[100]">
-            Phase: {phase}
+            Phase: {phase} · {isHandheld ? 'Handheld' : 'Desktop'}
           </div>
         )}
       </>
     );
   }
 
+  // Combat phase - choose layout based on mode
+  const LayoutComponent = isHandheld ? HandheldGameLayout : GameLayout;
+
   return (
-    <GameLayout>
+    <LayoutComponent>
       {/* 3D Canvas - fills the arena section of the layout */}
       <Canvas
         shadows={{ type: THREE.BasicShadowMap }}
@@ -57,19 +70,22 @@ function App() {
         <div /> {/* Empty div to trigger suspense boundary */}
       </Suspense>
 
-      {/* Card Lore Panel (floating overlay) */}
-      <CardLorePanel />
+      {/* Card Lore Panel (floating overlay) - only on desktop */}
+      {!isHandheld && <CardLorePanel />}
 
       {/* Game over screen */}
       <GameOverOverlay />
 
+      {/* UI Scale control */}
+      <UIScaleControl />
+
       {/* Phase indicator (dev) */}
       {isDev && (
         <div className="absolute top-2 right-2 bg-arcane-purple/80 px-2 py-0.5 rounded text-xs font-mono z-50">
-          Phase: {phase}
+          Phase: {phase} · {isHandheld ? 'Handheld' : 'Desktop'}
         </div>
       )}
-    </GameLayout>
+    </LayoutComponent>
   );
 }
 

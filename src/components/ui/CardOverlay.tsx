@@ -19,7 +19,7 @@ export function CardOverlay() {
   return (
     <>
       {/* Enemy section - TOP of screen */}
-      <div className="fixed top-0 left-0 right-0 pointer-events-none z-50 px-4 pt-2">
+      <div className="fixed top-0 left-0 right-0 pointer-events-none z-50" style={{ padding: 'var(--space-xs) var(--space-md) 0' }}>
         {/* Enemy card row */}
         <div className="flex justify-between gap-2 pointer-events-auto w-full">
           {CARD_SLOTS.map((slot) => {
@@ -37,7 +37,7 @@ export function CardOverlay() {
       </div>
 
       {/* Player section - BOTTOM of screen */}
-      <div className="fixed bottom-0 left-0 right-0 pointer-events-none z-50 px-4 pb-2">
+      <div className="fixed bottom-0 left-0 right-0 pointer-events-none z-50" style={{ padding: '0 var(--space-md) var(--space-xs)' }}>
         {/* Player card row */}
         <div className="flex justify-between gap-2 pointer-events-auto w-full">
           {CARD_SLOTS.map((slot) => {
@@ -63,9 +63,8 @@ interface CardSlotProps {
 }
 
 function CardSlot({ slotIndex: _slotIndex, cardState, isEnemy = false }: CardSlotProps) {
-  // Slot height - landscape orientation, width is flexible
-  // Enemy slots are slightly smaller to bring them closer to HP bar
-  const slotHeight = isEnemy ? 80 : 100;
+  // Slot height - responsive via CSS custom properties
+  const slotHeight = isEnemy ? 'var(--slot-height-enemy)' : 'var(--slot-height)';
   
   // Enemy slots have different styling
   const emptyBorderColor = isEnemy ? 'rgba(140, 80, 80, 0.4)' : 'rgba(100, 100, 140, 0.4)';
@@ -84,7 +83,7 @@ function CardSlot({ slotIndex: _slotIndex, cardState, isEnemy = false }: CardSlo
         }}
       >
         {/* Empty slot indicator */}
-        <div className="text-3xl text-white/10 font-bold">+</div>
+        <div className="text-game-heading text-white/10 font-bold">+</div>
       </div>
     );
   }
@@ -94,7 +93,7 @@ function CardSlot({ slotIndex: _slotIndex, cardState, isEnemy = false }: CardSlo
 
 interface Card2DProps {
   cardState: CardState;
-  height: number;
+  height: string | number;
   isEnemy?: boolean;
 }
 
@@ -107,7 +106,7 @@ function Card2D({ cardState, height, isEnemy: _isEnemy = false }: Card2DProps) {
   const handleMouseEnter = useCallback(() => {
     setHovered(true);
     // Position lore panel to the right of the card row
-    setHoveredCard(card, window.innerWidth / 2 + 200, window.innerHeight - 200);
+    setHoveredCard(card, window.innerWidth * 0.65, window.innerHeight * 0.5);
   }, [card, setHoveredCard]);
   
   const handleMouseLeave = useCallback(() => {
@@ -190,7 +189,7 @@ function Card2D({ cardState, height, isEnemy: _isEnemy = false }: Card2DProps) {
         {/* Card name - bottom left */}
         <div className="absolute bottom-0 left-0 right-0 p-2 pointer-events-none">
           <h3
-            className="text-sm font-bold text-white"
+            className="text-game-caption font-bold text-white"
             style={{
               WebkitTextStroke: '1px #000',
               paintOrder: 'stroke fill',
@@ -202,7 +201,7 @@ function Card2D({ cardState, height, isEnemy: _isEnemy = false }: Card2DProps) {
         
         {/* Stats overlay - bottom right */}
         <div 
-          className="absolute bottom-1 right-1 flex items-center gap-2 text-xs font-bold pointer-events-none"
+          className="absolute bottom-1 right-1 flex items-center gap-2 text-game-micro font-bold pointer-events-none"
           style={{
             textShadow: '0 1px 2px rgba(0,0,0,0.8)',
           }}

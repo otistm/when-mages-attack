@@ -231,10 +231,12 @@ export function CraftingScene() {
           {/* Base dark overlay */}
           <div className="absolute inset-0 bg-black/50" />
           
-          {/* Animated gradient blobs */}
+          {/* Animated gradient blobs - responsive sizes */}
           <div 
-            className="absolute w-[800px] h-[800px] rounded-full blur-[120px] opacity-30"
+            className="absolute rounded-full blur-[120px] opacity-30"
             style={{
+              width: 'var(--blob-lg)',
+              height: 'var(--blob-lg)',
               background: 'radial-gradient(circle, #ff6a00 0%, transparent 70%)',
               left: '10%',
               top: '20%',
@@ -242,8 +244,10 @@ export function CraftingScene() {
             }}
           />
           <div 
-            className="absolute w-[600px] h-[600px] rounded-full blur-[100px] opacity-25"
+            className="absolute rounded-full blur-[100px] opacity-25"
             style={{
+              width: 'var(--blob-md)',
+              height: 'var(--blob-md)',
               background: 'radial-gradient(circle, #7c3aed 0%, transparent 70%)',
               right: '10%',
               bottom: '10%',
@@ -251,8 +255,10 @@ export function CraftingScene() {
             }}
           />
           <div 
-            className="absolute w-[500px] h-[500px] rounded-full blur-[80px] opacity-20"
+            className="absolute rounded-full blur-[80px] opacity-20"
             style={{
+              width: 'var(--blob-sm)',
+              height: 'var(--blob-sm)',
               background: 'radial-gradient(circle, #0ea5e9 0%, transparent 70%)',
               left: '50%',
               top: '50%',
@@ -281,15 +287,15 @@ export function CraftingScene() {
       {!isPlayingVideo && (
         <>
           {/* Enemy Header - Name and Level */}
-          <div className="shrink-0 w-full py-4 px-6 bg-gradient-to-b from-red-950/60 to-transparent z-10">
+          <div className="shrink-0 w-full bg-gradient-to-b from-red-950/60 to-transparent z-10" style={{ padding: 'var(--space-md) var(--space-lg)' }}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="text-2xl font-bold text-red-400">??? Enemy ???</div>
-                <div className="px-3 py-1 bg-red-900/50 rounded-full text-sm text-red-300 border border-red-800">
+              <div className="flex items-center" style={{ gap: 'var(--space-md)' }}>
+                <div className="text-game-subheading font-bold text-red-400">??? Enemy ???</div>
+                <div className="bg-red-900/50 rounded-full text-game-caption text-red-300 border border-red-800" style={{ padding: 'var(--space-xs) var(--space-sm)' }}>
                   Level 1
                 </div>
               </div>
-              <div className="text-gray-500 text-sm italic">Prepare for battle...</div>
+              <div className="text-gray-500 text-game-caption italic">Prepare for battle...</div>
             </div>
           </div>
 
@@ -359,18 +365,18 @@ export function CraftingScene() {
                 className="absolute inset-4 flex flex-col rounded-xl z-40"
               >
                 {/* Grimoire Header */}
-                <div className="p-6 relative z-10">
-                  <h1 className="text-3xl font-bold text-amber-500 text-center tracking-wide" style={{ textShadow: '0 0 20px rgba(245,158,11,0.3)' }}>
+                <div className="relative z-10" style={{ padding: 'var(--space-lg)' }}>
+                  <h1 className="text-game-heading font-bold text-amber-500 text-center tracking-wide" style={{ textShadow: '0 0 20px rgba(245,158,11,0.3)' }}>
                     Arcane Synthesis
                   </h1>
-                  <p className="text-amber-200/60 text-center mt-1 text-sm italic">
+                  <p className="text-amber-200/60 text-center mt-1 text-game-caption italic">
                     "Fusion of essences yields power beyond comprehension"
                   </p>
                 </div>
 
                 {/* Crafting Area */}
-                <div className="flex-1 flex flex-col items-center justify-center p-8">
-                  <div className="flex items-center gap-8 relative">
+                <div className="flex-1 flex flex-col items-center justify-center" style={{ padding: 'var(--space-lg)' }}>
+                  <div className="flex items-center relative" style={{ gap: 'var(--space-xl)' }}>
                     {/* Crafting Circle Glow */}
                     {canCraft() && (
                       <>
@@ -398,7 +404,7 @@ export function CraftingScene() {
                           {[0, 60, 120, 180, 240, 300].map((angle) => (
                             <div
                               key={angle}
-                              className="absolute text-amber-500/30 text-2xl"
+                              className="absolute text-amber-500/30 text-game-subheading"
                               style={{
                                 transform: `rotate(${angle}deg) translateY(-120px)`,
                               }}
@@ -435,11 +441,12 @@ export function CraftingScene() {
                         onClick={handleCraft}
                         disabled={!canCraft()}
                         className={`
-                          px-8 py-3 rounded-full font-bold text-lg transition-all duration-300 relative overflow-hidden
+                          rounded-full font-bold text-game-body transition-all duration-300 relative overflow-hidden
                           ${canCraft()
                             ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white shadow-[0_0_30px_rgba(245,158,11,0.5)] transform hover:scale-105 active:scale-95'
                             : 'bg-gray-700 text-gray-500 cursor-not-allowed'}
                         `}
+                        style={{ padding: 'var(--space-sm) var(--space-xl)' }}
                       >
                         {/* Shimmer effect */}
                         {canCraft() && (
@@ -463,11 +470,11 @@ export function CraftingScene() {
                   </div>
 
                   {/* Grimoire Pages (available pages) */}
-                  <div className="w-full max-w-6xl mt-20">
-                    <h3 className="text-lg font-bold text-amber-200/80 mb-4 flex items-center gap-2">
+                  <div className="w-full max-w-6xl" style={{ marginTop: 'var(--space-2xl)' }}>
+                    <h3 className="text-game-body font-bold text-amber-200/80 flex items-center gap-2" style={{ marginBottom: 'var(--space-md)' }}>
                       <span className="text-amber-500">📜</span> Grimoire Pages
                     </h3>
-                    <div className="bg-black/30 p-6 rounded-xl border border-amber-900/20 max-h-[500px] overflow-y-auto backdrop-blur-sm">
+                    <div className="bg-black/30 rounded-xl border border-amber-900/20 overflow-y-auto backdrop-blur-sm" style={{ padding: 'var(--space-lg)', maxHeight: 'clamp(200px, 45vh, 500px)' }}>
                       <div className="flex flex-wrap gap-3 justify-center">
                         {availableCards.map((card) => {
                           const def = getCardDefinition(card.definitionId);
@@ -477,7 +484,7 @@ export function CraftingScene() {
                               draggable
                               onDragStart={(e) => handleDragStart(e, card.instanceId)}
                               onMouseEnter={() => {
-                                if (def) setHoveredCard(def, window.innerWidth / 2 + 200, window.innerHeight / 2);
+                                if (def) setHoveredCard(def, window.innerWidth * 0.65, window.innerHeight * 0.5);
                               }}
                               onMouseLeave={() => setHoveredCard(null)}
                               className="hover:-translate-y-2 cursor-grab active:cursor-grabbing transition-all duration-200 hover:z-10"
@@ -487,7 +494,7 @@ export function CraftingScene() {
                           );
                         })}
                         {availableCards.length === 0 && (
-                          <div className="text-gray-500 text-sm py-8 italic">
+                          <div className="text-gray-500 text-game-caption py-8 italic">
                             All pages are placed in your book or synthesis chambers.
                           </div>
                         )}
@@ -497,10 +504,11 @@ export function CraftingScene() {
                 </div>
 
                 {/* Close button */}
-                <div className="p-4 flex justify-end">
+                <div className="flex justify-end" style={{ padding: 'var(--space-md)' }}>
                   <button
                     onClick={() => setShowGrimoire(false)}
-                    className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-300 hover:text-white transition-colors"
+                    className="bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-300 hover:text-white transition-colors text-game-caption"
+                    style={{ padding: 'var(--space-xs) var(--space-lg)' }}
                   >
                     Close
                   </button>
@@ -512,7 +520,8 @@ export function CraftingScene() {
             {!showGrimoire && !resultCard && (
               <button
                 onClick={() => setShowGrimoire(true)}
-                className="absolute top-4 right-4 px-6 py-3 bg-gradient-to-r from-amber-600/80 to-orange-600/80 hover:from-amber-500 hover:to-orange-500 rounded-lg font-bold text-white shadow-lg transition-all z-30 flex items-center gap-2"
+                className="absolute bg-gradient-to-r from-amber-600/80 to-orange-600/80 hover:from-amber-500 hover:to-orange-500 rounded-lg font-bold text-white text-game-body shadow-lg transition-all z-30 flex items-center gap-2"
+                style={{ top: 'var(--space-md)', right: 'var(--space-md)', padding: 'var(--space-sm) var(--space-lg)' }}
               >
                 <span>📖</span> Grimoire
               </button>
@@ -521,7 +530,7 @@ export function CraftingScene() {
 
       {/* Player's Book - Bottom */}
       <div className="shrink-0 w-full bg-gradient-to-t from-blue-950/60 to-transparent z-10">
-        <div className="px-4 py-3">
+        <div style={{ padding: 'var(--space-sm) var(--space-md)' }}>
           <div className="flex gap-2 w-full">
             {CARD_SLOTS.map((slot, index) => {
               const pageId = deckSlots[index];
@@ -544,16 +553,17 @@ export function CraftingScene() {
       </div>
 
           {/* Ready Button */}
-          <div className="shrink-0 w-full py-4 px-6 bg-gradient-to-t from-emerald-950/40 to-transparent flex justify-center z-10">
+          <div className="shrink-0 w-full bg-gradient-to-t from-emerald-950/40 to-transparent flex justify-center z-10" style={{ padding: 'var(--space-md) var(--space-lg)' }}>
             <button
               onClick={handleReady}
               disabled={!hasCardInDeck}
               className={`
-                px-12 py-4 rounded-xl font-bold text-xl transition-all
+                rounded-xl font-bold text-game-subheading transition-all
                 ${hasCardInDeck
                   ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:scale-105 active:scale-95'
                   : 'bg-gray-700 text-gray-500 cursor-not-allowed'}
               `}
+              style={{ padding: 'var(--space-md) var(--space-2xl)' }}
             >
               {hasCardInDeck ? 'Ready for Battle' : 'Place at least one page'}
             </button>
@@ -583,16 +593,16 @@ export function CraftingScene() {
           </div>
           
           <div 
-            className="flex flex-col items-center gap-6"
-            style={{ animation: 'zoomIn 0.5s ease-out' }}
+            className="flex flex-col items-center"
+            style={{ animation: 'zoomIn 0.5s ease-out', gap: 'var(--space-lg)' }}
           >
             <h2 
-              className="text-3xl font-bold text-amber-400"
+              className="text-game-heading font-bold text-amber-400"
               style={{ textShadow: '0 0 20px rgba(245,158,11,0.8)' }}
             >
               ✦ Synthesis Complete ✦
             </h2>
-            <p className="text-amber-200/60 text-sm italic max-w-md text-center">
+            <p className="text-amber-200/60 text-game-caption italic max-w-md text-center">
               A new essence has been forged from the primordial fires of creation.
             </p>
             <div 
@@ -603,7 +613,8 @@ export function CraftingScene() {
             </div>
             <button
               onClick={handleCollectResult}
-              className="px-8 py-3 bg-gradient-to-r from-amber-600 to-orange-600 rounded-lg hover:from-amber-500 hover:to-orange-500 font-bold transition-all text-white shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:scale-105 active:scale-95"
+              className="bg-gradient-to-r from-amber-600 to-orange-600 rounded-lg hover:from-amber-500 hover:to-orange-500 font-bold transition-all text-white text-game-body shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:scale-105 active:scale-95"
+              style={{ padding: 'var(--space-sm) var(--space-xl)' }}
             >
               Claim
             </button>
@@ -702,8 +713,6 @@ interface BookSlotProps {
 }
 
 function BookSlot({ slotIndex: _slotIndex, page, onDrop, onDragOver, onDragStart, onRemove }: BookSlotProps) {
-  const height = 110;
-  
   if (!page) {
     return (
       <div
@@ -711,13 +720,13 @@ function BookSlot({ slotIndex: _slotIndex, page, onDrop, onDragOver, onDragStart
         onDragOver={onDragOver}
         className="relative flex-1 flex items-center justify-center group"
         style={{
-          height,
+          height: 'var(--slot-height)',
           backgroundColor: 'rgba(26, 26, 46, 0.3)',
           border: '2px dashed rgba(100, 100, 140, 0.4)',
           borderRadius: '6px',
         }}
       >
-        <div className="text-2xl text-white/10 font-bold group-hover:text-white/30 transition-colors">+</div>
+        <div className="text-game-subheading text-white/10 font-bold group-hover:text-white/30 transition-colors">+</div>
       </div>
     );
   }
@@ -731,7 +740,7 @@ function BookSlot({ slotIndex: _slotIndex, page, onDrop, onDragOver, onDragStart
   return (
     <div
       className="relative flex-1 cursor-grab active:cursor-grabbing group"
-      style={{ height }}
+      style={{ height: 'var(--slot-height)' }}
       draggable
       onDragStart={onDragStart}
     >
@@ -766,7 +775,7 @@ function BookSlot({ slotIndex: _slotIndex, page, onDrop, onDragOver, onDragStart
         {/* Page name */}
         <div className="absolute left-0 right-0 bottom-0 p-1.5 pointer-events-none">
           <h3
-            className="text-xs font-bold text-white truncate"
+            className="text-game-micro font-bold text-white truncate"
             style={{
               WebkitTextStroke: '0.5px #000',
               paintOrder: 'stroke fill',
@@ -778,22 +787,22 @@ function BookSlot({ slotIndex: _slotIndex, page, onDrop, onDragOver, onDragStart
         
         {/* Stats overlay - show attack/HP or burn damage */}
         <div 
-          className="absolute right-1 bottom-1 flex items-center gap-1.5 text-xs font-bold pointer-events-none"
+          className="absolute right-1 bottom-1 flex items-center gap-1.5 text-game-micro font-bold pointer-events-none"
           style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
         >
           {(def.baseStats.attack > 0 || def.baseStats.hp > 0) ? (
             <>
               <div className="flex items-center gap-0.5">
                 <span style={{ color: '#ff6b6b' }}>⚔</span>
-                <span className="text-white text-xs">{def.baseStats.attack}</span>
+                <span className="text-white text-game-micro">{def.baseStats.attack}</span>
               </div>
               <div className="flex items-center gap-0.5">
                 <span style={{ color: '#6bff6b' }}>♥</span>
-                <span className="text-white text-xs">{def.baseStats.hp}</span>
+                <span className="text-white text-game-micro">{def.baseStats.hp}</span>
               </div>
             </>
           ) : (page.statusEffect || def.statusEffect) ? (
-            <div className="flex items-center gap-0.5 bg-orange-600/80 px-1.5 py-0.5 rounded text-[10px]">
+            <div className="flex items-center gap-0.5 bg-orange-600/80 px-1.5 py-0.5 rounded text-game-micro">
               <span>🔥</span>
               <span className="text-white">{(page.statusEffect || def.statusEffect)?.damagePerTick}/s</span>
             </div>
@@ -803,14 +812,14 @@ function BookSlot({ slotIndex: _slotIndex, page, onDrop, onDragOver, onDragStart
         {/* Remove button */}
         <button
           onClick={(e) => { e.stopPropagation(); onRemove(); }}
-          className="absolute top-1 right-1 w-5 h-5 bg-red-500/80 hover:bg-red-400 rounded-full text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+          className="absolute top-1 right-1 w-5 h-5 bg-red-500/80 hover:bg-red-400 rounded-full text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-game-micro"
         >
           ×
         </button>
 
         {/* Status effect indicator - only show if page also has attack/HP */}
         {(page.statusEffect || def.statusEffect) && (def.baseStats.attack > 0 || def.baseStats.hp > 0) && (
-          <div className="absolute top-1 left-1 w-4 h-4 rounded-full bg-amber-500 shadow-lg border border-white flex items-center justify-center text-[8px]">
+          <div className="absolute top-1 left-1 w-4 h-4 rounded-full bg-amber-500 shadow-lg border border-white flex items-center justify-center text-game-micro">
             🔥
           </div>
         )}
@@ -847,7 +856,7 @@ function CraftingSlot({
           ? 'border-amber-500/50 bg-amber-900/10 border-solid' 
           : 'border-gray-700 bg-gray-800/30 hover:border-gray-500 hover:bg-gray-800/50 border-dashed'}
       `}
-      style={{ width: 300, height: 200 }}
+      style={{ width: 'var(--craft-slot-w)', height: 'var(--craft-slot-h)' }}
     >
       {/* Arcane Circle Pattern */}
       <div 
@@ -868,8 +877,8 @@ function CraftingSlot({
           </button>
         </div>
       ) : (
-        <div className="text-gray-600 font-bold text-lg pointer-events-none flex flex-col items-center gap-2">
-          <span className="text-2xl opacity-50">◇</span>
+        <div className="text-gray-600 font-bold text-game-body pointer-events-none flex flex-col items-center gap-2">
+          <span className="text-game-subheading opacity-50">◇</span>
           <span>Chamber {index + 1}</span>
         </div>
       )}
@@ -892,8 +901,6 @@ function GrimoirePage({
   
   if (!def) return null;
 
-  const height = 180; // Larger than book slots for visibility
-  const width = 280;  // Wider to match aspect ratio
   const accentColor = def.emissiveColor ?? '#ff6a00';
   const imagePath = def.imagePath || '/assets/images/tabletop_1.png';
 
@@ -901,8 +908,8 @@ function GrimoirePage({
     <div 
       className={`relative overflow-hidden rounded-lg shadow-lg ${isNewlyForged ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-gray-900' : ''}`}
       style={{ 
-        width, 
-        height,
+        width: 'var(--page-w)', 
+        height: 'var(--page-h)',
         border: `2px solid ${accentColor}`,
         boxShadow: isNewlyForged ? `0 0 30px ${accentColor}` : undefined,
       }}
@@ -942,7 +949,7 @@ function GrimoirePage({
       {/* Page name */}
       <div className="absolute left-0 right-0 bottom-0 p-2">
         <h3
-          className="text-sm font-bold text-white truncate"
+          className="text-game-caption font-bold text-white truncate"
           style={{
             WebkitTextStroke: '0.5px #000',
             paintOrder: 'stroke fill',
@@ -954,7 +961,7 @@ function GrimoirePage({
 
       {/* Stats - show attack/HP or burn damage depending on page type */}
       <div 
-        className="absolute right-2 bottom-2 flex items-center gap-2 text-sm font-bold"
+        className="absolute right-2 bottom-2 flex items-center gap-2 text-game-caption font-bold"
         style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
       >
         {(def.baseStats.attack > 0 || def.baseStats.hp > 0) ? (
@@ -969,7 +976,7 @@ function GrimoirePage({
             </div>
           </>
         ) : statusEffect ? (
-          <div className="flex items-center gap-1 bg-orange-600/80 px-2 py-0.5 rounded">
+          <div className="flex items-center gap-1 bg-orange-600/80 px-2 py-0.5 rounded text-game-micro">
             <span>🔥</span>
             <span className="text-white">{statusEffect.damagePerTick}/s · {statusEffect.duration}s</span>
           </div>
@@ -979,7 +986,7 @@ function GrimoirePage({
       {/* Status Effect Indicator - only show if page also has attack/HP */}
       {statusEffect && (def.baseStats.attack > 0 || def.baseStats.hp > 0) && (
         <div 
-          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-amber-500 shadow-lg border border-white flex items-center justify-center text-xs"
+          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-amber-500 shadow-lg border border-white flex items-center justify-center text-game-micro"
           title={statusEffect.type}
           style={{ animation: 'pulse 1s ease-in-out infinite' }}
         >
@@ -989,7 +996,7 @@ function GrimoirePage({
       
       {/* Rarity indicator for rare+ pages */}
       {def.rarity === 'rare' && (
-        <div className="absolute top-2 left-2 w-6 h-6 flex items-center justify-center text-base">
+        <div className="absolute top-2 left-2 w-6 h-6 flex items-center justify-center text-game-body">
           ⭐
         </div>
       )}
@@ -1017,8 +1024,8 @@ function CraftingSlotPage({
     <div 
       className="relative overflow-hidden rounded-lg shadow-lg"
       style={{ 
-        width: 260,
-        height: 170,
+        width: 'var(--craft-page-w)',
+        height: 'var(--craft-page-h)',
         border: `2px solid ${accentColor}`,
       }}
     >
@@ -1046,7 +1053,7 @@ function CraftingSlotPage({
       {/* Page name */}
       <div className="absolute left-0 right-0 bottom-0 p-2">
         <h3
-          className="text-sm font-bold text-white truncate"
+          className="text-game-caption font-bold text-white truncate"
           style={{
             WebkitTextStroke: '0.5px #000',
             paintOrder: 'stroke fill',
@@ -1058,7 +1065,7 @@ function CraftingSlotPage({
 
       {/* Stats - show attack/HP or burn damage depending on page type */}
       <div 
-        className="absolute right-2 bottom-2 flex items-center gap-2 text-sm font-bold"
+        className="absolute right-2 bottom-2 flex items-center gap-2 text-game-caption font-bold"
         style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
       >
         {(def.baseStats.attack > 0 || def.baseStats.hp > 0) ? (
@@ -1073,7 +1080,7 @@ function CraftingSlotPage({
             </div>
           </>
         ) : statusEffect ? (
-          <div className="flex items-center gap-1 bg-orange-600/80 px-2 py-0.5 rounded text-xs">
+          <div className="flex items-center gap-1 bg-orange-600/80 px-2 py-0.5 rounded text-game-micro">
             <span>🔥</span>
             <span className="text-white">{statusEffect.damagePerTick}/s · {statusEffect.duration}s</span>
           </div>
@@ -1083,7 +1090,7 @@ function CraftingSlotPage({
       {/* Status Effect Indicator - only show if page also has attack/HP */}
       {statusEffect && (def.baseStats.attack > 0 || def.baseStats.hp > 0) && (
         <div 
-          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-amber-500 shadow-lg border border-white flex items-center justify-center text-xs"
+          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-amber-500 shadow-lg border border-white flex items-center justify-center text-game-micro"
         >
           {statusEffect.type === 'burn' ? '🔥' : '!'}
         </div>

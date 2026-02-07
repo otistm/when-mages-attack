@@ -22,13 +22,15 @@ export function CardLorePanel() {
     ? 'Autonomous Construct' 
     : 'Volatile Incantation';
 
-  // Position the panel on the right side of the screen
+  // Position the panel on the right side of the screen - responsive
   const panelStyle: React.CSSProperties = {
     position: 'fixed',
-    right: 20,
+    right: 'var(--space-md)',
     top: '50%',
     transform: 'translateY(-50%)',
     zIndex: 1000,
+    maxHeight: '85vh',
+    overflowY: 'auto',
   };
 
   // Cel-shaded panel - flat colors, black borders
@@ -38,8 +40,8 @@ export function CardLorePanel() {
 
   return (
     <div
-      style={panelStyle}
-      className="w-72 overflow-hidden pointer-events-none"
+      style={{ ...panelStyle, width: 'var(--panel-width)' }}
+      className="overflow-hidden pointer-events-none"
     >
       {/* Cel-shaded Panel - flat background with thick black border */}
       <div
@@ -52,23 +54,22 @@ export function CardLorePanel() {
       >
         {/* Header - flat solid color */}
         <div
-          className="px-4 py-3"
-          style={{ backgroundColor: headerBg, borderBottom: '3px solid #111111' }}
+          style={{ backgroundColor: headerBg, borderBottom: '3px solid #111111', padding: 'var(--space-sm) var(--space-md)' }}
         >
           <div className="flex items-center gap-2 mb-1">
             <div
               className="w-2 h-2"
               style={{ backgroundColor: accentColor }}
             />
-            <span className="text-[10px] uppercase tracking-[0.2em] text-white/60 font-mono font-bold">
+            <span className="text-game-micro uppercase tracking-[0.2em] text-white/60 font-mono font-bold">
               Sigil Registry
             </span>
           </div>
-          <h3 className="text-xl font-black text-white tracking-wide">
+          <h3 className="text-game-subheading font-black text-white tracking-wide">
             {card.name}
           </h3>
           <p
-            className="text-[11px] uppercase tracking-widest font-mono font-bold mt-1"
+            className="text-game-micro uppercase tracking-widest font-mono font-bold mt-1"
             style={{ color: accentColor }}
           >
             {classification}
@@ -89,7 +90,7 @@ export function CardLorePanel() {
               alt={card.name}
               className="w-full h-auto object-contain"
               style={{ 
-                maxHeight: '200px',
+                maxHeight: 'clamp(120px, 18vh, 200px)',
                 display: 'block',
               }}
             />
@@ -98,34 +99,33 @@ export function CardLorePanel() {
 
         {/* Flavor Text - flat background */}
         <div 
-          className="px-4 py-3" 
-          style={{ backgroundColor: '#12121f', borderBottom: '2px solid #222' }}
+          style={{ backgroundColor: '#12121f', borderBottom: '2px solid #222', padding: 'var(--space-sm) var(--space-md)' }}
         >
-          <p className="text-sm italic text-amber-200 leading-relaxed">
+          <p className="text-game-body italic text-amber-200 leading-relaxed">
             "{card.flavorText}"
           </p>
         </div>
 
         {/* Technical Description */}
-        <div className="px-4 py-3" style={{ borderBottom: '2px solid #222' }}>
-          <div className="text-[9px] uppercase tracking-[0.15em] text-white/50 mb-2 font-mono font-bold">
+        <div style={{ borderBottom: '2px solid #222', padding: 'var(--space-sm) var(--space-md)' }}>
+          <div className="text-game-micro uppercase tracking-[0.15em] text-white/50 mb-2 font-mono font-bold">
             ▸ Research Notes
           </div>
-          <p className="text-[13px] text-white/80 leading-relaxed">
+          <p className="text-game-body text-white/80 leading-relaxed">
             {card.description}
           </p>
         </div>
 
         {/* Tags - flat pills with solid borders */}
-        <div className="px-4 py-3" style={{ borderBottom: '2px solid #222' }}>
-          <div className="text-[9px] uppercase tracking-[0.15em] text-white/50 mb-3 font-mono font-bold">
+        <div style={{ borderBottom: '2px solid #222', padding: 'var(--space-sm) var(--space-md)' }}>
+          <div className="text-game-micro uppercase tracking-[0.15em] text-white/50 mb-3 font-mono font-bold">
             ▸ Arcane Properties
           </div>
           <div className="flex flex-wrap gap-2">
             {card.tags.map((tag) => (
               <span
                 key={tag}
-                className="px-3 py-1 text-[11px] font-mono font-bold"
+                className="px-3 py-1 text-game-micro font-mono font-bold"
                 style={{
                   backgroundColor: accentColor,
                   color: '#111111',
@@ -140,19 +140,19 @@ export function CardLorePanel() {
 
         {/* Abilities */}
         {card.abilities.length > 0 && (
-          <div className="px-4 py-3" style={{ borderBottom: '2px solid #222' }}>
-            <div className="text-[9px] uppercase tracking-[0.15em] text-white/50 mb-3 font-mono font-bold">
+          <div style={{ borderBottom: '2px solid #222', padding: 'var(--space-sm) var(--space-md)' }}>
+            <div className="text-game-micro uppercase tracking-[0.15em] text-white/50 mb-3 font-mono font-bold">
               ▸ Documented Behaviors
             </div>
             {card.abilities.map((ability) => (
               <div key={ability.id} className="mb-3 last:mb-0">
                 <div className="flex items-center gap-2">
                   <span style={{ color: accentColor }} className="font-bold">◆</span>
-                  <span className="text-[13px] font-bold text-amber-300">
+                  <span className="text-game-body font-bold text-amber-300">
                     {ability.name}
                   </span>
                 </div>
-                <p className="text-[12px] text-white/60 ml-5 mt-1 leading-relaxed">
+                <p className="text-game-caption text-white/60 ml-5 mt-1 leading-relaxed">
                   {ability.description}
                 </p>
               </div>
@@ -161,8 +161,8 @@ export function CardLorePanel() {
         )}
 
         {/* Combat Statistics - flat boxes */}
-        <div className="px-4 py-3" style={{ backgroundColor: '#0a0a12' }}>
-          <div className="text-[9px] uppercase tracking-[0.15em] text-white/50 mb-3 font-mono font-bold">
+        <div style={{ backgroundColor: '#0a0a12', padding: 'var(--space-sm) var(--space-md)' }}>
+          <div className="text-game-micro uppercase tracking-[0.15em] text-white/50 mb-3 font-mono font-bold">
             ▸ Combat Statistics
           </div>
           <div className="grid grid-cols-3 gap-2">
@@ -179,8 +179,8 @@ export function CardLorePanel() {
 
         {/* Footer - flat */}
         <div
-          className="px-4 py-2 flex items-center justify-between text-[10px]"
-          style={{ backgroundColor: headerBg, borderTop: '3px solid #111111' }}
+          className="flex items-center justify-between text-game-micro"
+          style={{ backgroundColor: headerBg, borderTop: '3px solid #111111', padding: 'var(--space-xs) var(--space-md)' }}
         >
           <span className="uppercase tracking-widest text-white/60 font-mono font-bold">
             Tier {card.tier} · {card.rarity}
@@ -220,9 +220,9 @@ function StatBox({
         border: '2px solid #222' 
       }}
     >
-      <span className="text-base font-bold" style={{ color }}>{icon}</span>
-      <span className="text-white font-black text-sm mt-1">{value}</span>
-      <span className="text-white/60 text-[8px] tracking-wider font-bold">{label}</span>
+      <span className="text-game-body font-bold" style={{ color }}>{icon}</span>
+      <span className="text-white font-black text-game-caption mt-1">{value}</span>
+      <span className="text-white/60 text-game-micro tracking-wider font-bold">{label}</span>
     </div>
   );
 }

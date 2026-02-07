@@ -19,9 +19,9 @@ export function HealthBar({ side }: HealthBarProps) {
   const glowColor = side === 'player' ? 'shadow-green-500/50' : 'shadow-red-500/50';
   
   return (
-    <div className="w-48">
+    <div style={{ width: 'clamp(120px, 15vw, 192px)' }}>
       {/* Label */}
-      <div className="flex justify-between text-sm text-white/80 mb-1 font-body">
+      <div className="flex justify-between text-game-caption text-white/80 mb-1 font-body">
         <span className="font-semibold">
           {side === 'player' ? 'You' : 'Enemy'}
         </span>
@@ -31,7 +31,7 @@ export function HealthBar({ side }: HealthBarProps) {
       </div>
       
       {/* Bar container */}
-      <div className="h-4 bg-arcane-dark rounded-full overflow-hidden border border-arcane-purple/50 shadow-lg">
+      <div className="bg-arcane-dark rounded-full overflow-hidden border border-arcane-purple/50 shadow-lg" style={{ height: 'var(--hp-bar-height)' }}>
         {/* Fill */}
         <div
           className={`h-full ${barColor} transition-all duration-300 ease-out shadow-lg ${glowColor}`}
