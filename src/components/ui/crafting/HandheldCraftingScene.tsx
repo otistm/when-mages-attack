@@ -14,6 +14,7 @@ import { useCraftingStore } from '@/stores/craftingStore';
 import { useGameStore } from '@/stores/gameStore';
 import { useCardStore } from '@/stores/cardStore';
 import { useUIStore } from '@/stores/uiStore';
+import { AudioCues } from '@/stores/audioStore';
 import { CardInstance } from '@/types';
 import { getCardDefinition } from '@/data/cards';
 import { CARD_SLOTS } from '@/types';
@@ -100,6 +101,7 @@ export function HandheldCraftingScene() {
 
     if (selectedCardForPlacement) {
       // Place the selected card
+      AudioCues.onPageSelect();
       const existingSlot = deckSlots.findIndex(id => id === selectedCardForPlacement);
       if (existingSlot !== -1) {
         // Swap

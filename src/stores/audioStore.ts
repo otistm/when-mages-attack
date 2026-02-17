@@ -19,6 +19,12 @@ type SFXType =
   | 'ui_hover'
   | 'card_place'
   | 'card_pickup'
+  | 'toaster_ding'
+  | 'shiv_stab'
+  | 'shiv_fly'
+  | 'you_win'
+  | 'page_select'
+  | 'view_page'
   // Exploration sounds
   | 'footstep'
   | 'door_creak'
@@ -56,6 +62,7 @@ interface AudioState {
   // Loaded sounds
   sounds: Map<SFXType, Howl>;
   musicTrack: Howl | null;
+  ambientLoops: Map<string, Howl>;
   
   // Volume controls
   setMasterVolume: (volume: number) => void;
@@ -67,6 +74,11 @@ interface AudioState {
   playSFX: (type: SFXType, options?: PlayOptions) => void;
   playMusic: (trackUrl: string, loop?: boolean) => void;
   stopMusic: () => void;
+  
+  // Ambient loops (for status effects, environment, etc.)
+  playAmbientLoop: (id: string, url: string, fadeInMs?: number, volume?: number) => void;
+  stopAmbientLoop: (id: string, fadeOutMs?: number) => void;
+  stopAllAmbientLoops: (fadeOutMs?: number) => void;
   
   // Loading
   loadSFX: (type: SFXType, url: string) => void;
@@ -90,6 +102,7 @@ export const useAudioStore = create<AudioState>()(
       isMuted: false,
       sounds: new Map(),
       musicTrack: null,
+      ambientLoops: new Map(),
 
       // Volume controls
       setMasterVolume: (volume) => {
@@ -191,6 +204,64 @@ export const useAudioStore = create<AudioState>()(
           }, 1000);
         }
       },
+
+      // Play a looping ambient sound (e.g. status effects, environment)
+      playAmbientLoop: (id, url, fadeInMs = 800, volume = 0.5) => {
+        const { ambientLoops, sfxVolume, masterVolume, isMuted } = get();
+
+        // Already playing this loop
+        if (ambientLoops.has(id)) return;
+
+        const howl = new Howl({
+          src: [url],
+          loop: true,
+          volume: 0,
+        });
+
+        if (!isMuted) {
+          howl.play();
+          howl.fade(0, volume * sfxVolume * masterVolume, fadeInMs);
+        }
+
+        set((state) => {
+          const next = new Map(state.ambientLoops);
+          next.set(id, howl);
+          return { ambientLoops: next };
+        });
+      },
+
+      // Stop a specific ambient loop with fade-out
+      stopAmbientLoop: (id, fadeOutMs = 1000) => {
+        const { ambientLoops, sfxVolume, masterVolume } = get();
+        const howl = ambientLoops.get(id);
+        if (!howl) return;
+
+        const currentVol = howl.volume();
+        howl.fade(currentVol, 0, fadeOutMs);
+        setTimeout(() => {
+          howl.stop();
+          howl.unload();
+          set((state) => {
+            const next = new Map(state.ambientLoops);
+            next.delete(id);
+            return { ambientLoops: next };
+          });
+        }, fadeOutMs);
+      },
+
+      // Stop all ambient loops
+      stopAllAmbientLoops: (fadeOutMs = 1000) => {
+        const { ambientLoops } = get();
+        ambientLoops.forEach((howl, id) => {
+          const currentVol = howl.volume();
+          howl.fade(currentVol, 0, fadeOutMs);
+          setTimeout(() => {
+            howl.stop();
+            howl.unload();
+          }, fadeOutMs);
+        });
+        set({ ambientLoops: new Map() });
+      },
     }),
     {
       name: 'wta-audio-settings',
@@ -213,10 +284,13 @@ export function initializeAudio() {
   // Set global volume
   Howler.volume(store.masterVolume);
   
-  // In production, these would be real audio files
-  // For now, we'll use placeholder paths
-  // store.loadSFX('hit_light', '/audio/sfx/hit_light.mp3');
-  // store.loadSFX('hit_heavy', '/audio/sfx/hit_heavy.mp3');
+  // Load available sound effects
+  store.loadSFX('toaster_ding', '/assets/sounds/toaster_ding.mp3');
+  store.loadSFX('shiv_stab', '/assets/sounds/shiv_stab.mp3');
+  store.loadSFX('shiv_fly', '/assets/sounds/shiv_fly.mp3');
+  store.loadSFX('you_win', '/assets/sounds/you_win.mp3');
+  store.loadSFX('page_select', '/assets/sounds/page_select.mp3');
+  store.loadSFX('view_page', '/assets/sounds/view_page.mp3');
   
   // Exploration sounds (vertical slice)
   // store.loadSFX('footstep', '/audio/sfx/footstep.mp3');
@@ -285,5 +359,70 @@ export const AudioCues = {
   // Discovery
   onDiscovery: () => {
     useAudioStore.getState().playSFX('discovery');
+  },
+  
+  // Toaster fire
+  onToasterFire: () => {
+    useAudioStore.getState().playRandomPitch('toaster_ding', 0.95, 1.05);
+  },
+  
+  // Shiv fly (on trigger)
+  onShivTrigger: () => {
+    useAudioStore.getState().playRandomPitch('shiv_fly', 0.9, 1.1);
+  },
+  
+  // Shiv stab (on HP bar collision)
+  onShivHit: () => {
+    useAudioStore.getState().playRandomPitch('shiv_stab', 0.9, 1.1);
+  },
+  
+  // Win sound
+  onWin: () => {
+    useAudioStore.getState().playSFX('you_win');
+  },
+  
+  // Page placed into deck slot
+  onPageSelect: () => {
+    useAudioStore.getState().playRandomPitch('page_select', 0.95, 1.05);
+  },
+  
+  // Full page view displayed
+  onViewPage: () => {
+    useAudioStore.getState().playSFX('view_page');
+  },
+  
+  // Background music (loops across phases)
+  onCraftingStart: () => {
+    const store = useAudioStore.getState();
+    if (!store.musicTrack) {
+      store.playMusic('/assets/sounds/page_crafting.mp3', true);
+    }
+  },
+  
+  // Arena voices (layers on top of music during combat)
+  onBattleStart: () => {
+    useAudioStore.getState().playAmbientLoop('arena_voices', '/assets/sounds/arena_voices.mp3', 1000, 0.6);
+  },
+  
+  onBattleEnd: () => {
+    useAudioStore.getState().stopAmbientLoop('arena_voices', 1000);
+  },
+  
+  // Poison status effect ambient
+  onPoisonStart: () => {
+    useAudioStore.getState().playAmbientLoop('poison_bubbling', '/assets/sounds/caldron_bubbling.mp3', 800, 0.5);
+  },
+  
+  onPoisonEnd: () => {
+    useAudioStore.getState().stopAmbientLoop('poison_bubbling', 1500);
+  },
+  
+  // Burn status effect ambient
+  onBurnStart: () => {
+    useAudioStore.getState().playAmbientLoop('burning', '/assets/sounds/burning.mp3', 800, 0.5);
+  },
+  
+  onBurnEnd: () => {
+    useAudioStore.getState().stopAmbientLoop('burning', 1500);
   },
 };

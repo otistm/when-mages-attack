@@ -26,6 +26,7 @@ export interface CombatMinion extends MinionData {
   speed: number;         // Movement speed
   attackRange: number;   // Distance to start attacking
   attackCooldown: number; // Time between attacks
+  isConstruct?: boolean; // True for stationary constructs (toasters, etc.) — rendered by their own component, not MinionManager
 }
 
 // Target types for projectiles/minions
@@ -43,6 +44,7 @@ interface CombatStore {
   
   // Actions
   spawnMinion: (card: CardDefinition, team: Team, slotIndex: number) => string;
+  registerConstruct: (card: CardDefinition, team: Team, position: [number, number, number]) => string;
   removeMinion: (id: string) => void;
   updateMinion: (id: string, updates: Partial<CombatMinion>) => void;
   damageMinion: (id: string, damage: number, statusEffect?: StatusEffectType) => void;
@@ -65,13 +67,16 @@ interface CombatStore {
 
 let minionIdCounter = 0;
 
-// Get spawn position based on team and slot
+// Get spawn position based on team and slot, with random scatter
 function getSpawnPosition(team: Team, slotIndex: number): [number, number, number] {
   const slot = CARD_SLOTS[slotIndex];
-  const x = slot?.xPosition ?? 0;
-  const y = 0.5; // Slightly above ground
-  // Spawn near the HP bar edge
-  const z = team === 'player' ? ARENA.combatZoneEnd - 1 : ARENA.combatZoneStart + 1;
+  const baseX = slot?.xPosition ?? 0;
+  // Random scatter ±2 units around the slot X so multiple minions don't stack
+  const x = baseX + (Math.random() - 0.5) * 4;
+  const y = 0.5;
+  // Spawn near the HP bar edge, with slight random Z scatter
+  const baseZ = team === 'player' ? ARENA.combatZoneEnd - 1 : ARENA.combatZoneStart + 1;
+  const z = baseZ + (Math.random() - 0.5) * 2;
   return [x, y, z];
 }
 
@@ -120,6 +125,42 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
         get().updateMinion(id, { state: 'moving' });
       }
     }, 500);
+    
+    return id;
+  },
+  
+  registerConstruct: (card, team, position) => {
+    const id = `construct-${minionIdCounter++}`;
+    
+    const minion: CombatMinion = {
+      id,
+      cardInstanceId: `${card.id}-${Date.now()}`,
+      cardDefinitionId: card.id,
+      name: card.name,
+      team,
+      state: 'idle',
+      stats: { ...card.baseStats },
+      currentHp: card.baseStats.hp,
+      position,
+      rotation: team === 'player' ? 0 : Math.PI,
+      tags: card.tags ?? [],
+      abilities: card.abilities ?? [],
+      color: card.emissiveColor ?? (team === 'player' ? '#4ade80' : '#f87171'),
+      buffs: [],
+      debuffs: [],
+      lastAttackTime: 0,
+      targetId: undefined,
+      speed: 0,
+      attackRange: 0,
+      attackCooldown: card.cooldown ?? 5,
+      isConstruct: true,
+    };
+    
+    set((state) => {
+      const newMinions = new Map(state.minions);
+      newMinions.set(id, minion);
+      return { minions: newMinions };
+    });
     
     return id;
   },

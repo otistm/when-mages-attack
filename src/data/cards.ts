@@ -272,7 +272,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
       hp: 5,
       maxHp: 5,
       attack: 2,
-      speed: 2.0,
+      speed: 4.0,
       mass: 0.5,
       range: 1,
       attackSpeed: 1.0,
@@ -290,7 +290,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
     color: '#00FF7F',
     emissiveColor: '#7FFF00',
     iconPath: '/assets/cards/sentient_slime.png',
-    imagePath: '/assets/images/sentient_slime_cel.png',
+    imagePath: '/assets/images/sentient_slime.png',
     _art_prompts: 'A blob of translucent green goo suspended in mid-air. It has two simple, primitive eyes floating inside the jelly. It looks cute but dangerous. Dynamic liquid shape. [Style Suffix]',
   },
 

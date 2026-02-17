@@ -256,8 +256,17 @@ export function ToastProjectile({
       currentPos.set(groundX, toastY, groundZ);
       
       toastRef.current.position.copy(currentPos);
-      toastRef.current.rotation.x = t * Math.PI * 1.5;
-      toastRef.current.rotation.z = t * Math.PI * 0.7;
+      
+      // Face the target direction while tumbling
+      const dirAngle = Math.atan2(
+        endPosition[0] - startPosition[0],
+        endPosition[2] - startPosition[2]
+      );
+      toastRef.current.rotation.set(
+        t * Math.PI * 1.5,   // tumble forward
+        dirAngle,             // face target
+        t * Math.PI * 0.7     // spin
+      );
       
       // Scale based on height - closer to camera (higher Y) = larger
       // Base scale + height bonus for depth perception in top-down view

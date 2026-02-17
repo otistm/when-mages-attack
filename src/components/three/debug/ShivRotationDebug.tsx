@@ -1,130 +1,159 @@
 /**
- * Debug component to find the correct rotation/scale/speed for 3D models
- * Shows a model on the arena with controls to adjust transform and animation speed
- * 
- * USAGE: Set showDebug to true in the Arena to enable this debug tool
- * 
- * Current saved values for models:
- * - Rusty Shiv: X=-84, Y=-44, Z=-115, Scale=6.5
+ * Debug component for the shiv projectile rotation.
+ *
+ * Shows the shiv model at several thrust directions so you can tune
+ * baseRotation X / Y / Z and see the result for every angle.
+ *
+ * USAGE: Set SHOW_MODEL_DEBUG = true in Arena.tsx
+ *
+ * Saved values: X=-84, Y=-44, Z=-115, Scale=6.5
  */
 
-import { useRef, useState, useEffect, useMemo } from 'react';
+import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import { useControls, button } from 'leva';
 import * as THREE from 'three';
 
-// Preload models
 useGLTF.preload('/assets/models/rusty-shiv_cel.glb');
 
-export function ModelRotationDebug() {
-  const modelRef = useRef<THREE.Group>(null);
-  const [lastLogTime, setLastLogTime] = useState(0);
-  
-  // Load the shiv model (can be changed to other models later)
-  const { scene } = useGLTF('/assets/models/rusty-shiv_cel.glb');
-  
-  // Clone the scene and enable shadow casting on all meshes
-  const clonedScene = useMemo(() => {
-    const clone = scene.clone();
-    clone.traverse((child) => {
+/** One ghost shiv aimed in a fixed direction. */
+function DirectionGhost({
+  origin,
+  target,
+  baseX,
+  baseY,
+  baseZ,
+  scale,
+  shivModel,
+  label,
+}: {
+  origin: [number, number, number];
+  target: [number, number, number];
+  baseX: number;
+  baseY: number;
+  baseZ: number;
+  scale: number;
+  shivModel: THREE.Object3D;
+  label: string;
+}) {
+  const ref = useRef<THREE.Group>(null);
+
+  // Clone model for this instance
+  const clone = useMemo(() => {
+    const c = shivModel.clone();
+    c.traverse((child) => {
       if (child instanceof THREE.Mesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
+        child.material = child.material.clone();
       }
     });
-    return clone;
-  }, [scene]);
-  
-  // Controls with leva
-  const controls = useControls('Model Debug Controls', {
-    // Transform controls
-    rotationX: { value: -84, min: -180, max: 180, step: 1, label: 'Rotation X (deg)' },
-    rotationY: { value: -44, min: -180, max: 180, step: 1, label: 'Rotation Y (deg)' },
-    rotationZ: { value: -115, min: -180, max: 180, step: 1, label: 'Rotation Z (deg)' },
-    positionY: { value: 5, min: 0, max: 15, step: 0.1, label: 'Height' },
-    scale: { value: 6.5, min: 1, max: 20, step: 0.5, label: 'Scale' },
-    
-    // Animation speed control
-    animationSpeed: { value: 1.0, min: 0.1, max: 3.0, step: 0.1, label: 'Animation Speed' },
-    
-    // Visual helpers
-    showAxes: { value: true, label: 'Show Axes Helper' },
-    showDirectionArrow: { value: true, label: 'Show Direction Arrow' },
-    
-    // Utility buttons
-    'Copy Values': button(() => {
-      const values = `Rotation: X=${controls.rotationX}, Y=${controls.rotationY}, Z=${controls.rotationZ}, Scale=${controls.scale}, Speed=${controls.animationSpeed}`;
-      console.log('=== MODEL DEBUG VALUES ===');
-      console.log(values);
-      console.log(`Radians: X=${THREE.MathUtils.degToRad(controls.rotationX).toFixed(4)}, Y=${THREE.MathUtils.degToRad(controls.rotationY).toFixed(4)}, Z=${THREE.MathUtils.degToRad(controls.rotationZ).toFixed(4)}`);
-      console.log('==========================');
-      alert(values);
-    }),
+    return c;
+  }, [shivModel]);
+
+  // Compute adjusted Y from direction
+  const dirAngle = Math.atan2(
+    target[0] - origin[0],
+    -(target[2] - origin[2]),
+  );
+  const adjustedY = baseY + dirAngle;
+
+  // Direction vector for the arrow helper
+  const direction = useMemo(() => {
+    return new THREE.Vector3(
+      target[0] - origin[0],
+      target[1] - origin[1],
+      target[2] - origin[2],
+    ).normalize();
+  }, [origin, target]);
+
+  useFrame(() => {
+    if (!ref.current) return;
+    ref.current.rotation.set(baseX, adjustedY, baseZ);
   });
-  
-  const { rotationX, rotationY, rotationZ, positionY, scale, showAxes, showDirectionArrow } = controls;
-  
-  // Convert degrees to radians and apply
-  useFrame((state) => {
-    if (modelRef.current) {
-      modelRef.current.rotation.x = THREE.MathUtils.degToRad(rotationX);
-      modelRef.current.rotation.y = THREE.MathUtils.degToRad(rotationY);
-      modelRef.current.rotation.z = THREE.MathUtils.degToRad(rotationZ);
-    }
-    
-    // Log values periodically (every 2 seconds) to avoid spam
-    const now = state.clock.elapsedTime;
-    if (now - lastLogTime > 2) {
-      setLastLogTime(now);
-    }
-  });
-  
+
+  // Place the ghost at the midpoint between origin and target
+  const midX = (origin[0] + target[0]) / 2;
+  const midZ = (origin[2] + target[2]) / 2;
+  const midY = 2;
+
   return (
-    <group position={[0, positionY, 0]}>
-      {/* The model being debugged - with shadow casting enabled */}
-      <group ref={modelRef} scale={scale}>
-        <primitive object={clonedScene} />
+    <group position={[midX, midY, midZ]}>
+      {/* The shiv model */}
+      <group ref={ref} scale={scale}>
+        <primitive object={clone} />
       </group>
-      
-      {/* Axes helper to show orientation (R=X, G=Y, B=Z) */}
-      {showAxes && (
-        <axesHelper args={[4]} />
-      )}
-      
-      {/* Arrow pointing toward enemy (negative Z) - this is the "stab" direction */}
-      {showDirectionArrow && (
-        <arrowHelper 
-          args={[
-            new THREE.Vector3(0, 0, -1), // Direction (toward enemy)
-            new THREE.Vector3(0, 0, 0),  // Origin
-            5,                            // Length
-            0xff0000,                     // Color (red)
-            1,                            // Head length
-            0.5,                          // Head width
-          ]} 
-        />
-      )}
-      
-      {/* Ground reference plane - receives shadows */}
-      <mesh 
-        rotation={[-Math.PI / 2, 0, 0]} 
-        position={[0, -positionY + 0.01, 0]}
-        receiveShadow
-      >
-        <planeGeometry args={[20, 20]} />
-        <meshStandardMaterial color="#555" side={THREE.DoubleSide} />
+
+      {/* Arrow showing thrust direction */}
+      <arrowHelper
+        args={[direction, new THREE.Vector3(0, 0, 0), 3, 0xff4444, 0.6, 0.3]}
+      />
+
+      {/* Origin dot */}
+      <mesh position={[origin[0] - midX, origin[1] - midY + 0.1, origin[2] - midZ]}>
+        <sphereGeometry args={[0.2, 8, 8]} />
+        <meshBasicMaterial color="#00ff00" />
+      </mesh>
+
+      {/* Target dot */}
+      <mesh position={[target[0] - midX, target[1] - midY + 0.1, target[2] - midZ]}>
+        <sphereGeometry args={[0.2, 8, 8]} />
+        <meshBasicMaterial color="#ff0000" />
       </mesh>
     </group>
   );
 }
 
-// Export the animation speed for use in ShivProjectile
-export function useDebugAnimationSpeed(): number {
-  // This hook can be used by ShivProjectile to get the debug speed
-  // For now, return 1.0 as default when not debugging
-  return 1.0;
+export function ShivRotationDebug() {
+  const { scene } = useGLTF('/assets/models/rusty-shiv_cel.glb');
+
+  const controls = useControls('Shiv Projectile Debug', {
+    rotationX: { value: -84, min: -180, max: 180, step: 1, label: 'Base Rot X (deg)' },
+    rotationY: { value: -44, min: -180, max: 180, step: 1, label: 'Base Rot Y (deg)' },
+    rotationZ: { value: -115, min: -180, max: 180, step: 1, label: 'Base Rot Z (deg)' },
+    scale: { value: 6.5, min: 1, max: 20, step: 0.5, label: 'Scale' },
+    'Copy Values': button(() => {
+      const msg = `Base Rotation: X=${controls.rotationX}°, Y=${controls.rotationY}°, Z=${controls.rotationZ}°, Scale=${controls.scale}`;
+      console.log('=== SHIV DEBUG ===');
+      console.log(msg);
+      console.log(
+        `Radians: X=${THREE.MathUtils.degToRad(controls.rotationX).toFixed(4)}, Y=${THREE.MathUtils.degToRad(controls.rotationY).toFixed(4)}, Z=${THREE.MathUtils.degToRad(controls.rotationZ).toFixed(4)}`,
+      );
+      alert(msg);
+    }),
+  });
+
+  const baseX = THREE.MathUtils.degToRad(controls.rotationX);
+  const baseY = THREE.MathUtils.degToRad(controls.rotationY);
+  const baseZ = THREE.MathUtils.degToRad(controls.rotationZ);
+
+  // Test directions: forward (-Z), left, right, diagonal, and backward (+Z)
+  const directions: { origin: [number, number, number]; target: [number, number, number]; label: string }[] = [
+    { origin: [0, 0.5, 4], target: [0, 0.5, -4], label: 'Forward (-Z)' },
+    { origin: [-5, 0.5, 0], target: [5, 0.5, 0], label: 'Right (+X)' },
+    { origin: [5, 0.5, 0], target: [-5, 0.5, 0], label: 'Left (-X)' },
+    { origin: [-4, 0.5, 4], target: [4, 0.5, -4], label: 'Diagonal NE' },
+    { origin: [4, 0.5, 4], target: [-4, 0.5, -4], label: 'Diagonal NW' },
+    { origin: [0, 0.5, -4], target: [0, 0.5, 4], label: 'Backward (+Z)' },
+  ];
+
+  return (
+    <group position={[0, 0, 0]}>
+      {directions.map((d) => (
+        <DirectionGhost
+          key={d.label}
+          origin={d.origin}
+          target={d.target}
+          baseX={baseX}
+          baseY={baseY}
+          baseZ={baseZ}
+          scale={controls.scale}
+          shivModel={scene}
+          label={d.label}
+        />
+      ))}
+    </group>
+  );
 }
 
-// Keep the old name as an alias for backwards compatibility
-export const ShivRotationDebug = ModelRotationDebug;
+// Keep old export for backwards compat
+export const ModelRotationDebug = ShivRotationDebug;

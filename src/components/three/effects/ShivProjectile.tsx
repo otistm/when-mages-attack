@@ -91,6 +91,7 @@ export function ShivProjectile({
       opacity: 0,
       side: THREE.DoubleSide,
       depthWrite: false,
+      depthTest: false,
     });
   }, []);
   
@@ -151,34 +152,45 @@ export function ShivProjectile({
       endPosition[2] - startPosition[2]
     ).normalize();
     
-    // Fixed rotation to point blade tip toward enemy
-    // Based on debug testing with Leva controls
+    // Base rotation (tuned for thrusting along -Z)
     const baseRotationX = THREE.MathUtils.degToRad(-84);
     const baseRotationY = THREE.MathUtils.degToRad(-44);
     const baseRotationZ = THREE.MathUtils.degToRad(-115);
+    
+    // Full quaternion correction: rotate the base orientation from -Z to actual direction
+    const refDir = new THREE.Vector3(0, 0, -1);
+    const flatDir = new THREE.Vector3(
+      endPosition[0] - startPosition[0],
+      0,
+      endPosition[2] - startPosition[2]
+    ).normalize();
+    const correctionQuat = new THREE.Quaternion().setFromUnitVectors(refDir, flatDir);
+    
+    // Helper: apply base Euler + optional wobble/shake, then rotate by direction correction
+    const applyRotation = (extraX = 0, extraY = 0, extraZ = 0) => {
+      const baseQuat = new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(baseRotationX + extraX, baseRotationY + extraY, baseRotationZ + extraZ)
+      );
+      const finalQuat = correctionQuat.clone().multiply(baseQuat);
+      currentRotation.setFromQuaternion(finalQuat);
+    };
     
     switch (phase) {
       case 'emerge': {
         const t = Math.min(phaseElapsed / TIMING.emerge, 1);
         const eased = easeOutBack(t);
         
-        // Emerge from start position (player HP bar) - slight pull back then forward
-        const emergeOffset = eased * 0.5; // Move slightly forward
+        const emergeOffset = eased * 0.5;
         currentPos.set(
           startPosition[0] + direction.x * emergeOffset,
           startPosition[1] + direction.y * emergeOffset,
           startPosition[2] + direction.z * emergeOffset
         );
         
-        // Blade TIP pointing toward enemy, slight wobble as it emerges
         const wobble = Math.sin(t * Math.PI * 6) * 0.05 * (1 - t);
-        currentRotation.set(
-          baseRotationX + wobble,
-          baseRotationY,
-          baseRotationZ + wobble
-        );
+        applyRotation(wobble, 0, wobble);
         
-        scale = 0.3 + eased * 0.7; // Scale up as it emerges
+        scale = 0.3 + eased * 0.7;
         
         if (t >= 1) {
           setPhase('thrust');
@@ -189,26 +201,17 @@ export function ShivProjectile({
       
       case 'thrust': {
         const t = Math.min(phaseElapsed / TIMING.thrust, 1);
-        const eased = easeInQuart(t); // Accelerating thrust
+        const eased = easeInQuart(t);
         
-        // FAST movement from start to end
         currentPos.set(
           THREE.MathUtils.lerp(startPosition[0], endPosition[0], eased),
           THREE.MathUtils.lerp(startPosition[1], endPosition[1], eased),
           THREE.MathUtils.lerp(startPosition[2], endPosition[2], eased)
         );
         
-        // Stable rotation during thrust - blade tip leading
-        currentRotation.set(
-          baseRotationX,
-          baseRotationY,
-          baseRotationZ
-        );
+        applyRotation();
         
-        // Stretch effect for speed (squash and stretch)
         scale = 1 + eased * 0.4;
-        
-        // Motion trail
         trailOpacity = 0.6 + eased * 0.3;
         
         if (t >= 1) {
@@ -221,7 +224,6 @@ export function ShivProjectile({
       case 'impact': {
         const t = Math.min(phaseElapsed / TIMING.impact, 1);
         
-        // Stick at end position with slight overshoot
         const overshoot = Math.sin(t * Math.PI) * 0.2;
         currentPos.set(
           endPosition[0] + direction.x * overshoot,
@@ -229,32 +231,24 @@ export function ShivProjectile({
           endPosition[2] + direction.z * overshoot
         );
         
-        // Slight shake on impact
         const shake = (1 - t) * 0.15;
-        currentRotation.set(
-          baseRotationX + (Math.random() - 0.5) * shake,
-          baseRotationY + (Math.random() - 0.5) * shake,
-          baseRotationZ + (Math.random() - 0.5) * shake
+        applyRotation(
+          (Math.random() - 0.5) * shake,
+          (Math.random() - 0.5) * shake,
+          (Math.random() - 0.5) * shake
         );
         
-        scale = 1.4 - t * 0.2; // Slight scale down from stretched
+        scale = 1.4 - t * 0.2;
         trailOpacity = 0.9 * (1 - t);
         
-        // Trigger damage on first frame of impact
         if (!hitTriggered.current) {
           hitTriggered.current = true;
-          
-          // STRONG camera shake for impact
           addCameraTrauma(0.3);
-          
-          // Damage number
           addDamageEvent(damage, targetTeam, [
             endPosition[0],
             endPosition[1] + 0.5,
             endPosition[2],
           ]);
-          
-          // Apply damage NOW (but don't remove projectile yet)
           onHit(id);
         }
         
@@ -267,29 +261,19 @@ export function ShivProjectile({
       
       case 'retract': {
         const t = Math.min(phaseElapsed / TIMING.retract, 1);
-        const eased = easeOutQuart(t); // Smooth deceleration back
+        const eased = easeOutQuart(t);
         
-        // Pull back from end to start
         currentPos.set(
           THREE.MathUtils.lerp(endPosition[0], startPosition[0], eased),
           THREE.MathUtils.lerp(endPosition[1], startPosition[1], eased),
           THREE.MathUtils.lerp(endPosition[2], startPosition[2], eased)
         );
         
-        // Rotation stays stable during retract
-        currentRotation.set(
-          baseRotationX,
-          baseRotationY,
-          baseRotationZ
-        );
+        applyRotation();
         
-        // Keep full scale during retract - no fading, shiv stays fully visible
         scale = 1.0;
         
-        // NO FADE - shiv stays fully visible as it retracts back to player
-        
         if (t >= 1) {
-          // Animation complete - NOW we can remove the projectile
           onComplete(id);
           setPhase('done');
         }
@@ -300,18 +284,25 @@ export function ShivProjectile({
         return;
     }
     
-    // Apply transforms
-    shivRef.current.position.copy(currentPos);
+    // Apply transforms — offset backward so the blade TIP is at currentPos
+    // The model's origin is near its center; the tip extends forward along
+    // the thrust direction.  Shifting the model back by tipOffset places the
+    // tip exactly where currentPos is, so the tip hits the target first.
+    const tipOffset = 3.5; // world-units from model origin to blade tip
+    shivRef.current.position.set(
+      currentPos.x - direction.x * tipOffset,
+      currentPos.y - direction.y * tipOffset,
+      currentPos.z - direction.z * tipOffset,
+    );
     shivRef.current.rotation.copy(currentRotation);
     shivRef.current.scale.setScalar(scale * 6.5); // Base scale from debug testing
     
     // Update trail
     if (trailRef.current) {
-      // Position trail between current and previous position (approximated)
       const trailPos = currentPos.clone();
-      trailPos.x -= direction.x * 0.5;
-      trailPos.y -= direction.y * 0.5;
-      trailPos.z -= direction.z * 0.5;
+      trailPos.x -= direction.x * 1.0;
+      trailPos.y -= direction.y * 1.0;
+      trailPos.z -= direction.z * 1.0;
       trailRef.current.position.copy(trailPos);
       trailRef.current.lookAt(currentPos);
       trailMaterial.opacity = trailOpacity;
@@ -372,13 +363,14 @@ function ImpactFlash({ position }: { position: [number, number, number] }) {
   });
   
   return (
-    <mesh ref={meshRef} position={position}>
-      <sphereGeometry args={[0.3, 8, 8]} />
+    <mesh ref={meshRef} position={[position[0], position[1] + 0.5, position[2]]} renderOrder={20}>
+      <sphereGeometry args={[0.2, 8, 8]} />
       <meshBasicMaterial
         color="#ff4444"
         transparent
         opacity={1}
         depthWrite={false}
+        depthTest={false}
       />
     </mesh>
   );

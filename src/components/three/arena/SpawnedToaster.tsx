@@ -15,6 +15,7 @@ import { useSpring, animated } from '@react-spring/three';
 import * as THREE from 'three';
 import { CardSlotConfig, ARENA } from '@/types';
 import { useCardStore } from '@/stores/cardStore';
+import { useCombatStore } from '@/stores/combatStore';
 
 // Heat particle configuration
 const PARTICLE_COUNT = 24;
@@ -146,7 +147,9 @@ interface SpawnedToasterProps {
   onFire: (position: [number, number, number], damage: number) => void;
   damage: number;
   cooldown: number;
-  isInfernal?: boolean; // true for Infernal Toaster, false for Inert Toaster
+  isInfernal?: boolean;
+  combatId: string;       // ID in the combat store for HP tracking
+  onDestroy?: () => void;  // Called when construct is destroyed
 }
 
 export function SpawnedToaster({ 
@@ -156,22 +159,29 @@ export function SpawnedToaster({
   damage, 
   cooldown,
   isInfernal = false,
+  combatId,
+  onDestroy,
 }: SpawnedToasterProps) {
-  // Choose particle colors based on toaster type
   const particleColors = isInfernal ? INFERNAL_PARTICLE_COLORS : INERT_PARTICLE_COLORS;
   const glowColor = isInfernal ? '#ff6a00' : '#9ca3af';
   const groupRef = useRef<THREE.Group>(null);
   const [isReady, setIsReady] = useState(false);
   const [spawned, setSpawned] = useState(false);
+  const [isDying, setIsDying] = useState(false);
   const lastFireRef = useRef(0);
+  const hasCalledDestroy = useRef(false);
   
-  // Sync cooldown with card UI
+  // Read combat state for this construct
+  const combatData = useCombatStore((state) => state.minions.get(combatId));
+  const maxHp = combatData?.stats?.hp ?? 1;
+  const currentHp = combatData?.currentHp ?? 0;
+  const healthPercent = maxHp > 0 ? currentHp / maxHp : 0;
+  const combatState = combatData?.state;
+  
   const updateCooldown = useCardStore((state) => state.updateCooldown);
   
-  // Try to load the toaster model (cel-shaded version)
   const gltf = useGLTF('/assets/models/toaster_cel.glb');
   
-  // Clone the scene, enable shadows (model is already cel-shaded)
   const toasterModel = useMemo(() => {
     if (gltf?.scene) {
       const clone = gltf.scene.clone();
@@ -187,37 +197,55 @@ export function SpawnedToaster({
     return null;
   }, [gltf]);
   
-  // Track if we should fire immediately after spawn
   const shouldFireOnSpawn = useRef(true);
   
-  // Spawn animation - toaster rises from below floor to floor level
-  const { scale, positionY } = useSpring({
-    scale: spawned ? 1 : 0,
-    positionY: spawned ? 0 : -1, // 0 = on the floor
-    config: { tension: 300, friction: 20 }, // Faster spawn animation
-  });
+  // Spawn animation
+  const [springProps, springApi] = useSpring(() => ({
+    scale: 0,
+    positionY: -1,
+    config: { tension: 300, friction: 20 },
+  }));
   
-  // Trigger spawn animation immediately on mount
   useEffect(() => {
     setSpawned(true);
-  }, []);
+    springApi.start({ scale: 1, positionY: 0 });
+  }, [springApi]);
   
-  // Position based on team - spawn closer to center of arena
+  // Handle death — when combat store says dying/dead or entity is removed
+  useEffect(() => {
+    if (isDying) return;
+    
+    if (!combatData || combatState === 'dying' || combatState === 'dead') {
+      setIsDying(true);
+      springApi.start({
+        scale: 0,
+        positionY: -1,
+        config: { tension: 200, friction: 20 },
+      });
+      
+      // Call onDestroy after death animation
+      if (!hasCalledDestroy.current) {
+        hasCalledDestroy.current = true;
+        setTimeout(() => {
+          onDestroy?.();
+        }, 600);
+      }
+    }
+  }, [combatData, combatState, isDying, springApi, onDestroy]);
+  
   const zPosition = team === 'player' 
-    ? ARENA.playerSlotZ - 4  // Closer to center
-    : ARENA.enemySlotZ + 4;   // Closer to center
+    ? ARENA.playerSlotZ - 4
+    : ARENA.enemySlotZ + 4;
   
-  // Fire cooldown logic
+  // Fire cooldown logic — stop firing when dying
   useFrame(({ clock }) => {
     const time = clock.elapsedTime;
     
-    if (!spawned) return;
+    if (!spawned || isDying) return;
     
-    // Initialize lastFireRef on first frame after spawn
     if (lastFireRef.current === 0) {
       lastFireRef.current = time;
       
-      // Fire immediately on first spawn
       if (shouldFireOnSpawn.current) {
         shouldFireOnSpawn.current = false;
         setIsReady(true);
@@ -229,7 +257,6 @@ export function SpawnedToaster({
         ];
         onFire(firePosition, damage);
         
-        // Brief flash then reset cooldown display
         updateCooldown(slot.index, team, 0, false);
         setTimeout(() => setIsReady(false), 200);
       }
@@ -240,15 +267,12 @@ export function SpawnedToaster({
     const progress = Math.min(elapsed / cooldown, 1);
     const isCooldownReady = progress >= 1;
     
-    // Update card UI with cooldown progress (only show ready briefly when firing)
     updateCooldown(slot.index, team, progress, false);
     
-    // Fire when cooldown completes
     if (isCooldownReady) {
       setIsReady(true);
       lastFireRef.current = time;
       
-      // Fire projectiles from toaster position
       const firePosition: [number, number, number] = [
         slot.xPosition,
         0.5,
@@ -256,7 +280,6 @@ export function SpawnedToaster({
       ];
       onFire(firePosition, damage);
       
-      // Flash effect - reset cooldown after brief flash
       setTimeout(() => {
         setIsReady(false);
         updateCooldown(slot.index, team, 0, false);
@@ -264,38 +287,37 @@ export function SpawnedToaster({
     }
   });
   
+  const isPlayer = team === 'player';
+  
   return (
     <animated.group
       ref={groupRef}
       position-x={slot.xPosition}
-      position-y={positionY}
+      position-y={springProps.positionY}
       position-z={zPosition}
-      scale={scale}
+      scale={springProps.scale}
       renderOrder={10}
     >
-      {/* Toaster model or fallback - tilted forward for better visibility */}
+      {/* Toaster model or fallback */}
       {toasterModel ? (
         <primitive 
           object={toasterModel} 
           scale={2.5}
           rotation={[
-            -0.5, // Tilt forward more (toward enemy for player)
+            -0.5,
             team === 'player' ? 0 : Math.PI, 
             0
           ]}
         />
       ) : (
-        // Fallback: Simple 3D toaster shape with flat colors
         <group 
           scale={3.0} 
-          rotation={[-0.5, 0, 0]} // Tilt forward more
+          rotation={[-0.5, 0, 0]}
         >
-          {/* Main body */}
           <mesh position={[0, 0, 0]} castShadow receiveShadow>
             <boxGeometry args={[0.8, 0.5, 0.5]} />
             <meshBasicMaterial color="#c0c0c0" />
           </mesh>
-          {/* Slots */}
           <mesh position={[-0.15, 0.28, 0]} castShadow>
             <boxGeometry args={[0.15, 0.1, 0.35]} />
             <meshBasicMaterial color="#1a1a1a" />
@@ -304,7 +326,6 @@ export function SpawnedToaster({
             <boxGeometry args={[0.15, 0.1, 0.35]} />
             <meshBasicMaterial color="#1a1a1a" />
           </mesh>
-          {/* Lever */}
           <mesh position={[0.45, 0.1, 0]} castShadow>
             <boxGeometry args={[0.1, 0.15, 0.08]} />
             <meshBasicMaterial color="#333333" />
@@ -312,20 +333,29 @@ export function SpawnedToaster({
         </group>
       )}
       
-      {/* Heat particles emanating from toaster */}
-      <HeatParticles active={spawned} colors={particleColors} />
+      {/* Health bar — visible above the toaster */}
+      <group position={[0, 2.2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh>
+          <planeGeometry args={[1.6, 0.22]} />
+          <meshBasicMaterial color="#000000" opacity={0.6} transparent />
+        </mesh>
+        <mesh position={[(healthPercent - 1) * 0.8, 0, 0.01]}>
+          <planeGeometry args={[1.56 * healthPercent, 0.18]} />
+          <meshBasicMaterial color={isPlayer ? '#4ade80' : '#f87171'} />
+        </mesh>
+      </group>
       
-      {/* Ambient heat glow */}
+      <HeatParticles active={spawned && !isDying} colors={particleColors} />
+      
       <pointLight
         position={[0, 0.8, 0]}
         color={glowColor}
-        intensity={spawned ? 3 : 0}
+        intensity={spawned && !isDying ? 3 : 0}
         distance={4}
         decay={2}
       />
       
-      {/* Glow effect when firing */}
-      {isReady && (
+      {isReady && !isDying && (
         <>
           <pointLight
             position={[0, 1.2, 0]}
@@ -334,7 +364,6 @@ export function SpawnedToaster({
             distance={8}
             decay={2}
           />
-          {/* Toast popping out - flat colors, scaled for larger toaster */}
           <mesh position={[-0.4, 1.6, 0]} castShadow>
             <boxGeometry args={[0.35, 0.6, 0.08]} />
             <meshBasicMaterial color="#d4a056" />

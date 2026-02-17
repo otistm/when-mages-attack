@@ -3,7 +3,8 @@
  */
 
 import { create } from 'zustand';
-import { CardDefinition } from '@/types';
+import { CardDefinition, ARENA } from '@/types';
+import { AudioCues } from '@/stores/audioStore';
 
 interface HoveredCard {
   card: CardDefinition;
@@ -33,6 +34,11 @@ interface UIState {
   enemyHPBarRect: HPBarRect | null;
   setHPBarRect: (side: 'player' | 'enemy', rect: HPBarRect) => void;
   
+  // HP bar 3D world positions (computed from screen coords by Arena)
+  playerHPBarWorldZ: number;
+  enemyHPBarWorldZ: number;
+  setHPBarWorldZ: (side: 'player' | 'enemy', z: number) => void;
+  
   // Canvas/viewport info for coordinate conversion
   canvasRect: { width: number; height: number } | null;
   canvasBounds: { x: number; y: number; width: number; height: number } | null;
@@ -51,6 +57,7 @@ export const useUIStore = create<UIState>((set) => ({
   
   setHoveredCard: (card, screenX = 0, screenY = 0) => {
     if (card) {
+      AudioCues.onViewPage();
       set({ hoveredCard: { card, screenPosition: { x: screenX, y: screenY } } });
     } else {
       set({ hoveredCard: null });
@@ -65,6 +72,17 @@ export const useUIStore = create<UIState>((set) => ({
       set({ playerHPBarRect: rect });
     } else {
       set({ enemyHPBarRect: rect });
+    }
+  },
+  
+  // HP bar 3D world Z positions (defaults until Arena computes them)
+  playerHPBarWorldZ: ARENA.playerThroneZ - 2,
+  enemyHPBarWorldZ: ARENA.enemyThroneZ + 2,
+  setHPBarWorldZ: (side, z) => {
+    if (side === 'player') {
+      set({ playerHPBarWorldZ: z });
+    } else {
+      set({ enemyHPBarWorldZ: z });
     }
   },
   

@@ -27,6 +27,8 @@ import { useCombatStore } from '@/stores/combatStore';
 import { useGameStore } from '@/stores/gameStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useCardStore } from '@/stores/cardStore';
+import { useBattleStatsStore } from '@/stores/battleStatsStore';
+import { AudioCues } from '@/stores/audioStore';
 import { ARENA, CARD_SLOTS, CardDefinition, CardSlotConfig, StatusEffectConfig } from '@/types';
 import { getCardDefinition } from '@/data/cards';
 
@@ -52,6 +54,7 @@ interface Projectile {
 
 interface SpawnedConstruct {
   id: string;
+  combatId: string; // ID in combat store for HP tracking and targeting
   card: CardDefinition;
   slot: CardSlotConfig;
   team: 'player' | 'enemy';
@@ -121,6 +124,28 @@ export function Arena() {
     };
   }, [size.width, size.height, gl.domElement, setCanvasRect, setCanvasBounds]);
   
+  // Compute HP bar 3D world Z positions and store them for minions to read
+  useEffect(() => {
+    if (!canvasBounds || canvasBounds.width === 0 || canvasBounds.height === 0) return;
+    
+    const computeWorldZ = (hpBarRect: typeof enemyHPBarRect) => {
+      if (!hpBarRect) return null;
+      const canvasRelativeX = hpBarRect.centerX - canvasBounds.x;
+      const canvasRelativeY = hpBarRect.centerY - canvasBounds.y;
+      const worldPos = screenToWorld(canvasRelativeX, canvasRelativeY, camera, canvasBounds.width, canvasBounds.height);
+      return worldPos.z;
+    };
+    
+    const enemyZ = computeWorldZ(enemyHPBarRect);
+    if (enemyZ !== null) {
+      useUIStore.getState().setHPBarWorldZ('enemy', enemyZ);
+    }
+    const playerZ = computeWorldZ(playerHPBarRect);
+    if (playerZ !== null) {
+      useUIStore.getState().setHPBarWorldZ('player', playerZ);
+    }
+  }, [enemyHPBarRect, playerHPBarRect, canvasBounds, camera]);
+
   // Combat store for minion management
   const hasEnemyMinions = useCombatStore((state) => state.hasEnemyMinions);
   const getClosestEnemy = useCombatStore((state) => state.getClosestEnemy);
@@ -135,8 +160,12 @@ export function Arena() {
   const applyStatusEffect = useGameStore((state) => state.applyStatusEffect);
   const tickStatusEffects = useGameStore((state) => state.tickStatusEffects);
   
-  // Check for game over (disabled in dev mode for testing)
-  const gameOver = import.meta.env.DEV ? false : (player.health <= 0 || enemy.health <= 0);
+  // Battle stats tracking
+  const recordTrigger = useBattleStatsStore((state) => state.recordTrigger);
+  const recordDamage = useBattleStatsStore((state) => state.recordDamage);
+  
+  // Check for game over
+  const gameOver = player.health <= 0 || enemy.health <= 0;
   
   // Tick status effects (burn damage, etc.)
   useFrame((_, delta) => {
@@ -147,30 +176,47 @@ export function Arena() {
 
   const [projectiles, setProjectiles] = useState<Projectile[]>([]);
   const [constructs, setConstructs] = useState<SpawnedConstruct[]>([]);
-  const spawnedSlots = useRef<Set<string>>(new Set());
   
   // Clear constructs and projectiles when game is over
   useEffect(() => {
     if (gameOver) {
       setConstructs([]);
       setProjectiles([]);
-      spawnedSlots.current.clear();
     }
   }, [gameOver]);
 
-  // Get player cards from cardStore (populated by crafting scene)
+  // Get player and enemy cards from cardStore (populated by crafting scene)
   const playerCards = useCardStore((state) => state.cards.filter(c => c.team === 'player'));
   const playerCardSlots = playerCards.map(c => ({ slotIndex: c.slotIndex, card: c.card }));
+  const enemyCards = useCardStore((state) => state.cards.filter(c => c.team === 'enemy'));
+  const enemyCardSlots = enemyCards.map(c => ({ slotIndex: c.slotIndex, card: c.card }));
 
-  // Handle card firing - spawns projectiles targeting enemy minions or HP bar
+  // Handle card firing - spawns projectiles targeting the opposing team
   const handleCardFire = useCallback((
     position: [number, number, number], 
     damage: number,
-    card?: CardDefinition
+    card?: CardDefinition,
+    firingTeam: 'player' | 'enemy' = 'player'
   ) => {
     const [startX, startY, startZ] = position;
     const statusEffect = card?.statusEffect;
     const sourceCardId = card?.id;
+    const opposingTeam = firingTeam === 'player' ? 'enemy' : 'player';
+    
+    // Track card trigger
+    if (sourceCardId && card) {
+      recordTrigger(sourceCardId, card.name, firingTeam);
+      
+      // Play toaster ding for toaster pages
+      if (sourceCardId === 'toaster' || sourceCardId === 'burning_toaster') {
+        AudioCues.onToasterFire();
+      }
+      
+      // Play shiv fly for shiv pages
+      if (sourceCardId?.includes('shiv') || sourceCardId?.includes('blade')) {
+        AudioCues.onShivTrigger();
+      }
+    }
     
     const newProjectiles: Projectile[] = [];
     
@@ -178,15 +224,14 @@ export function Arena() {
     const isShivCard = sourceCardId?.includes('shiv') || sourceCardId?.includes('blade');
     
     if (isShivCard) {
-      // Shiv cards: Stabbing projectile from player HP bar area toward enemy
-      // Start position is near the player's throne/HP bar (positive Z, bottom of arena)
-      // The shiv emerges, thrusts to enemy HP bar, then retracts back
-      const shivStartZ = ARENA.playerThroneZ - 1; // Near player HP bar
+      const shivStartZ = firingTeam === 'player'
+        ? ARENA.playerThroneZ - 1
+        : ARENA.enemyThroneZ + 1;
       
       newProjectiles.push({
         id: `shiv-${projectileIdCounter++}`,
-        startPosition: [startX, 2, shivStartZ], // Higher Y for visibility in top-down
-        targetTeam: 'enemy',
+        startPosition: [startX, 2, shivStartZ],
+        targetTeam: opposingTeam,
         damage,
         delay: 0,
         statusEffect,
@@ -196,8 +241,7 @@ export function Arena() {
     } else {
       // Default: Spawn two toasts
       for (let i = 0; i < 2; i++) {
-        // Find a target - prefer minions, fall back to HP bar
-        const closestEnemy = getClosestEnemy(position, 'player');
+        const closestEnemy = getClosestEnemy(position, firingTeam);
         
         newProjectiles.push({
           id: `toast-${projectileIdCounter++}`,
@@ -207,9 +251,9 @@ export function Arena() {
             startZ
           ],
           targetMinionId: closestEnemy?.id,
-          targetTeam: 'enemy',
+          targetTeam: opposingTeam,
           damage: i === 0 ? Math.ceil(damage / 2) : Math.floor(damage / 2),
-          delay: i * 0.08, // Slight stagger between toasts
+          delay: i * 0.08,
           statusEffect,
           sourceCardId,
           projectileType: 'toast',
@@ -220,9 +264,12 @@ export function Arena() {
     if (newProjectiles.length > 0) {
       setProjectiles((prev) => [...prev, ...newProjectiles]);
     }
-  }, [getClosestEnemy]);
+  }, [getClosestEnemy, recordTrigger]);
   
-  // Handle CONSTRUCT spawn from card (spawns once, then construct handles its own cooldown)
+  // Handle CONSTRUCT spawn from card — respawns after destruction
+  const registerConstruct = useCombatStore((state) => state.registerConstruct);
+  const constructCombatIds = useRef<Map<string, string>>(new Map());
+  
   const handleConstructSpawn = useCallback((
     slotIndex: number,
     card: CardDefinition,
@@ -230,18 +277,47 @@ export function Arena() {
   ) => {
     const slotKey = `${team}-${slotIndex}`;
     
-    // Only spawn once per slot
-    if (spawnedSlots.current.has(slotKey)) return;
-    spawnedSlots.current.add(slotKey);
+    // Check if a living construct already exists for this slot
+    const existingCombatId = constructCombatIds.current.get(slotKey);
+    if (existingCombatId) {
+      const entity = useCombatStore.getState().getMinion(existingCombatId);
+      if (entity && entity.state !== 'dying' && entity.state !== 'dead') {
+        return; // Still alive, skip
+      }
+    }
     
     const slot = CARD_SLOTS[slotIndex];
+    
+    // Calculate position (same as SpawnedToaster)
+    const zPosition = team === 'player'
+      ? ARENA.playerSlotZ - 4
+      : ARENA.enemySlotZ + 4;
+    const position: [number, number, number] = [slot.xPosition, 0.5, zPosition];
+    
+    // Register in combat store so minions can target this construct
+    const combatId = registerConstruct(card, team, position);
+    constructCombatIds.current.set(slotKey, combatId);
+    
     setConstructs(prev => [...prev, {
       id: `construct-${constructIdCounter++}`,
+      combatId,
       card,
       slot,
       team,
     }]);
-  }, []);
+  }, [registerConstruct]);
+  
+  // Handle MINION spawn from card (spawns a new minion each cooldown)
+  const handleMinionSpawn = useCallback((
+    slotIndex: number,
+    card: CardDefinition,
+    team: 'player' | 'enemy'
+  ) => {
+    if (card.id) {
+      recordTrigger(card.id, card.name, team);
+    }
+    spawnMinion(card, team, slotIndex);
+  }, [spawnMinion, recordTrigger]);
   
   // Handle projectile hit (apply damage but don't remove yet)
   const handleProjectileHit = useCallback((id: string) => {
@@ -249,6 +325,16 @@ export function Arena() {
     if (!proj) return;
     
     const damage = proj.damage;
+    
+    // Track damage per card
+    if (proj.sourceCardId) {
+      recordDamage(proj.sourceCardId, damage);
+    }
+    
+    // Play shiv stab on impact (minion or HP bar)
+    if (proj.projectileType === 'shiv') {
+      AudioCues.onShivHit();
+    }
     
     // Try to damage target minion
     if (proj.targetMinionId) {
@@ -267,7 +353,7 @@ export function Arena() {
         }
       }
     }
-  }, [projectiles, damageMinion, damagePlayer, damageEnemy, applyStatusEffect]);
+  }, [projectiles, damageMinion, damagePlayer, damageEnemy, applyStatusEffect, recordDamage]);
 
   // Remove projectile from list (call after animation completes)
   const handleProjectileRemove = useCallback((id: string) => {
@@ -283,26 +369,36 @@ export function Arena() {
     handleProjectileRemove(id);
   }, [handleProjectileHit, handleProjectileRemove]);
 
-  // Get current target position for a projectile
+  // Get current target position for a projectile — minions first, then HP bar
   const getTargetPosition = useCallback((proj: Projectile): [number, number, number] => {
-    // If targeting a minion, get its current position
+    const store = useCombatStore.getState();
+    
+    // 1. If we have a specific minion target that's still alive, follow it
     if (proj.targetMinionId) {
-      const minion = useCombatStore.getState().getMinion(proj.targetMinionId);
+      const minion = store.getMinion(proj.targetMinionId);
       if (minion && minion.state !== 'dying' && minion.state !== 'dead') {
         return minion.position;
       }
-      // Minion died, target HP bar instead
+      // Original target died — clear it so we can retarget
+      proj.targetMinionId = undefined;
     }
     
-    // Target the HP bar using its actual screen position
+    // 2. Dynamically find the closest enemy minion to home toward
+    const firingTeam = proj.targetTeam === 'enemy' ? 'player' : 'enemy';
+    const closestEnemy = store.getClosestEnemy(proj.startPosition, firingTeam);
+    if (closestEnemy) {
+      // Lock on to this minion for hit resolution
+      proj.targetMinionId = closestEnemy.id;
+      return closestEnemy.position;
+    }
+    
+    // 3. No enemy minions — fall back to HP bar
     const hpBarRect = proj.targetTeam === 'enemy' ? enemyHPBarRect : playerHPBarRect;
     
     if (hpBarRect && canvasBounds && canvasBounds.width > 0 && canvasBounds.height > 0) {
-      // Convert HP bar center from viewport coords to canvas-relative coords
       const canvasRelativeX = hpBarRect.centerX - canvasBounds.x;
       const canvasRelativeY = hpBarRect.centerY - canvasBounds.y;
       
-      // Convert canvas-relative coords to 3D world position
       const worldPos = screenToWorld(
         canvasRelativeX,
         canvasRelativeY,
@@ -311,7 +407,6 @@ export function Arena() {
         canvasBounds.height
       );
       
-      // Use the calculated world position, but keep Y at 0.5 for visibility
       return [worldPos.x, 0.5, worldPos.z];
     }
     
@@ -341,8 +436,36 @@ export function Arena() {
             team="player"
             zPosition={ARENA.playerSlotZ}
             card={entry.card}
-            onFire={handleCardFire}
-            onSpawnMinion={(card) => handleConstructSpawn(entry.slotIndex, card, 'player')}
+            onFire={(pos, dmg, card) => handleCardFire(pos, dmg, card, 'player')}
+            onSpawnMinion={(card) => {
+              if (card.type === 'MINION') {
+                handleMinionSpawn(entry.slotIndex, card, 'player');
+              } else {
+                handleConstructSpawn(entry.slotIndex, card, 'player');
+              }
+            }}
+          />
+        );
+      })}
+      
+      {/* Enemy card position trackers */}
+      {enemyCardSlots.map((entry) => {
+        const slot = CARD_SLOTS[entry.slotIndex];
+        return (
+          <CardSlotTracker
+            key={`enemy-card-${entry.slotIndex}`}
+            slot={slot}
+            team="enemy"
+            zPosition={ARENA.enemySlotZ}
+            card={entry.card}
+            onFire={(pos, dmg, card) => handleCardFire(pos, dmg, card, 'enemy')}
+            onSpawnMinion={(card) => {
+              if (card.type === 'MINION') {
+                handleMinionSpawn(entry.slotIndex, card, 'enemy');
+              } else {
+                handleConstructSpawn(entry.slotIndex, card, 'enemy');
+              }
+            }}
           />
         );
       })}
@@ -363,8 +486,12 @@ export function Arena() {
             team={construct.team}
             damage={construct.card.baseStats.attack}
             cooldown={construct.card.cooldown ?? 5}
-            onFire={(position, damage) => handleCardFire(position, damage, construct.card)}
+            onFire={(position, damage) => handleCardFire(position, damage, construct.card, construct.team)}
             isInfernal={isInfernal}
+            combatId={construct.combatId}
+            onDestroy={() => {
+              setConstructs(prev => prev.filter(c => c.id !== construct.id));
+            }}
           />
         );
       })}

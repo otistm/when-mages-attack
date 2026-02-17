@@ -5,11 +5,20 @@
  * Slides up from the bottom of the screen when a card is tapped.
  * Can be dismissed by tapping the backdrop or dragging down.
  * 
- * Styled as a "Grimoire Entry" - same arcane aesthetic as CardLorePanel.
+ * Layout priority: Combat Stats > Status Effects > Abilities > Lore
+ * Styled as a "Sigil Registry" dossier - arcane research document aesthetic.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CardDefinition } from '@/types';
+
+const STATUS_EFFECT_META: Record<string, { icon: string; color: string; label: string }> = {
+  burn:     { icon: '🔥', color: '#ef4444', label: 'Burn' },
+  freeze:   { icon: '❄️', color: '#60a5fa', label: 'Freeze' },
+  poison:   { icon: '☠️', color: '#7cfc00', label: 'Poison' },
+  blighted: { icon: '🦠', color: '#a855f7', label: 'Blight' },
+  shocked:  { icon: '⚡', color: '#fbbf24', label: 'Shock' },
+};
 
 interface CardBottomSheetProps {
   card: CardDefinition | null;
@@ -23,10 +32,8 @@ export function CardBottomSheet({ card, onClose }: CardBottomSheetProps) {
   const dragStartY = useRef(0);
   const isDragging = useRef(false);
 
-  // Animate in when card changes
   useEffect(() => {
     if (card) {
-      // Small delay for entrance animation
       requestAnimationFrame(() => setIsVisible(true));
     } else {
       setIsVisible(false);
@@ -35,10 +42,9 @@ export function CardBottomSheet({ card, onClose }: CardBottomSheetProps) {
 
   const handleClose = useCallback(() => {
     setIsVisible(false);
-    setTimeout(onClose, 250); // Wait for exit animation
+    setTimeout(onClose, 250);
   }, [onClose]);
 
-  // Touch drag to dismiss
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0];
     dragStartY.current = touch.clientY;
@@ -71,6 +77,8 @@ export function CardBottomSheet({ card, onClose }: CardBottomSheetProps) {
   const accentColor = card.emissiveColor ?? '#ff6a00';
   const bgColor = '#1a1a2e';
   const headerBg = '#0a0a12';
+  const statusEffect = card.statusEffect;
+  const effectMeta = statusEffect ? STATUS_EFFECT_META[statusEffect.type] : null;
 
   return (
     <>
@@ -92,7 +100,7 @@ export function CardBottomSheet({ card, onClose }: CardBottomSheetProps) {
           transform: isVisible
             ? `translateY(${dragY}px)`
             : 'translateY(100%)',
-          maxHeight: '70vh',
+          maxHeight: '85vh',
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -107,12 +115,12 @@ export function CardBottomSheet({ card, onClose }: CardBottomSheetProps) {
           className="overflow-y-auto"
           style={{
             backgroundColor: bgColor,
-            maxHeight: 'calc(70vh - 20px)',
-            border: `2px solid #222`,
+            maxHeight: 'calc(85vh - 20px)',
+            border: '2px solid #222',
             borderTop: 'none',
           }}
         >
-          {/* Header */}
+          {/* Header - Name & Classification */}
           <div style={{ backgroundColor: headerBg, borderBottom: '3px solid #111111', padding: 'var(--space-sm) var(--space-lg)' }}>
             <div className="flex items-center gap-2 mb-1">
               <div className="w-2 h-2" style={{ backgroundColor: accentColor }} />
@@ -123,12 +131,17 @@ export function CardBottomSheet({ card, onClose }: CardBottomSheetProps) {
             <h3 className="text-game-heading font-black text-white tracking-wide">
               {card.name}
             </h3>
-            <p
-              className="text-game-micro uppercase tracking-widest font-mono font-bold mt-1"
-              style={{ color: accentColor }}
-            >
-              {classification}
-            </p>
+            <div className="flex items-center justify-between mt-1">
+              <p
+                className="text-game-micro uppercase tracking-widest font-mono font-bold"
+                style={{ color: accentColor }}
+              >
+                {classification}
+              </p>
+              <span className="text-game-micro uppercase tracking-widest text-white/40 font-mono font-bold">
+                T{card.tier} · {card.rarity}
+              </span>
+            </div>
           </div>
 
           {/* Card Image */}
@@ -140,39 +153,103 @@ export function CardBottomSheet({ card, onClose }: CardBottomSheetProps) {
               <img
                 src={card.imagePath}
                 alt={card.name}
-                className="w-full h-auto object-contain"
-                style={{ maxHeight: 'clamp(100px, 15vh, 160px)', display: 'block' }}
+                className="w-full object-cover"
+                style={{ aspectRatio: '1 / 1', display: 'block' }}
               />
             </div>
           )}
 
-          {/* Flavor Text */}
-          <div style={{ backgroundColor: '#12121f', borderBottom: '2px solid #222', padding: 'var(--space-sm) var(--space-lg)' }}>
-            <p className="text-game-body italic text-amber-200 leading-relaxed">
-              "{card.flavorText}"
-            </p>
+          {/* Combat Statistics - PRIMARY FOCUS */}
+          <div style={{ backgroundColor: '#0a0a12', borderBottom: '3px solid #111111', padding: 'var(--space-sm) var(--space-lg)' }}>
+            <div className="text-game-micro uppercase tracking-[0.15em] text-white/50 mb-2 font-mono font-bold">
+              ▸ Combat Statistics
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <StatBox icon="⚔" label="DMG" value={card.baseStats.attack} color="#ef4444" />
+              <StatBox icon="⏱" label="CD" value={`${card.cooldown ?? 0}s`} color="#60a5fa" />
+              {isConstruct && (
+                <StatBox icon="♥" label="HP" value={card.baseStats.hp} color="#4ade80" />
+              )}
+              <StatBox icon="⚡" label="SPD" value={card.baseStats.speed} color="#fbbf24" />
+            </div>
           </div>
 
-          {/* Description */}
-          <div style={{ borderBottom: '2px solid #222', padding: 'var(--space-sm) var(--space-lg)' }}>
-            <div className="text-game-micro uppercase tracking-[0.15em] text-white/50 mb-2 font-mono font-bold">
-              ▸ Research Notes
+          {/* Status Effect - prominent if present */}
+          {statusEffect && effectMeta && (
+            <div style={{ borderBottom: '3px solid #111111', padding: 'var(--space-sm) var(--space-lg)' }}>
+              <div className="text-game-micro uppercase tracking-[0.15em] text-white/50 mb-2 font-mono font-bold">
+                ▸ Applied Effect
+              </div>
+              <div
+                className="flex items-center gap-3 rounded"
+                style={{
+                  padding: 'var(--space-xs) var(--space-sm)',
+                  backgroundColor: `${effectMeta.color}12`,
+                  border: `2px solid ${effectMeta.color}40`,
+                }}
+              >
+                <span style={{ fontSize: 'clamp(18px, 2vw, 24px)' }}>{effectMeta.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-game-caption font-black" style={{ color: effectMeta.color }}>
+                      {effectMeta.label}
+                    </span>
+                  </div>
+                  <div className="flex gap-3 mt-0.5">
+                    <span className="text-game-micro text-white/70 font-mono">
+                      {statusEffect.damagePerTick} dmg / {statusEffect.tickInterval}s
+                    </span>
+                    <span className="text-game-micro text-white/50 font-mono">
+                      {statusEffect.duration}s duration
+                    </span>
+                  </div>
+                  {statusEffect.flavorText && (
+                    <p className="text-game-micro italic text-white/40 mt-1 leading-snug">
+                      "{statusEffect.flavorText}"
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
-            <p className="text-game-body text-white/80 leading-relaxed">
-              {card.description}
-            </p>
-          </div>
+          )}
+
+          {/* Abilities */}
+          {card.abilities.length > 0 && (
+            <div style={{ borderBottom: '2px solid #222', padding: 'var(--space-sm) var(--space-lg)' }}>
+              <div className="text-game-micro uppercase tracking-[0.15em] text-white/50 mb-2 font-mono font-bold">
+                ▸ Abilities
+              </div>
+              {card.abilities.map((ability) => (
+                <div key={ability.id} className="mb-2 last:mb-0">
+                  <div className="flex items-center gap-2">
+                    <span style={{ color: accentColor }} className="font-bold">◆</span>
+                    <span className="text-game-caption font-bold text-amber-300">
+                      {ability.name}
+                    </span>
+                    {ability.trigger && (
+                      <span className="text-game-micro text-white/30 font-mono uppercase">
+                        {ability.trigger}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-game-micro text-white/60 ml-5 mt-0.5 leading-relaxed">
+                    {ability.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Tags */}
           <div style={{ borderBottom: '2px solid #222', padding: 'var(--space-sm) var(--space-lg)' }}>
             <div className="text-game-micro uppercase tracking-[0.15em] text-white/50 mb-2 font-mono font-bold">
-              ▸ Arcane Properties
+              ▸ Properties
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {card.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="px-3 py-1 text-game-micro font-mono font-bold"
+                  className="px-2 py-0.5 text-game-micro font-mono font-bold"
                   style={{
                     backgroundColor: accentColor,
                     color: '#111111',
@@ -185,59 +262,19 @@ export function CardBottomSheet({ card, onClose }: CardBottomSheetProps) {
             </div>
           </div>
 
-          {/* Abilities */}
-          {card.abilities.length > 0 && (
-            <div style={{ borderBottom: '2px solid #222', padding: 'var(--space-sm) var(--space-lg)' }}>
-              <div className="text-game-micro uppercase tracking-[0.15em] text-white/50 mb-2 font-mono font-bold">
-                ▸ Documented Behaviors
-              </div>
-              {card.abilities.map((ability) => (
-                <div key={ability.id} className="mb-2 last:mb-0">
-                  <div className="flex items-center gap-2">
-                    <span style={{ color: accentColor }} className="font-bold">◆</span>
-                    <span className="text-game-body font-bold text-amber-300">
-                      {ability.name}
-                    </span>
-                  </div>
-                  <p className="text-game-caption text-white/60 ml-5 mt-1 leading-relaxed">
-                    {ability.description}
-                  </p>
-                </div>
-              ))}
+          {/* Lore Section - reduced visual weight */}
+          <div style={{ backgroundColor: '#12121f', padding: 'var(--space-sm) var(--space-lg)' }}>
+            <div className="text-game-micro uppercase tracking-[0.15em] text-white/30 mb-1.5 font-mono font-bold">
+              ▸ Field Notes
             </div>
-          )}
-
-          {/* Combat Stats - horizontal scroll on narrow screens */}
-          <div style={{ backgroundColor: '#0a0a12', padding: 'var(--space-sm) var(--space-lg)' }}>
-            <div className="text-game-micro uppercase tracking-[0.15em] text-white/50 mb-2 font-mono font-bold">
-              ▸ Combat Statistics
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <StatBox icon="⚔" label="DAMAGE" value={card.baseStats.attack} color="#ef4444" />
-              <StatBox icon="⏱" label="COOLDOWN" value={`${card.cooldown ?? 0}s`} color="#60a5fa" />
-              {isConstruct && (
-                <StatBox icon="♥" label="HULL" value={card.baseStats.hp} color="#4ade80" />
-              )}
-              <StatBox icon="↗" label="RANGE" value={card.baseStats.range} color="#a78bfa" />
-              <StatBox icon="⚡" label="SPEED" value={card.baseStats.speed} color="#fbbf24" />
-              <StatBox icon="⟳" label="ATK SPD" value={card.baseStats.attackSpeed} color="#fb923c" />
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div
-            className="flex items-center justify-between text-game-micro"
-            style={{ backgroundColor: headerBg, borderTop: '3px solid #111111', padding: 'var(--space-xs) var(--space-lg)' }}
-          >
-            <span className="uppercase tracking-widest text-white/60 font-mono font-bold">
-              Tier {card.tier} · {card.rarity}
-            </span>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2" style={{ backgroundColor: '#4ade80' }} />
-              <span className="uppercase tracking-widest text-green-400 font-mono font-bold">
-                Active
-              </span>
-            </div>
+            {card.flavorText && (
+              <p className="text-game-micro italic text-amber-200/60 leading-relaxed mb-2">
+                "{card.flavorText}"
+              </p>
+            )}
+            <p className="text-game-micro text-white/50 leading-relaxed">
+              {card.description}
+            </p>
           </div>
 
           {/* Bottom padding for safe area */}
@@ -261,12 +298,12 @@ function StatBox({
 }) {
   return (
     <div
-      className="flex flex-col items-center p-2"
+      className="flex flex-col items-center p-1.5"
       style={{ backgroundColor: '#12121f', border: '2px solid #222' }}
     >
-      <span className="text-game-body font-bold" style={{ color }}>{icon}</span>
-      <span className="text-white font-black text-game-caption mt-1">{value}</span>
-      <span className="text-white/60 text-game-micro tracking-wider font-bold">{label}</span>
+      <span className="text-game-caption font-bold" style={{ color }}>{icon}</span>
+      <span className="text-white font-black text-game-caption">{value}</span>
+      <span className="text-white/50 text-game-micro tracking-wider font-bold">{label}</span>
     </div>
   );
 }

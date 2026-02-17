@@ -18,6 +18,7 @@ import {
   StatusEffectType,
 } from '@/types';
 import { v4 as uuid } from 'uuid';
+import { useBattleStatsStore } from '@/stores/battleStatsStore';
 
 /**
  * Active status effects for each team
@@ -252,8 +253,9 @@ export const useGameStore = create<GameState>()(
     
     tickStatusEffects: (delta) => {
       const { statusEffects, dealDamageToPlayer, dealDamageToEnemy, removeStatusEffect } = get();
+      const { recordStatusEffectDamage } = useBattleStatsStore.getState();
       
-      // Process player effects
+      // Process player effects (enemy applied these TO the player)
       for (const effect of statusEffects.player) {
         effect.elapsed += delta;
         effect.timeSinceLastTick += delta;
@@ -270,7 +272,7 @@ export const useGameStore = create<GameState>()(
         }
       }
       
-      // Process enemy effects
+      // Process enemy effects (player applied these TO the enemy)
       for (const effect of statusEffects.enemy) {
         effect.elapsed += delta;
         effect.timeSinceLastTick += delta;
@@ -279,6 +281,10 @@ export const useGameStore = create<GameState>()(
         if (effect.timeSinceLastTick >= effect.tickInterval) {
           effect.timeSinceLastTick -= effect.tickInterval;
           dealDamageToEnemy(effect.damagePerTick);
+          // Track status effect damage per source card
+          if (effect.sourceCardId) {
+            recordStatusEffectDamage(effect.sourceCardId, effect.damagePerTick);
+          }
         }
         
         // Check for expiration

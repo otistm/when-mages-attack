@@ -10,7 +10,7 @@
 import { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { CardDefinition, CardSlotConfig, ARENA } from '@/types';
+import { CardDefinition, CardSlotConfig } from '@/types';
 import { useCardStore } from '@/stores/cardStore';
 
 interface CardSlotTrackerProps {
@@ -34,7 +34,6 @@ export function CardSlotTracker({
 }: CardSlotTrackerProps) {
   const groupRef = useRef<THREE.Group>(null);
   const lastTriggerRef = useRef(0);
-  const hasFiredInitial = useRef(false);
   
   const { camera, size } = useThree();
   
@@ -48,19 +47,6 @@ export function CardSlotTracker({
   useEffect(() => {
     addCard(slot.index, card, team);
   }, [slot.index, card, team, addCard]);
-  
-  // Get spawn position for minions (in front of the card, in the arena)
-  const getSpawnPosition = (): [number, number, number] => {
-    // Spawn minions inside the combat zone, near the card's X position
-    const spawnZ = team === 'player' 
-      ? ARENA.combatZoneEnd - 1  // Player minions spawn at bottom of combat zone
-      : ARENA.combatZoneStart + 1; // Enemy minions spawn at top of combat zone
-    
-    return [slot.xPosition, 0.5, spawnZ];
-  };
-  
-  // Track if construct has been spawned (only spawn once)
-  const constructSpawned = useRef(false);
   
   // Update screen position and cooldown every frame
   useFrame(({ clock }) => {
@@ -78,25 +64,32 @@ export function CardSlotTracker({
     
     updateScreenPosition(slot.index, team, x, y);
     
-    // For CONSTRUCT cards, spawn after first cooldown completes
+    // For CONSTRUCT cards, spawn on cooldown (handler checks if one already exists)
     if (card.type === 'CONSTRUCT') {
-      if (!constructSpawned.current) {
-        // Track cooldown until first spawn
-        const elapsed = time - lastTriggerRef.current;
-        const progress = Math.min(elapsed / cooldownDuration, 1);
-        const isReady = progress >= 1;
-        
-        updateCooldown(slot.index, team, progress, isReady);
-        
-        // Spawn construct when first cooldown completes
-        if (isReady) {
-          constructSpawned.current = true;
-          lastTriggerRef.current = time;
-          onSpawnMinion?.(card);
-        }
-      } else {
-        // After spawning, show as full (construct handles its own firing)
-        updateCooldown(slot.index, team, 1, false);
+      const elapsed = time - lastTriggerRef.current;
+      const progress = Math.min(elapsed / cooldownDuration, 1);
+      const isReady = progress >= 1;
+      
+      updateCooldown(slot.index, team, progress, isReady);
+      
+      if (isReady) {
+        lastTriggerRef.current = time;
+        onSpawnMinion?.(card);
+      }
+      return;
+    }
+    
+    // For MINION cards, spawn on each cooldown completion
+    if (card.type === 'MINION') {
+      const elapsed = time - lastTriggerRef.current;
+      const progress = Math.min(elapsed / cooldownDuration, 1);
+      const isReady = progress >= 1;
+      
+      updateCooldown(slot.index, team, progress, isReady);
+      
+      if (isReady) {
+        lastTriggerRef.current = time;
+        onSpawnMinion?.(card);
       }
       return;
     }

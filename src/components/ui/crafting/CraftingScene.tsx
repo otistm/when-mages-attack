@@ -3,6 +3,9 @@ import { useCraftingStore } from '@/stores/craftingStore';
 import { useGameStore } from '@/stores/gameStore';
 import { useCardStore } from '@/stores/cardStore';
 import { useUIStore } from '@/stores/uiStore';
+import { useBattleStatsStore } from '@/stores/battleStatsStore';
+import { AudioCues, useAudioStore } from '@/stores/audioStore';
+import { Howler } from 'howler';
 import { CardInstance } from '@/types';
 import { getCardDefinition } from '@/data/cards';
 import { CARD_SLOTS } from '@/types';
@@ -18,11 +21,14 @@ export function CraftingScene() {
   const clearLastCrafted = useCraftingStore((state) => state.clearLastCrafted);
   
   const setPhase = useGameStore((state) => state.setPhase);
+  const startNewRun = useGameStore((state) => state.startNewRun);
   const addCard = useCardStore((state) => state.addCard);
   const clearAllCards = useCardStore((state) => state.clearAll);
   const setHoveredCard = useUIStore((state) => state.setHoveredCard);
+  const resetBattleStats = useBattleStatsStore((state) => state.reset);
   
   const videoRef = useRef<HTMLVideoElement>(null);
+  const grimoireScrollRef = useRef<HTMLDivElement>(null);
   
   const [showGrimoire, setShowGrimoire] = useState(true);
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
@@ -69,6 +75,10 @@ export function CraftingScene() {
       }, 100);
     }
     
+    // Resume game audio (respect user's mute setting)
+    const userMuted = useAudioStore.getState().isMuted;
+    Howler.mute(userMuted);
+    
     setIsPlayingVideo(false);
   }, [craftSelectedCards]);
 
@@ -93,6 +103,8 @@ export function CraftingScene() {
     const source = e.dataTransfer.getData('source');
     
     if (!cardId) return;
+    
+    AudioCues.onPageSelect();
     
     if (source === 'deck') {
       const fromSlot = parseInt(e.dataTransfer.getData('slotIndex'));
@@ -141,6 +153,9 @@ export function CraftingScene() {
     setIsPlayingVideo(true);
     setShowGrimoire(false);
     
+    // Mute all game audio while video plays
+    Howler.mute(true);
+    
     // Start video playback with sound
     if (videoRef.current) {
       videoRef.current.currentTime = 0;
@@ -151,6 +166,10 @@ export function CraftingScene() {
   }, [canCraft]);
 
   const handleReady = useCallback(() => {
+    // Start a new run to track damage/time stats
+    startNewRun();
+    resetBattleStats();
+    
     // Clear existing cards from previous combat
     clearAllCards();
     
@@ -167,8 +186,14 @@ export function CraftingScene() {
       }
     });
     
+    // Give the enemy a toaster to fight back with
+    const enemyToaster = getCardDefinition('toaster');
+    if (enemyToaster) {
+      addCard(2, enemyToaster, 'enemy');
+    }
+    
     setPhase('combat');
-  }, [deckSlots, inventory, addCard, clearAllCards, setPhase]);
+  }, [deckSlots, inventory, addCard, clearAllCards, setPhase, startNewRun, resetBattleStats]);
 
   const handleCollectResult = () => {
     if (resultCard) {
@@ -190,6 +215,10 @@ export function CraftingScene() {
       videoRef.current.currentTime = 0;
       videoRef.current.muted = true;
     }
+    
+    // Ensure game audio is restored
+    const userMuted = useAudioStore.getState().isMuted;
+    Howler.mute(userMuted);
     
     setResultCard(null);
     setShowGrimoire(true);
@@ -469,50 +498,141 @@ export function CraftingScene() {
                     />
                   </div>
 
-                  {/* Grimoire Pages (available pages) */}
-                  <div className="w-full max-w-6xl" style={{ marginTop: 'var(--space-2xl)' }}>
-                    <h3 className="text-game-body font-bold text-amber-200/80 flex items-center gap-2" style={{ marginBottom: 'var(--space-md)' }}>
-                      <span className="text-amber-500">📜</span> Grimoire Pages
-                    </h3>
-                    <div className="bg-black/30 rounded-xl border border-amber-900/20 overflow-y-auto backdrop-blur-sm" style={{ padding: 'var(--space-lg)', maxHeight: 'clamp(200px, 45vh, 500px)' }}>
-                      <div className="flex flex-wrap gap-3 justify-center">
-                        {availableCards.map((card) => {
-                          const def = getCardDefinition(card.definitionId);
-                          return (
-                            <div 
-                              key={card.instanceId}
-                              draggable
-                              onDragStart={(e) => handleDragStart(e, card.instanceId)}
-                              onMouseEnter={() => {
-                                if (def) setHoveredCard(def, window.innerWidth * 0.65, window.innerHeight * 0.5);
-                              }}
-                              onMouseLeave={() => setHoveredCard(null)}
-                              className="hover:-translate-y-2 cursor-grab active:cursor-grabbing transition-all duration-200 hover:z-10"
-                            >
-                              <GrimoirePage page={card} />
-                            </div>
-                          );
-                        })}
-                        {availableCards.length === 0 && (
-                          <div className="text-gray-500 text-game-caption py-8 italic">
-                            All pages are placed in your book or synthesis chambers.
-                          </div>
-                        )}
+                  {/* Grimoire Pages - Arcane Tome Frame */}
+                  <div className="w-full" style={{ marginTop: 'var(--space-2xl)', padding: '0 var(--space-lg)' }}>
+                    <div
+                      className="relative rounded-lg"
+                      style={{
+                        border: '2px solid rgba(212,175,55,0.35)',
+                        background: 'linear-gradient(135deg, rgba(30,20,10,0.85) 0%, rgba(15,10,5,0.9) 50%, rgba(30,20,10,0.85) 100%)',
+                        boxShadow: 'inset 0 0 30px rgba(212,175,55,0.06), 0 0 20px rgba(0,0,0,0.5)',
+                      }}
+                    >
+                      {/* Outer decorative border inset */}
+                      <div
+                        className="absolute inset-[5px] rounded pointer-events-none"
+                        style={{
+                          border: '1px solid rgba(212,175,55,0.15)',
+                        }}
+                      />
+
+                      {/* Corner ornaments */}
+                      {(['top-0 left-0', 'top-0 right-0', 'bottom-0 left-0', 'bottom-0 right-0'] as const).map((pos, i) => (
+                        <div
+                          key={i}
+                          className={`absolute ${pos} text-arcane-gold/30 pointer-events-none select-none`}
+                          style={{
+                            fontSize: 'clamp(16px, 1.5vw, 22px)',
+                            padding: '4px 7px',
+                            transform: i === 1 ? 'scaleX(-1)' : i === 2 ? 'scaleY(-1)' : i === 3 ? 'scale(-1)' : undefined,
+                          }}
+                        >
+                          ❧
+                        </div>
+                      ))}
+
+                      {/* Header area */}
+                      <div
+                        className="flex items-center justify-center gap-3 relative"
+                        style={{ padding: 'var(--space-sm) var(--space-lg)' }}
+                      >
+                        {/* Left rule */}
+                        <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.3))' }} />
+                        <h3 className="text-game-body font-bold text-arcane-gold/80 flex items-center gap-2 shrink-0 tracking-wider uppercase" style={{ fontSize: 'var(--font-game-caption)', letterSpacing: '0.15em' }}>
+                          <span className="text-arcane-gold/50">✦</span>
+                          Grimoire Pages
+                          <span className="text-arcane-gold/50">✦</span>
+                        </h3>
+                        {/* Right rule */}
+                        <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(212,175,55,0.3))' }} />
                       </div>
+
+                      {/* Left edge arrow */}
+                      <button
+                        onClick={() => {
+                          grimoireScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' });
+                        }}
+                        className="absolute top-1/2 -translate-y-1/2 z-20 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-110 active:scale-95 group"
+                        style={{
+                          left: 'clamp(-20px, -2.5vw, -14px)',
+                          width: 'clamp(36px, 4vw, 52px)',
+                          height: 'clamp(36px, 4vw, 52px)',
+                          background: 'linear-gradient(135deg, rgba(30,20,10,0.95), rgba(15,10,5,0.95))',
+                          border: '2px solid rgba(212,175,55,0.4)',
+                          boxShadow: '0 0 12px rgba(0,0,0,0.6), inset 0 0 8px rgba(212,175,55,0.05)',
+                        }}
+                      >
+                        <span
+                          className="text-arcane-gold/60 group-hover:text-arcane-gold transition-colors duration-200 select-none"
+                          style={{ fontSize: 'clamp(22px, 2.5vw, 34px)', lineHeight: 1 }}
+                        >
+                          ‹
+                        </span>
+                      </button>
+
+                      {/* Scrollable page carousel */}
+                      <div
+                        ref={grimoireScrollRef}
+                        className="overflow-x-auto overflow-y-hidden grimoire-carousel"
+                        style={{
+                          padding: 'var(--space-sm) var(--space-lg) var(--space-lg)',
+                          scrollSnapType: 'x mandatory',
+                          WebkitOverflowScrolling: 'touch',
+                        }}
+                      >
+                        <div className="flex gap-3" style={{ minWidth: 'min-content' }}>
+                          {availableCards.map((card) => {
+                            const def = getCardDefinition(card.definitionId);
+                            return (
+                              <div
+                                key={card.instanceId}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, card.instanceId)}
+                                onMouseEnter={() => {
+                                  if (def) setHoveredCard(def, window.innerWidth * 0.65, window.innerHeight * 0.5);
+                                }}
+                                onMouseLeave={() => setHoveredCard(null)}
+                                className="shrink-0 hover:-translate-y-2 cursor-grab active:cursor-grabbing transition-all duration-200 hover:z-10"
+                                style={{ scrollSnapAlign: 'center' }}
+                              >
+                                <GrimoirePage page={card} />
+                              </div>
+                            );
+                          })}
+                          {availableCards.length === 0 && (
+                            <div className="text-amber-200/40 text-game-caption py-8 italic whitespace-nowrap w-full text-center">
+                              All pages are placed in your book or synthesis chambers.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right edge arrow */}
+                      <button
+                        onClick={() => {
+                          grimoireScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' });
+                        }}
+                        className="absolute top-1/2 -translate-y-1/2 z-20 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-110 active:scale-95 group"
+                        style={{
+                          right: 'clamp(-20px, -2.5vw, -14px)',
+                          width: 'clamp(36px, 4vw, 52px)',
+                          height: 'clamp(36px, 4vw, 52px)',
+                          background: 'linear-gradient(135deg, rgba(30,20,10,0.95), rgba(15,10,5,0.95))',
+                          border: '2px solid rgba(212,175,55,0.4)',
+                          boxShadow: '0 0 12px rgba(0,0,0,0.6), inset 0 0 8px rgba(212,175,55,0.05)',
+                        }}
+                      >
+                        <span
+                          className="text-arcane-gold/60 group-hover:text-arcane-gold transition-colors duration-200 select-none"
+                          style={{ fontSize: 'clamp(22px, 2.5vw, 34px)', lineHeight: 1 }}
+                        >
+                          ›
+                        </span>
+                      </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Close button */}
-                <div className="flex justify-end" style={{ padding: 'var(--space-md)' }}>
-                  <button
-                    onClick={() => setShowGrimoire(false)}
-                    className="bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-300 hover:text-white transition-colors text-game-caption"
-                    style={{ padding: 'var(--space-xs) var(--space-lg)' }}
-                  >
-                    Close
-                  </button>
-                </div>
               </div>
             )}
 
@@ -713,6 +833,8 @@ interface BookSlotProps {
 }
 
 function BookSlot({ slotIndex: _slotIndex, page, onDrop, onDragOver, onDragStart, onRemove }: BookSlotProps) {
+  const setHoveredCard = useUIStore((state) => state.setHoveredCard);
+
   if (!page) {
     return (
       <div
@@ -743,6 +865,8 @@ function BookSlot({ slotIndex: _slotIndex, page, onDrop, onDragOver, onDragStart
       style={{ height: 'var(--slot-height)' }}
       draggable
       onDragStart={onDragStart}
+      onMouseEnter={() => setHoveredCard(def, window.innerWidth * 0.65, window.innerHeight * 0.5)}
+      onMouseLeave={() => setHoveredCard(null)}
     >
       <div
         className="relative w-full h-full overflow-hidden"

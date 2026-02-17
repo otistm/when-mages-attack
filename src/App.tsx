@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Stats } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
@@ -17,20 +17,61 @@ import { UIScaleControl } from '@/components/ui/hud/UIScaleControl';
 import { useGameStore } from '@/stores/gameStore';
 import { initUIScale } from '@/hooks/useUIScale';
 import { useLayoutMode } from '@/hooks/useLayoutMode';
+import { initializeAudio, AudioCues, useAudioStore } from '@/stores/audioStore';
 
 // Initialize UI scale before first render (reads localStorage / detects handheld)
 initUIScale();
+
+// Initialize audio (loads sound effects)
+initializeAudio();
 
 function App() {
   const phase = useGameStore((state) => state.phase);
   const { isHandheld } = useLayoutMode();
   const isDev = import.meta.env.DEV;
 
+  // Crafting music disabled
+  // useEffect(() => {
+  //   AudioCues.onCraftingStart();
+  // }, []);
+
+  // Layer arena voices on/off during combat
+  useEffect(() => {
+    if (phase === 'combat') {
+      AudioCues.onBattleStart();
+    } else {
+      AudioCues.onBattleEnd();
+    }
+  }, [phase]);
+
+  // Track status effects for ambient sounds
+  const playerEffects = useGameStore((state) => state.player.statusEffects);
+  const enemyEffects = useGameStore((state) => state.enemy.statusEffects);
+  const hasPoisonActive = playerEffects.includes('poison') || enemyEffects.includes('poison');
+  const hasBurnActive = playerEffects.includes('burn') || enemyEffects.includes('burn');
+
+  useEffect(() => {
+    if (hasPoisonActive && phase === 'combat') {
+      AudioCues.onPoisonStart();
+    } else {
+      AudioCues.onPoisonEnd();
+    }
+  }, [hasPoisonActive, phase]);
+
+  useEffect(() => {
+    if (hasBurnActive && phase === 'combat') {
+      AudioCues.onBurnStart();
+    } else {
+      AudioCues.onBurnEnd();
+    }
+  }, [hasBurnActive, phase]);
+
   // Crafting phase renders its own full-screen scene
   if (phase === 'crafting') {
     return (
       <>
         {isHandheld ? <HandheldCraftingScene /> : <CraftingScene />}
+        {!isHandheld && <CardLorePanel />}
         <UIScaleControl />
         {/* Phase indicator (dev) */}
         {isDev && (
