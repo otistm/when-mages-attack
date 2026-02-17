@@ -6,10 +6,10 @@
  * correctly and never resets it on re-render.
  */
 
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useMemo, Suspense } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useSpring, animated } from '@react-spring/three';
-import { Sphere, Cylinder } from '@react-three/drei';
+import { Sphere, Cylinder, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 
 import { useCombatStore } from '@/stores/combatStore';
@@ -22,9 +22,11 @@ import type { CombatMinion } from '@/stores/combatStore';
 
 interface MinionProps {
   data: CombatMinion;
+  modelPath?: string;
+  modelScale?: number;
 }
 
-export function Minion({ data }: MinionProps) {
+export function Minion({ data, modelPath, modelScale = 1 }: MinionProps) {
   const groupRef = useRef<THREE.Group>(null);
   const innerRef = useRef<THREE.Group>(null);
   const lastAttackTimeRef = useRef(0);
@@ -149,24 +151,19 @@ export function Minion({ data }: MinionProps) {
   const healthPercent = data.currentHp / data.stats.hp;
   const isPlayer = data.team === 'player';
 
+  const healthBarY = modelPath ? 2.0 * modelScale : 1.5;
+
   return (
     <group ref={groupRef} position={initialPosition}>
       <animated.group ref={innerRef} scale={spawnSpring.scale} renderOrder={10}>
-        <Cylinder args={[0.3, 0.4, 1, 8]} position={[0, 0.5, 0]} castShadow>
-          <meshStandardMaterial color={data.color} roughness={0.6} metalness={0.3}
-            emissive={data.color} emissiveIntensity={0.15} />
-        </Cylinder>
-        <Sphere args={[0.25, 16, 16]} position={[0, 1.1, 0]} castShadow>
-          <meshStandardMaterial color={data.color} roughness={0.6} metalness={0.3}
-            emissive={data.color} emissiveIntensity={0.2} />
-        </Sphere>
-        <Sphere args={[0.08, 8, 8]} position={[0.1, 1.15, 0.2]}>
-          <meshBasicMaterial color={isPlayer ? '#00ff88' : '#ff4444'} />
-        </Sphere>
-        <Sphere args={[0.08, 8, 8]} position={[-0.1, 1.15, 0.2]}>
-          <meshBasicMaterial color={isPlayer ? '#00ff88' : '#ff4444'} />
-        </Sphere>
-        <group position={[0, 1.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        {modelPath ? (
+          <Suspense fallback={<DefaultMinionMesh color={data.color} isPlayer={isPlayer} />}>
+            <GLBModel path={modelPath} scale={modelScale} />
+          </Suspense>
+        ) : (
+          <DefaultMinionMesh color={data.color} isPlayer={isPlayer} />
+        )}
+        <group position={[0, healthBarY, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <mesh>
             <planeGeometry args={[0.8, 0.15]} />
             <meshBasicMaterial color="#000000" opacity={0.6} transparent />
@@ -179,6 +176,44 @@ export function Minion({ data }: MinionProps) {
       </animated.group>
     </group>
   );
+}
+
+function DefaultMinionMesh({ color, isPlayer }: { color: string; isPlayer: boolean }) {
+  return (
+    <>
+      <Cylinder args={[0.3, 0.4, 1, 8]} position={[0, 0.5, 0]} castShadow>
+        <meshStandardMaterial color={color} roughness={0.6} metalness={0.3}
+          emissive={color} emissiveIntensity={0.15} />
+      </Cylinder>
+      <Sphere args={[0.25, 16, 16]} position={[0, 1.1, 0]} castShadow>
+        <meshStandardMaterial color={color} roughness={0.6} metalness={0.3}
+          emissive={color} emissiveIntensity={0.2} />
+      </Sphere>
+      <Sphere args={[0.08, 8, 8]} position={[0.1, 1.15, 0.2]}>
+        <meshBasicMaterial color={isPlayer ? '#00ff88' : '#ff4444'} />
+      </Sphere>
+      <Sphere args={[0.08, 8, 8]} position={[-0.1, 1.15, 0.2]}>
+        <meshBasicMaterial color={isPlayer ? '#00ff88' : '#ff4444'} />
+      </Sphere>
+    </>
+  );
+}
+
+function GLBModel({ path, scale }: { path: string; scale: number }) {
+  const { scene } = useGLTF(path);
+  const model = useMemo(() => {
+    const clone = scene.clone();
+    clone.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+      }
+    });
+    return clone;
+  }, [scene]);
+
+  return <primitive object={model} scale={scale} />;
 }
 
 export default Minion;

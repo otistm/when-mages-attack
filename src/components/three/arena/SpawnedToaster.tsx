@@ -234,8 +234,8 @@ export function SpawnedToaster({
   }, [combatData, combatState, isDying, springApi, onDestroy]);
   
   const zPosition = team === 'player' 
-    ? ARENA.playerSlotZ - 4
-    : ARENA.enemySlotZ + 4;
+    ? ARENA.playerThroneZ - 2
+    : ARENA.enemyThroneZ + 2;
   
   // Fire cooldown logic — stop firing when dying
   useFrame(({ clock }) => {

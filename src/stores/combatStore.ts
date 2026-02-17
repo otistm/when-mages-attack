@@ -43,7 +43,7 @@ interface CombatStore {
   enemyStatusEffects: HPStatusEffect[];
   
   // Actions
-  spawnMinion: (card: CardDefinition, team: Team, slotIndex: number) => string;
+  spawnMinion: (card: CardDefinition, team: Team, slotIndex: number, positionOverride?: [number, number, number]) => string;
   registerConstruct: (card: CardDefinition, team: Team, position: [number, number, number]) => string;
   removeMinion: (id: string) => void;
   updateMinion: (id: string, updates: Partial<CombatMinion>) => void;
@@ -67,27 +67,27 @@ interface CombatStore {
 
 let minionIdCounter = 0;
 
-// Get spawn position based on team and slot, with random scatter
-function getSpawnPosition(team: Team, slotIndex: number): [number, number, number] {
-  const slot = CARD_SLOTS[slotIndex];
-  const baseX = slot?.xPosition ?? 0;
-  // Random scatter ±2 units around the slot X so multiple minions don't stack
-  const x = baseX + (Math.random() - 0.5) * 4;
-  const y = 0.5;
-  // Spawn near the HP bar edge, with slight random Z scatter
-  const baseZ = team === 'player' ? ARENA.combatZoneEnd - 1 : ARENA.combatZoneStart + 1;
-  const z = baseZ + (Math.random() - 0.5) * 2;
-  return [x, y, z];
-}
-
 export const useCombatStore = create<CombatStore>((set, get) => ({
   minions: new Map(),
   playerStatusEffects: [],
   enemyStatusEffects: [],
   
-  spawnMinion: (card, team, slotIndex) => {
+  spawnMinion: (card, team, slotIndex, positionOverride?) => {
     const id = `minion-${minionIdCounter++}`;
-    const position = getSpawnPosition(team, slotIndex);
+    
+    let position: [number, number, number];
+    if (positionOverride) {
+      position = positionOverride;
+    } else {
+      // Default spawn position — near their respective HP bars
+      const slot = CARD_SLOTS[slotIndex];
+      const baseX = slot?.xPosition ?? 0;
+      const spawnX = baseX + (Math.random() - 0.5) * 4;
+      const spawnY = 0.5;
+      const baseZ = team === 'player' ? ARENA.playerThroneZ - 2 : ARENA.enemyThroneZ + 2;
+      const spawnZ = baseZ + (Math.random() - 0.5) * 2;
+      position = [spawnX, spawnY, spawnZ];
+    }
     
     const minion: CombatMinion = {
       id,

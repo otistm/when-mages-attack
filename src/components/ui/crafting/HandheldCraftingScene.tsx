@@ -259,12 +259,12 @@ export function HandheldCraftingScene() {
       {/* Main UI */}
       {!isPlayingVideo && (
         <>
-          {/* Enemy Header - compact */}
-          <div className="shrink-0 w-full bg-gradient-to-b from-red-950/60 to-transparent z-10" style={{ padding: 'var(--space-sm) var(--space-md)' }}>
+          {/* Threat Assessment Header */}
+          <div className="shrink-0 w-full z-10" style={{ padding: 'var(--space-sm) var(--space-md)', background: 'linear-gradient(to bottom, rgba(60,20,20,0.5), transparent)' }}>
             <div className="flex items-center justify-between">
-              <div className="text-game-body font-bold text-red-400">??? Enemy ???</div>
-              <div className="bg-red-900/50 rounded-full text-game-micro text-red-300 border border-red-800" style={{ padding: 'var(--space-xs) var(--space-sm)' }}>
-                Level 1
+              <div className="text-game-body font-bold font-display" style={{ color: 'rgba(200,80,80,0.8)', letterSpacing: '0.05em' }}>??? Unidentified ???</div>
+              <div className="text-game-micro border rounded-full" style={{ padding: 'var(--space-xs) var(--space-sm)', color: 'rgba(200,100,100,0.6)', borderColor: 'rgba(200,80,80,0.25)', background: 'rgba(60,20,20,0.3)' }}>
+                Pending
               </div>
             </div>
           </div>
@@ -275,9 +275,15 @@ export function HandheldCraftingScene() {
               <div className="flex flex-col" style={{ padding: 'var(--space-sm) var(--space-md)' }}>
                 {/* Grimoire Header */}
                 <div className="text-center" style={{ marginBottom: 'var(--space-md)' }}>
-                  <h1 className="text-game-subheading font-bold text-amber-500 tracking-wide" style={{ textShadow: '0 0 20px rgba(245,158,11,0.3)' }}>
+                  <h1 
+                    className="text-game-subheading font-bold font-display text-arcane-gold tracking-wider uppercase" 
+                    style={{ textShadow: '0 0 20px rgba(212,175,55,0.25)', letterSpacing: '0.1em' }}
+                  >
                     Arcane Synthesis
                   </h1>
+                  <p className="text-arcane-gold/25 text-game-micro italic font-display mt-0.5">
+                    Dual-sigil fusion protocol
+                  </p>
                 </div>
 
                 {/* Crafting Chambers - compact side-by-side */}
@@ -290,13 +296,16 @@ export function HandheldCraftingScene() {
                     isHighlighted={!!selectedCardForPlacement}
                   />
 
-                  {/* Connector + Synthesize */}
+                  {/* Synthesis Connector */}
                   <div className="flex flex-col items-center gap-2">
                     <div
                       className={`text-2xl transition-all duration-500 ${
-                        canCraft() ? 'text-amber-500 scale-125 animate-pulse' : 'text-gray-600'
+                        canCraft() ? 'text-arcane-gold scale-125' : 'text-arcane-purple/40'
                       }`}
-                      style={{ textShadow: canCraft() ? '0 0 20px rgba(245,158,11,0.8)' : 'none' }}
+                      style={{ 
+                        textShadow: canCraft() ? '0 0 15px rgba(212,175,55,0.5)' : 'none',
+                        animation: canCraft() ? 'chamberActivePulse 2s ease-in-out infinite' : 'none',
+                      }}
                     >
                       ✦
                     </div>
@@ -304,12 +313,19 @@ export function HandheldCraftingScene() {
                       onClick={handleCraft}
                       disabled={!canCraft()}
                       className={`
-                        rounded-full font-bold text-game-caption transition-all duration-300 relative overflow-hidden
-                        ${canCraft()
-                          ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white shadow-[0_0_20px_rgba(245,158,11,0.5)] active:scale-95'
-                          : 'bg-gray-700 text-gray-500 cursor-not-allowed'}
+                        rounded-lg font-bold font-display text-game-caption tracking-wider uppercase transition-all duration-300 active:scale-95
+                        ${!canCraft() ? 'cursor-not-allowed' : ''}
                       `}
-                      style={{ padding: 'var(--space-xs) var(--space-md)', minHeight: '44px', minWidth: '44px' }}
+                      style={{ 
+                        padding: 'var(--space-xs) var(--space-md)', 
+                        minHeight: '44px', 
+                        minWidth: '44px',
+                        border: canCraft() ? '2px solid rgba(212,175,55,0.4)' : '2px solid rgba(74,44,106,0.2)',
+                        background: canCraft() ? 'linear-gradient(135deg, rgba(30,20,10,0.9), rgba(15,10,5,0.95))' : 'rgba(20,20,35,0.5)',
+                        color: canCraft() ? 'rgba(212,175,55,0.9)' : 'rgba(74,44,106,0.35)',
+                        boxShadow: canCraft() ? '0 0 15px rgba(212,175,55,0.1)' : 'none',
+                        letterSpacing: '0.08em',
+                      }}
                     >
                       <span className="relative z-10">Fuse</span>
                     </button>
@@ -368,20 +384,29 @@ export function HandheldCraftingScene() {
               </div>
             )}
 
-            {/* Grimoire Toggle (when closed) */}
+            {/* Grimoire Toggle */}
             {!showGrimoire && !resultCard && (
               <button
                 onClick={() => setShowGrimoire(true)}
-                className="bg-gradient-to-r from-amber-600/80 to-orange-600/80 active:from-amber-500 active:to-orange-500 rounded-lg font-bold text-white text-game-caption shadow-lg transition-all z-30 flex items-center gap-2"
-                style={{ margin: 'var(--space-md)', padding: 'var(--space-sm) var(--space-md)', minHeight: '44px' }}
+                className="rounded-lg font-bold font-display text-game-caption tracking-wider uppercase transition-all z-30 flex items-center gap-2 active:scale-95"
+                style={{ 
+                  margin: 'var(--space-md)', 
+                  padding: 'var(--space-sm) var(--space-md)', 
+                  minHeight: '44px',
+                  border: '2px solid rgba(212,175,55,0.35)',
+                  background: 'linear-gradient(135deg, rgba(30,20,10,0.9), rgba(15,10,5,0.95))',
+                  color: 'rgba(212,175,55,0.85)',
+                  boxShadow: '0 0 12px rgba(212,175,55,0.08)',
+                  letterSpacing: '0.08em',
+                }}
               >
-                <span>📖</span> Grimoire
+                <span className="text-arcane-gold/50">✦</span> Grimoire
               </button>
             )}
           </div>
 
-          {/* Player's Book - horizontal scroll at bottom */}
-          <div className="shrink-0 w-full bg-gradient-to-t from-blue-950/60 to-transparent z-10">
+          {/* Player's Grimoire — Active Battle Pages */}
+          <div className="shrink-0 w-full z-10" style={{ background: 'linear-gradient(to top, rgba(74,44,106,0.35), transparent)' }}>
             <div
               className="overflow-x-auto overflow-y-hidden"
               style={{
@@ -408,47 +433,94 @@ export function HandheldCraftingScene() {
             </div>
           </div>
 
-          {/* Ready Button */}
-          <div className="shrink-0 w-full bg-gradient-to-t from-emerald-950/40 to-transparent flex justify-center z-10" style={{ padding: 'var(--space-sm) var(--space-md)' }}>
+          {/* Initiate Combat */}
+          <div className="shrink-0 w-full flex justify-center z-10" style={{ padding: 'var(--space-sm) var(--space-md)', background: 'linear-gradient(to top, rgba(10,10,26,0.4), transparent)' }}>
             <button
               onClick={handleReady}
               disabled={!hasCardInDeck}
               className={`
-                rounded-xl font-bold text-game-body transition-all w-full
-                ${hasCardInDeck
-                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 active:from-emerald-500 active:to-teal-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)] active:scale-95'
-                  : 'bg-gray-700 text-gray-500 cursor-not-allowed'}
+                rounded-xl font-bold font-display text-game-body tracking-wider uppercase transition-all w-full active:scale-95
+                ${!hasCardInDeck ? 'cursor-not-allowed' : ''}
               `}
-              style={{ padding: 'var(--space-md)', minHeight: '48px' }}
+              style={{ 
+                padding: 'var(--space-md)', 
+                minHeight: '48px',
+                border: hasCardInDeck ? '2px solid rgba(212,175,55,0.4)' : '2px solid rgba(74,44,106,0.2)',
+                background: hasCardInDeck ? 'linear-gradient(135deg, rgba(30,20,10,0.9), rgba(15,10,5,0.95))' : 'rgba(20,20,35,0.5)',
+                color: hasCardInDeck ? 'rgba(212,175,55,0.9)' : 'rgba(74,44,106,0.35)',
+                boxShadow: hasCardInDeck ? '0 0 20px rgba(212,175,55,0.12)' : 'none',
+                letterSpacing: '0.1em',
+              }}
             >
-              {hasCardInDeck ? 'Ready for Battle' : 'Place at least one page'}
+              {hasCardInDeck ? 'Begin Trial' : 'Place at least one page'}
             </button>
           </div>
         </>
       )}
 
-      {/* Result Overlay */}
+      {/* Result Overlay — Arcane synthesis ceremony */}
       {resultCard && !isPlayingVideo && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[100]">
-          <div className="flex flex-col items-center" style={{ gap: 'var(--space-md)', padding: 'var(--space-lg)' }}>
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center"
+          style={{ background: 'radial-gradient(ellipse at center, rgba(10,10,26,0.97) 0%, rgba(5,5,16,0.99) 100%)' }}
+        >
+          {/* Central glow */}
+          <div 
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none"
+            style={{
+              width: '200px', height: '200px',
+              background: 'radial-gradient(circle, rgba(212,175,55,0.08) 0%, transparent 70%)',
+              animation: 'pageGlow 3s ease-in-out infinite',
+            }}
+          />
+          {/* Vignette */}
+          <div 
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: 'radial-gradient(ellipse at center, transparent 20%, rgba(0,0,0,0.5) 100%)' }}
+          />
+
+          <div className="flex flex-col items-center relative z-10" style={{ gap: 'var(--space-md)', padding: 'var(--space-lg)' }}>
+            {/* Top rule */}
+            <div className="flex items-center gap-2 w-48">
+              <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.2))' }} />
+              <span style={{ color: 'rgba(212,175,55,0.2)', fontSize: '8px' }}>✦</span>
+              <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(212,175,55,0.2))' }} />
+            </div>
+
             <h2
-              className="text-game-subheading font-bold text-amber-400 text-center"
-              style={{ textShadow: '0 0 20px rgba(245,158,11,0.8)' }}
+              className="text-game-subheading font-bold font-display text-arcane-gold text-center tracking-wider uppercase"
+              style={{ textShadow: '0 0 20px rgba(212,175,55,0.4)', letterSpacing: '0.1em' }}
             >
-              ✦ Synthesis Complete ✦
+              Synthesis Complete
             </h2>
-            <p className="text-amber-200/60 text-game-micro italic text-center">
-              A new essence has been forged.
+            <p className="text-arcane-gold/25 text-game-micro italic font-display text-center">
+              New specimen catalogued.
             </p>
-            <div style={{ animation: 'float 2s ease-in-out infinite' }}>
+            <div style={{ animation: 'float 2.5s ease-in-out infinite' }}>
               <HandheldGrimoirePage page={resultCard} isSelected={false} isNewlyForged onTap={() => {}} onLongPress={() => {}} />
             </div>
+
+            {/* Bottom rule */}
+            <div className="flex items-center gap-2 w-48">
+              <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.2))' }} />
+              <span style={{ color: 'rgba(212,175,55,0.2)', fontSize: '8px' }}>✦</span>
+              <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(212,175,55,0.2))' }} />
+            </div>
+
             <button
               onClick={handleCollectResult}
-              className="bg-gradient-to-r from-amber-600 to-orange-600 rounded-lg font-bold text-white text-game-body shadow-lg active:scale-95 transition-all w-full"
-              style={{ padding: 'var(--space-md)', minHeight: '48px' }}
+              className="rounded-lg font-bold font-display text-game-body tracking-wider uppercase active:scale-95 transition-all w-full"
+              style={{ 
+                padding: 'var(--space-md)', 
+                minHeight: '48px',
+                border: '2px solid rgba(212,175,55,0.35)',
+                background: 'linear-gradient(135deg, rgba(30,20,10,0.9), rgba(15,10,5,0.95))',
+                color: 'rgba(212,175,55,0.85)',
+                boxShadow: '0 0 15px rgba(212,175,55,0.1)',
+                letterSpacing: '0.08em',
+              }}
             >
-              Claim
+              Collect Specimen
             </button>
           </div>
         </div>
@@ -474,6 +546,18 @@ export function HandheldCraftingScene() {
         @keyframes pulse {
           0%, 100% { opacity: 0.2; }
           50% { opacity: 0.4; }
+        }
+        @keyframes chamberIdle {
+          0%, 100% { opacity: 0.5; transform: scale(1); }
+          50% { opacity: 0.85; transform: scale(1.08); }
+        }
+        @keyframes chamberActivePulse {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 1; }
+        }
+        @keyframes pageGlow {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
         }
       `}</style>
 
@@ -503,18 +587,13 @@ function HandheldCraftingSlot({
     selectedCardId ? state.inventory.find(c => c.instanceId === selectedCardId) : null
   );
 
+  const chamberNumeral = index === 0 ? 'I' : 'II';
+  const isActive = !!card;
+
   return (
     <div
       onClick={onTap}
-      className={`
-        rounded-lg border-2 transition-all duration-200 relative
-        flex items-center justify-center cursor-pointer active:scale-95
-        ${card
-          ? 'border-amber-500/50 bg-amber-900/10 border-solid'
-          : isHighlighted
-            ? 'border-amber-400 bg-amber-900/20 border-dashed animate-pulse'
-            : 'border-gray-700 bg-gray-800/30 border-dashed'}
-      `}
+      className="relative flex items-center justify-center cursor-pointer active:scale-95 transition-all duration-200"
       style={{
         width: 'clamp(80px, 22vw, 120px)',
         height: 'clamp(100px, 28vw, 150px)',
@@ -522,8 +601,57 @@ function HandheldCraftingSlot({
         minHeight: '100px',
       }}
     >
+      {/* Outer containment ward */}
+      <div 
+        className={`absolute inset-0 rounded-lg pointer-events-none transition-all duration-300 ${
+          isHighlighted && !isActive ? 'animate-pulse' : ''
+        }`}
+        style={{
+          border: `2px solid ${
+            isActive ? 'rgba(212,175,55,0.4)' 
+            : isHighlighted ? 'rgba(212,175,55,0.5)' 
+            : 'rgba(74,44,106,0.35)'
+          }`,
+          boxShadow: isActive 
+            ? '0 0 15px rgba(212,175,55,0.1), inset 0 0 20px rgba(212,175,55,0.06)' 
+            : isHighlighted 
+            ? '0 0 12px rgba(212,175,55,0.15), inset 0 0 15px rgba(212,175,55,0.08)' 
+            : 'inset 0 0 15px rgba(74,44,106,0.15)',
+          background: isActive
+            ? 'radial-gradient(ellipse at center, rgba(212,175,55,0.05) 0%, rgba(10,10,26,0.95) 65%, rgba(5,5,16,0.98) 100%)'
+            : isHighlighted
+            ? 'radial-gradient(ellipse at center, rgba(212,175,55,0.06) 0%, rgba(10,10,26,0.95) 65%, rgba(5,5,16,0.98) 100%)'
+            : 'radial-gradient(ellipse at center, rgba(74,44,106,0.08) 0%, rgba(10,10,26,0.95) 65%, rgba(5,5,16,0.98) 100%)',
+        }}
+      />
+
+      {/* Inner ward ring */}
+      <div 
+        className="absolute inset-[5px] rounded pointer-events-none transition-all duration-300"
+        style={{
+          border: `1px solid ${isActive ? 'rgba(212,175,55,0.15)' : 'rgba(74,44,106,0.18)'}`,
+        }}
+      />
+
+      {/* Corner ward marks */}
+      {(['top-0 left-0', 'top-0 right-0', 'bottom-0 left-0', 'bottom-0 right-0'] as const).map((pos, i) => (
+        <div
+          key={i}
+          className={`absolute ${pos} pointer-events-none select-none transition-colors duration-300`}
+          style={{
+            color: isActive ? 'rgba(212,175,55,0.3)' : 'rgba(74,44,106,0.25)',
+            fontSize: '10px',
+            padding: '1px 3px',
+            transform: i === 1 ? 'scaleX(-1)' : i === 2 ? 'scaleY(-1)' : i === 3 ? 'scale(-1)' : undefined,
+          }}
+        >
+          ❧
+        </div>
+      ))}
+
+      {/* Content */}
       {card ? (
-        <div className="relative w-full h-full">
+        <div className="relative w-full h-full z-10">
           <HandheldCraftSlotCard page={card} />
           <button
             onClick={(e) => { e.stopPropagation(); onClear(); }}
@@ -534,9 +662,28 @@ function HandheldCraftingSlot({
           </button>
         </div>
       ) : (
-        <div className="text-gray-500 font-bold text-game-micro pointer-events-none flex flex-col items-center gap-1">
-          <span className="text-game-body opacity-50">◇</span>
-          <span>{index + 1}</span>
+        <div className="flex flex-col items-center gap-1 pointer-events-none z-10">
+          <div 
+            style={{ 
+              color: 'rgba(74,44,106,0.45)', 
+              fontSize: '18px',
+              animation: 'chamberIdle 5s ease-in-out infinite',
+              filter: 'drop-shadow(0 0 5px rgba(74,44,106,0.2))',
+            }}
+          >
+            ⬡
+          </div>
+          <div className="text-center">
+            <div 
+              className="font-display tracking-[0.15em] uppercase"
+              style={{ 
+                color: 'rgba(212,175,55,0.3)', 
+                fontSize: '11px',
+              }}
+            >
+              {chamberNumeral}
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -544,7 +691,7 @@ function HandheldCraftingSlot({
 }
 
 /**
- * HandheldCraftSlotCard - Card preview inside crafting chamber
+ * HandheldCraftSlotCard - Specimen page placed into a handheld synthesis chamber
  */
 function HandheldCraftSlotCard({ page }: { page: CardInstance }) {
   const def = getCardDefinition(page.definitionId);
@@ -554,18 +701,38 @@ function HandheldCraftSlotCard({ page }: { page: CardInstance }) {
   const imagePath = def.imagePath || '/assets/images/tabletop_1.png';
 
   return (
-    <div className="relative w-full h-full overflow-hidden rounded-md" style={{ border: `1px solid ${accentColor}` }}>
+    <div 
+      className="relative w-full h-full overflow-hidden rounded-md" 
+      style={{ 
+        border: '1px solid rgba(212,175,55,0.25)',
+        boxShadow: `0 0 10px ${accentColor}15`,
+        background: '#050510',
+      }}
+    >
       <img src={imagePath} alt={def.name} className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 50%)' }} />
-      <div className="absolute left-0 right-0 bottom-0 p-1">
-        <span className="text-game-micro font-bold text-white truncate block">{def.name}</span>
+      <div 
+        className="absolute inset-0" 
+        style={{ 
+          background: `
+            linear-gradient(to top, rgba(5,5,16,0.85) 0%, transparent 50%),
+            radial-gradient(ellipse at center, transparent 30%, rgba(5,5,16,0.25) 100%)
+          `,
+        }} 
+      />
+      <div className="absolute left-0 right-0 bottom-0 p-1 z-10">
+        <span 
+          className="font-display text-game-micro font-bold truncate block"
+          style={{ color: 'rgba(212,175,55,0.85)', textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
+        >
+          {def.name}
+        </span>
       </div>
     </div>
   );
 }
 
 /**
- * HandheldGrimoirePage - Tappable grimoire page card for handheld
+ * HandheldGrimoirePage - Arcane specimen page for handheld (tap-to-place)
  */
 function HandheldGrimoirePage({
   page,
@@ -613,37 +780,90 @@ function HandheldGrimoirePage({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-lg shadow-lg shrink-0 transition-all duration-150 active:scale-95 cursor-pointer ${
-        isSelected ? 'ring-2 ring-amber-400 -translate-y-2' : ''
-      } ${isNewlyForged ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-gray-900' : ''}`}
+      className={`relative overflow-hidden rounded-lg shrink-0 transition-all duration-150 active:scale-95 cursor-pointer ${
+        isSelected ? '-translate-y-2' : ''
+      }`}
       style={{
         width: 'clamp(80px, 20vw, 120px)',
         height: 'clamp(100px, 26vw, 150px)',
-        border: `2px solid ${isSelected ? '#fbbf24' : accentColor}`,
-        boxShadow: isNewlyForged ? `0 0 30px ${accentColor}` : isSelected ? '0 0 12px rgba(251,191,36,0.5)' : undefined,
+        border: `2px solid ${isSelected ? 'rgba(212,175,55,0.7)' : isNewlyForged ? accentColor : 'rgba(212,175,55,0.25)'}`,
+        boxShadow: isNewlyForged 
+          ? `0 0 25px ${accentColor}55, 0 4px 12px rgba(0,0,0,0.5)` 
+          : isSelected 
+          ? '0 0 15px rgba(212,175,55,0.3), 0 4px 12px rgba(0,0,0,0.5)' 
+          : '0 4px 12px rgba(0,0,0,0.5)',
         scrollSnapAlign: 'center',
+        background: '#050510',
       }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchCancel}
       onClick={onTap}
     >
+      {/* Inner border */}
+      <div 
+        className="absolute inset-[2px] rounded-sm pointer-events-none z-20"
+        style={{ border: `1px solid ${isSelected ? 'rgba(212,175,55,0.15)' : 'rgba(212,175,55,0.08)'}` }}
+      />
+
+      {/* Corner ornaments */}
+      {(['top-0 left-0', 'top-0 right-0', 'bottom-0 left-0', 'bottom-0 right-0'] as const).map((pos, i) => (
+        <div
+          key={i}
+          className={`absolute ${pos} pointer-events-none select-none z-20`}
+          style={{
+            color: isSelected ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.15)',
+            fontSize: '8px',
+            padding: '0px 2px',
+            transform: i === 1 ? 'scaleX(-1)' : i === 2 ? 'scaleY(-1)' : i === 3 ? 'scale(-1)' : undefined,
+          }}
+        >
+          ❧
+        </div>
+      ))}
+
       {/* Background */}
       <div className="absolute inset-0 overflow-hidden">
         <img src={imagePath} alt={def.name} className="w-full h-full object-cover" style={{ objectPosition: def.imagePosition || 'center center', transform: def.imageScale ? `scale(${def.imageScale})` : undefined }} />
       </div>
 
-      <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.1) 100%)' }} />
+      {/* Arcane vignette */}
+      <div 
+        className="absolute inset-0 pointer-events-none" 
+        style={{ 
+          background: `
+            linear-gradient(to top, rgba(5,5,16,0.9) 0%, rgba(5,5,16,0.3) 35%, transparent 65%),
+            radial-gradient(ellipse at center, transparent 30%, rgba(5,5,16,0.3) 100%)
+          `,
+        }} 
+      />
 
-      {/* Name */}
-      <div className="absolute left-0 right-0 bottom-0 p-1.5">
-        <h3 className="text-game-micro font-bold text-white truncate" style={{ WebkitTextStroke: '0.5px #000', paintOrder: 'stroke fill' }}>
-          {def.name}
-        </h3>
+      {/* Newly forged glow */}
+      {isNewlyForged && (
+        <div 
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `radial-gradient(circle, ${accentColor}20 0%, transparent 60%)`,
+            animation: 'pageGlow 2s ease-in-out infinite',
+          }}
+        />
+      )}
+
+      {/* Name plate */}
+      <div className="absolute left-0 right-0 bottom-0 z-10">
+        <div className="mx-1.5 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.15), transparent)' }} />
+        <div className="p-1.5 pt-1">
+          <h3 
+            className="font-display text-game-micro font-bold truncate" 
+            style={{ color: 'rgba(212,175,55,0.85)', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
+          >
+            {def.name}
+          </h3>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="absolute right-1 bottom-1 flex items-center gap-1 text-game-micro font-bold pointer-events-none" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+      <div className="absolute right-1 bottom-1 flex items-center gap-1 text-game-micro font-bold pointer-events-none z-10" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
         {(def.baseStats.attack > 0 || def.baseStats.hp > 0) ? (
           <>
             <span style={{ color: '#ff6b6b' }}>⚔</span>
@@ -658,19 +878,30 @@ function HandheldGrimoirePage({
 
       {/* Status indicator */}
       {statusEffect && (def.baseStats.attack > 0 || def.baseStats.hp > 0) && (
-        <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-amber-500 shadow-lg border border-white flex items-center justify-center text-game-micro">
+        <div 
+          className="absolute top-1 right-1 w-4 h-4 rounded-full shadow-lg flex items-center justify-center text-game-micro z-10"
+          style={{ background: 'rgba(212,175,55,0.85)', border: '1px solid rgba(212,175,55,0.4)' }}
+        >
           🔥
         </div>
       )}
 
-      {/* Rarity */}
+      {/* Rarity sigil */}
       {def.rarity === 'rare' && (
-        <div className="absolute top-1 left-1 text-game-caption">⭐</div>
+        <div 
+          className="absolute top-1 left-1 text-game-micro pointer-events-none z-10"
+          style={{ color: 'rgba(212,175,55,0.75)', filter: 'drop-shadow(0 0 3px rgba(212,175,55,0.4))' }}
+        >
+          ✦
+        </div>
       )}
 
-      {/* Selection indicator */}
+      {/* Selection glow */}
       {isSelected && (
-        <div className="absolute inset-0 pointer-events-none border-2 border-amber-400 rounded-lg" style={{ boxShadow: 'inset 0 0 10px rgba(251,191,36,0.3)' }} />
+        <div 
+          className="absolute inset-0 pointer-events-none rounded-lg z-10" 
+          style={{ boxShadow: 'inset 0 0 12px rgba(212,175,55,0.25)' }} 
+        />
       )}
     </div>
   );

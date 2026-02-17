@@ -110,6 +110,8 @@ export interface GameSettings {
   isMuted: boolean;
   showFps: boolean;
   reducedMotion: boolean;
+  highContrast: boolean;
+  textScale: number;
   colorblindMode: 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia';
 }
 
@@ -123,6 +125,8 @@ export const DEFAULT_SETTINGS: GameSettings = {
   isMuted: false,
   showFps: false,
   reducedMotion: false,
+  highContrast: false,
+  textScale: 1,
   colorblindMode: 'none',
 };
 

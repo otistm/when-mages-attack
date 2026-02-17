@@ -33,6 +33,40 @@ export default {
           ice: '#4da6ff',
           poison: '#7cfc00',
         },
+        // Semantic design system tokens (reference CSS custom properties)
+        ds: {
+          surface: {
+            DEFAULT: 'var(--surface-primary)',
+            secondary: 'var(--surface-secondary)',
+            elevated: 'var(--surface-elevated)',
+            overlay: 'var(--surface-overlay)',
+          },
+          text: {
+            DEFAULT: 'var(--text-primary)',
+            secondary: 'var(--text-secondary)',
+            muted: 'var(--text-muted)',
+            gold: 'var(--text-gold)',
+            'gold-secondary': 'var(--text-gold-secondary)',
+            'gold-muted': 'var(--text-gold-muted)',
+          },
+          border: {
+            DEFAULT: 'var(--border-primary)',
+            secondary: 'var(--border-secondary)',
+            subtle: 'var(--border-subtle)',
+            interactive: 'var(--border-interactive)',
+          },
+          status: {
+            damage: 'var(--status-damage)',
+            heal: 'var(--status-heal)',
+            speed: 'var(--status-speed)',
+            cooldown: 'var(--status-cooldown)',
+            burn: 'var(--status-burn)',
+            freeze: 'var(--status-freeze)',
+            poison: 'var(--status-poison)',
+            blight: 'var(--status-blight)',
+            shock: 'var(--status-shock)',
+          },
+        },
       },
       fontFamily: {
         display: ['Cinzel', 'serif'],

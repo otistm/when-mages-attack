@@ -315,24 +315,26 @@ export function CraftingScene() {
       {/* Main UI - hidden during video playback */}
       {!isPlayingVideo && (
         <>
-          {/* Enemy Header - Name and Level */}
-          <div className="shrink-0 w-full bg-gradient-to-b from-red-950/60 to-transparent z-10" style={{ padding: 'var(--space-md) var(--space-lg)' }}>
+          {/* Threat Assessment Header */}
+          <div className="shrink-0 w-full z-10" style={{ padding: 'var(--space-md) var(--space-lg)', background: 'linear-gradient(to bottom, rgba(60,20,20,0.5), transparent)' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center" style={{ gap: 'var(--space-md)' }}>
-                <div className="text-game-subheading font-bold text-red-400">??? Enemy ???</div>
-                <div className="bg-red-900/50 rounded-full text-game-caption text-red-300 border border-red-800" style={{ padding: 'var(--space-xs) var(--space-sm)' }}>
-                  Level 1
+                <div className="text-game-subheading font-bold font-display" style={{ color: 'rgba(200,80,80,0.8)', letterSpacing: '0.05em' }}>
+                  ??? Unidentified Threat ???
+                </div>
+                <div className="text-game-caption border rounded-full" style={{ padding: 'var(--space-xs) var(--space-sm)', color: 'rgba(200,100,100,0.6)', borderColor: 'rgba(200,80,80,0.25)', background: 'rgba(60,20,20,0.3)' }}>
+                  Classification Pending
                 </div>
               </div>
-              <div className="text-gray-500 text-game-caption italic">Prepare for battle...</div>
+              <div className="text-game-caption italic" style={{ color: 'rgba(212,175,55,0.3)' }}>Prepare your grimoire...</div>
             </div>
           </div>
 
           {/* Main Content Area */}
           <div className="flex-1 relative overflow-hidden z-10">
-            {/* Enhanced Floating Particles */}
+            {/* Arcane Ambient Particles */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              {/* Large glowing orbs */}
+              {/* Drifting arcane orbs */}
               {[...Array(8)].map((_, i) => (
                 <div
                   key={`orb-${i}`}
@@ -343,7 +345,7 @@ export function CraftingScene() {
                     left: `${10 + Math.random() * 80}%`,
                     top: `${10 + Math.random() * 80}%`,
                     background: `radial-gradient(circle, ${
-                      ['rgba(255,106,0,0.4)', 'rgba(245,158,11,0.3)', 'rgba(251,191,36,0.35)'][i % 3]
+                      ['rgba(212,175,55,0.3)', 'rgba(74,44,106,0.35)', 'rgba(136,102,170,0.25)', 'rgba(212,175,55,0.2)', 'rgba(74,44,106,0.3)'][i % 5]
                     } 0%, transparent 70%)`,
                     animation: `floatOrb ${8 + Math.random() * 6}s ease-in-out infinite`,
                     animationDelay: `${Math.random() * 4}s`,
@@ -352,18 +354,18 @@ export function CraftingScene() {
                 />
               ))}
               
-              {/* Small sparkle particles */}
-              {[...Array(40)].map((_, i) => (
+              {/* Sigil sparkles */}
+              {[...Array(35)].map((_, i) => (
                 <div
                   key={`sparkle-${i}`}
                   className="absolute rounded-full"
                   style={{
-                    width: `${2 + Math.random() * 4}px`,
-                    height: `${2 + Math.random() * 4}px`,
+                    width: `${2 + Math.random() * 3}px`,
+                    height: `${2 + Math.random() * 3}px`,
                     left: `${Math.random() * 100}%`,
                     top: `${Math.random() * 100}%`,
-                    backgroundColor: ['#ff6a00', '#fbbf24', '#f59e0b', '#ffffff'][i % 4],
-                    opacity: 0.3 + Math.random() * 0.4,
+                    backgroundColor: ['#d4af37', '#4a2c6a', '#8866aa', '#d4af37', '#6b4d8a'][i % 5],
+                    opacity: 0.2 + Math.random() * 0.35,
                     animation: `twinkle ${2 + Math.random() * 3}s ease-in-out infinite`,
                     animationDelay: `${Math.random() * 3}s`,
                     boxShadow: '0 0 6px currentColor',
@@ -371,18 +373,19 @@ export function CraftingScene() {
                 />
               ))}
               
-              {/* Rising ember particles */}
-              {[...Array(15)].map((_, i) => (
+              {/* Rising arcane motes */}
+              {[...Array(12)].map((_, i) => (
                 <div
                   key={`ember-${i}`}
-                  className="absolute w-1 h-1 rounded-full bg-orange-500"
+                  className="absolute w-1 h-1 rounded-full"
                   style={{
                     left: `${20 + Math.random() * 60}%`,
                     bottom: '-10px',
-                    opacity: 0.6,
+                    opacity: 0.5,
+                    backgroundColor: i % 3 === 0 ? '#d4af37' : '#8866aa',
                     animation: `riseEmber ${4 + Math.random() * 4}s linear infinite`,
                     animationDelay: `${Math.random() * 4}s`,
-                    boxShadow: '0 0 8px #ff6a00',
+                    boxShadow: `0 0 6px ${i % 3 === 0 ? 'rgba(212,175,55,0.5)' : 'rgba(136,102,170,0.5)'}`,
                   }}
                 />
               ))}
@@ -395,50 +398,59 @@ export function CraftingScene() {
               >
                 {/* Grimoire Header */}
                 <div className="relative z-10" style={{ padding: 'var(--space-lg)' }}>
-                  <h1 className="text-game-heading font-bold text-amber-500 text-center tracking-wide" style={{ textShadow: '0 0 20px rgba(245,158,11,0.3)' }}>
-                    Arcane Synthesis
-                  </h1>
-                  <p className="text-amber-200/60 text-center mt-1 text-game-caption italic">
-                    "Fusion of essences yields power beyond comprehension"
+                  <div className="flex items-center justify-center gap-3 mb-1">
+                    <div className="flex-1 max-w-[80px] h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.25))' }} />
+                    <h1 
+                      className="text-game-heading font-bold font-display text-arcane-gold text-center tracking-wider uppercase"
+                      style={{ textShadow: '0 0 25px rgba(212,175,55,0.25)', letterSpacing: '0.12em' }}
+                    >
+                      Arcane Synthesis
+                    </h1>
+                    <div className="flex-1 max-w-[80px] h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(212,175,55,0.25))' }} />
+                  </div>
+                  <p className="text-arcane-gold/30 text-center text-game-caption italic font-display">
+                    "Classification: Restricted. Dual-sigil fusion protocol."
                   </p>
                 </div>
 
                 {/* Crafting Area */}
                 <div className="flex-1 flex flex-col items-center justify-center" style={{ padding: 'var(--space-lg)' }}>
                   <div className="flex items-center relative" style={{ gap: 'var(--space-xl)' }}>
-                    {/* Crafting Circle Glow */}
+                    {/* Containment ward glow */}
                     {canCraft() && (
                       <>
                         <div 
                           className="absolute inset-0 -m-16 rounded-full pointer-events-none"
                           style={{
-                            background: 'radial-gradient(circle, rgba(245,158,11,0.2) 0%, transparent 60%)',
+                            background: 'radial-gradient(circle, rgba(212,175,55,0.12) 0%, rgba(74,44,106,0.06) 40%, transparent 60%)',
                             animation: 'pulseBlob 3s ease-in-out infinite',
                           }}
                         />
-                        {/* Energy ring */}
+                        {/* Ward ring */}
                         <div 
-                          className="absolute inset-0 -m-20 rounded-full pointer-events-none border-2 border-amber-500/20"
+                          className="absolute inset-0 -m-20 rounded-full pointer-events-none"
                           style={{
-                            animation: 'energyPulse 2s ease-in-out infinite',
+                            border: '2px solid rgba(212,175,55,0.15)',
+                            animation: 'energyPulse 2.5s ease-in-out infinite',
                           }}
                         />
-                        {/* Rotating arcane symbols */}
+                        {/* Rotating sigil marks */}
                         <div 
                           className="absolute inset-0 -m-24 pointer-events-none flex items-center justify-center"
                           style={{
-                            animation: 'spin 20s linear infinite',
+                            animation: 'spin 25s linear infinite',
                           }}
                         >
                           {[0, 60, 120, 180, 240, 300].map((angle) => (
                             <div
                               key={angle}
-                              className="absolute text-amber-500/30 text-game-subheading"
+                              className="absolute text-game-subheading"
                               style={{
                                 transform: `rotate(${angle}deg) translateY(-120px)`,
+                                color: angle % 120 === 0 ? 'rgba(212,175,55,0.25)' : 'rgba(74,44,106,0.2)',
                               }}
                             >
-                              ✦
+                              {angle % 120 === 0 ? '◆' : '✦'}
                             </div>
                           ))}
                         </div>
@@ -459,10 +471,13 @@ export function CraftingScene() {
                       <div 
                         className={`text-4xl transition-all duration-500 ${
                           canCraft() 
-                            ? 'text-amber-500 scale-125 animate-pulse' 
-                            : 'text-gray-600'
+                            ? 'text-arcane-gold scale-125' 
+                            : 'text-arcane-purple/40'
                         }`}
-                        style={{ textShadow: canCraft() ? '0 0 20px rgba(245,158,11,0.8)' : 'none' }}
+                        style={{ 
+                          textShadow: canCraft() ? '0 0 20px rgba(212,175,55,0.6)' : 'none',
+                          animation: canCraft() ? 'chamberActivePulse 2s ease-in-out infinite' : 'none',
+                        }}
                       >
                         ✦
                       </div>
@@ -470,18 +485,27 @@ export function CraftingScene() {
                         onClick={handleCraft}
                         disabled={!canCraft()}
                         className={`
-                          rounded-full font-bold text-game-body transition-all duration-300 relative overflow-hidden
+                          rounded-lg font-bold font-display text-game-body tracking-wider uppercase transition-all duration-300 relative overflow-hidden
                           ${canCraft()
-                            ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white shadow-[0_0_30px_rgba(245,158,11,0.5)] transform hover:scale-105 active:scale-95'
-                            : 'bg-gray-700 text-gray-500 cursor-not-allowed'}
+                            ? 'hover:scale-105 active:scale-95'
+                            : 'cursor-not-allowed'}
                         `}
-                        style={{ padding: 'var(--space-sm) var(--space-xl)' }}
+                        style={{ 
+                          padding: 'var(--space-sm) var(--space-xl)',
+                          border: canCraft() ? '2px solid rgba(212,175,55,0.4)' : '2px solid rgba(74,44,106,0.25)',
+                          background: canCraft() 
+                            ? 'linear-gradient(135deg, rgba(30,20,10,0.9), rgba(15,10,5,0.95))' 
+                            : 'rgba(20,20,35,0.6)',
+                          color: canCraft() ? 'rgba(212,175,55,0.9)' : 'rgba(74,44,106,0.4)',
+                          boxShadow: canCraft() ? '0 0 25px rgba(212,175,55,0.15), inset 0 0 15px rgba(212,175,55,0.04)' : 'none',
+                          letterSpacing: '0.1em',
+                        }}
                       >
                         {/* Shimmer effect */}
                         {canCraft() && (
                           <div 
-                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
-                            style={{ animation: 'shimmer 2s infinite' }}
+                            className="absolute inset-0 bg-gradient-to-r from-transparent via-arcane-gold/10 to-transparent -skew-x-12"
+                            style={{ animation: 'shimmer 2.5s infinite' }}
                           />
                         )}
                         <span className="relative z-10">Synthesize</span>
@@ -636,20 +660,29 @@ export function CraftingScene() {
               </div>
             )}
 
-            {/* Grimoire Toggle Button (when closed) */}
+            {/* Grimoire Toggle */}
             {!showGrimoire && !resultCard && (
               <button
                 onClick={() => setShowGrimoire(true)}
-                className="absolute bg-gradient-to-r from-amber-600/80 to-orange-600/80 hover:from-amber-500 hover:to-orange-500 rounded-lg font-bold text-white text-game-body shadow-lg transition-all z-30 flex items-center gap-2"
-                style={{ top: 'var(--space-md)', right: 'var(--space-md)', padding: 'var(--space-sm) var(--space-lg)' }}
+                className="absolute rounded-lg font-bold font-display text-game-body tracking-wider uppercase transition-all z-30 flex items-center gap-2 hover:scale-105 active:scale-95"
+                style={{ 
+                  top: 'var(--space-md)', 
+                  right: 'var(--space-md)', 
+                  padding: 'var(--space-sm) var(--space-lg)',
+                  border: '2px solid rgba(212,175,55,0.35)',
+                  background: 'linear-gradient(135deg, rgba(30,20,10,0.9), rgba(15,10,5,0.95))',
+                  color: 'rgba(212,175,55,0.85)',
+                  boxShadow: '0 0 15px rgba(212,175,55,0.1), inset 0 0 10px rgba(212,175,55,0.03)',
+                  letterSpacing: '0.08em',
+                }}
               >
-                <span>📖</span> Grimoire
+                <span className="text-arcane-gold/50">✦</span> Grimoire
               </button>
             )}
           </div>
 
-      {/* Player's Book - Bottom */}
-      <div className="shrink-0 w-full bg-gradient-to-t from-blue-950/60 to-transparent z-10">
+      {/* Player's Grimoire — Active Battle Pages */}
+      <div className="shrink-0 w-full z-10" style={{ background: 'linear-gradient(to top, rgba(74,44,106,0.35), transparent)' }}>
         <div style={{ padding: 'var(--space-sm) var(--space-md)' }}>
           <div className="flex gap-2 w-full">
             {CARD_SLOTS.map((slot, index) => {
@@ -672,71 +705,153 @@ export function CraftingScene() {
         </div>
       </div>
 
-          {/* Ready Button */}
-          <div className="shrink-0 w-full bg-gradient-to-t from-emerald-950/40 to-transparent flex justify-center z-10" style={{ padding: 'var(--space-md) var(--space-lg)' }}>
+          {/* Initiate Combat */}
+          <div className="shrink-0 w-full flex justify-center z-10" style={{ padding: 'var(--space-md) var(--space-lg)', background: 'linear-gradient(to top, rgba(10,10,26,0.4), transparent)' }}>
             <button
               onClick={handleReady}
               disabled={!hasCardInDeck}
               className={`
-                rounded-xl font-bold text-game-subheading transition-all
+                rounded-xl font-bold font-display text-game-subheading tracking-wider uppercase transition-all relative overflow-hidden
                 ${hasCardInDeck
-                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:scale-105 active:scale-95'
-                  : 'bg-gray-700 text-gray-500 cursor-not-allowed'}
+                  ? 'hover:scale-105 active:scale-95'
+                  : 'cursor-not-allowed'}
               `}
-              style={{ padding: 'var(--space-md) var(--space-2xl)' }}
+              style={{ 
+                padding: 'var(--space-md) var(--space-2xl)',
+                border: hasCardInDeck ? '2px solid rgba(212,175,55,0.4)' : '2px solid rgba(74,44,106,0.2)',
+                background: hasCardInDeck 
+                  ? 'linear-gradient(135deg, rgba(30,20,10,0.9), rgba(15,10,5,0.95))' 
+                  : 'rgba(20,20,35,0.5)',
+                color: hasCardInDeck ? 'rgba(212,175,55,0.9)' : 'rgba(74,44,106,0.35)',
+                boxShadow: hasCardInDeck ? '0 0 30px rgba(212,175,55,0.15), inset 0 0 20px rgba(212,175,55,0.04)' : 'none',
+                letterSpacing: '0.1em',
+              }}
             >
-              {hasCardInDeck ? 'Ready for Battle' : 'Place at least one page'}
+              {hasCardInDeck && (
+                <div 
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-arcane-gold/10 to-transparent -skew-x-12"
+                  style={{ animation: 'shimmer 3s infinite' }}
+                />
+              )}
+              <span className="relative z-10">{hasCardInDeck ? 'Begin Trial' : 'Place at least one page'}</span>
             </button>
           </div>
         </>
       )}
 
-      {/* Result Overlay - Shows after video ends */}
+      {/* Result Overlay — Arcane synthesis ceremony */}
       {resultCard && !isPlayingVideo && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[100]">
-          {/* Particle burst */}
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center"
+          style={{ background: 'radial-gradient(ellipse at center, rgba(10,10,26,0.97) 0%, rgba(5,5,16,0.99) 100%)' }}
+        >
+          {/* Atmospheric effects */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {[...Array(30)].map((_, i) => (
+            {/* Slow rotating sigil ring */}
+            <div 
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+              style={{ animation: 'spin 30s linear infinite' }}
+            >
+              {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
+                <div
+                  key={angle}
+                  className="absolute"
+                  style={{
+                    transform: `rotate(${angle}deg) translateY(clamp(-150px, -20vw, -220px))`,
+                    color: 'rgba(212,175,55,0.12)',
+                    fontSize: 'clamp(12px, 1.5vw, 18px)',
+                  }}
+                >
+                  {angle % 90 === 0 ? '◆' : '✦'}
+                </div>
+              ))}
+            </div>
+
+            {/* Central glow */}
+            <div 
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+              style={{
+                width: 'clamp(250px, 35vw, 400px)',
+                height: 'clamp(250px, 35vw, 400px)',
+                background: 'radial-gradient(circle, rgba(212,175,55,0.08) 0%, rgba(74,44,106,0.04) 50%, transparent 70%)',
+                animation: 'pageGlow 3s ease-in-out infinite',
+              }}
+            />
+
+            {/* Rising arcane particles */}
+            {[...Array(20)].map((_, i) => (
               <div
-                key={i}
-                className="absolute w-2 h-2 bg-amber-500 rounded-full"
+                key={`result-particle-${i}`}
+                className="absolute rounded-full"
                 style={{
-                  left: '50%',
-                  top: '50%',
-                  animation: `burst ${0.5 + Math.random() * 0.5}s ease-out forwards`,
-                  animationDelay: `${Math.random() * 0.3}s`,
-                  '--angle': `${(i / 30) * 360}deg`,
-                  '--distance': `${100 + Math.random() * 200}px`,
-                } as React.CSSProperties}
+                  width: `${2 + Math.random() * 3}px`,
+                  height: `${2 + Math.random() * 3}px`,
+                  left: `${30 + Math.random() * 40}%`,
+                  bottom: '-5px',
+                  backgroundColor: ['#d4af37', '#4a2c6a', '#8866aa'][i % 3],
+                  opacity: 0.5,
+                  animation: `riseEmber ${3 + Math.random() * 4}s linear infinite`,
+                  animationDelay: `${Math.random() * 3}s`,
+                  boxShadow: `0 0 6px ${i % 3 === 0 ? 'rgba(212,175,55,0.4)' : 'rgba(74,44,106,0.4)'}`,
+                }}
               />
             ))}
           </div>
+
+          {/* Vignette */}
+          <div 
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: 'radial-gradient(ellipse at center, transparent 20%, rgba(0,0,0,0.5) 100%)' }}
+          />
           
           <div 
-            className="flex flex-col items-center"
+            className="flex flex-col items-center relative z-10"
             style={{ animation: 'zoomIn 0.5s ease-out', gap: 'var(--space-lg)' }}
           >
+            {/* Top decorative rule */}
+            <div className="flex items-center gap-3" style={{ width: 'clamp(200px, 30vw, 320px)' }}>
+              <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.25))' }} />
+              <span style={{ color: 'rgba(212,175,55,0.25)', fontSize: 'clamp(8px, 1vw, 12px)' }}>✦</span>
+              <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(212,175,55,0.25))' }} />
+            </div>
+
             <h2 
-              className="text-game-heading font-bold text-amber-400"
-              style={{ textShadow: '0 0 20px rgba(245,158,11,0.8)' }}
+              className="text-game-heading font-bold font-display text-arcane-gold tracking-wider uppercase"
+              style={{ textShadow: '0 0 25px rgba(212,175,55,0.4)', letterSpacing: '0.12em' }}
             >
-              ✦ Synthesis Complete ✦
+              Synthesis Complete
             </h2>
-            <p className="text-amber-200/60 text-game-caption italic max-w-md text-center">
-              A new essence has been forged from the primordial fires of creation.
+            <p className="text-arcane-gold/30 text-game-caption italic font-display max-w-md text-center">
+              A new specimen has been catalogued. Handle with appropriate precautions.
             </p>
+
             <div 
-              className="m-4"
-              style={{ animation: 'float 2s ease-in-out infinite' }}
+              className="my-2"
+              style={{ animation: 'float 2.5s ease-in-out infinite' }}
             >
               <GrimoirePage page={resultCard} isNewlyForged />
             </div>
+
+            {/* Bottom decorative rule */}
+            <div className="flex items-center gap-3" style={{ width: 'clamp(200px, 30vw, 320px)' }}>
+              <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.25))' }} />
+              <span style={{ color: 'rgba(212,175,55,0.25)', fontSize: 'clamp(8px, 1vw, 12px)' }}>✦</span>
+              <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(212,175,55,0.25))' }} />
+            </div>
+
             <button
               onClick={handleCollectResult}
-              className="bg-gradient-to-r from-amber-600 to-orange-600 rounded-lg hover:from-amber-500 hover:to-orange-500 font-bold transition-all text-white text-game-body shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:scale-105 active:scale-95"
-              style={{ padding: 'var(--space-sm) var(--space-xl)' }}
+              className="relative overflow-hidden rounded-lg font-bold font-display transition-all text-game-body tracking-wider uppercase hover:scale-105 active:scale-95"
+              style={{ 
+                padding: 'var(--space-sm) var(--space-xl)',
+                border: '2px solid rgba(212,175,55,0.35)',
+                background: 'linear-gradient(135deg, rgba(30,20,10,0.9), rgba(15,10,5,0.95))',
+                color: 'rgba(212,175,55,0.85)',
+                boxShadow: '0 0 20px rgba(212,175,55,0.12), inset 0 0 15px rgba(212,175,55,0.04)',
+                letterSpacing: '0.1em',
+              }}
             >
-              Claim
+              Collect Specimen
             </button>
           </div>
         </div>
@@ -805,15 +920,27 @@ export function CraftingScene() {
         }
         @keyframes energyPulse {
           0%, 100% { 
-            box-shadow: 0 0 20px rgba(255,106,0,0.3), 0 0 40px rgba(255,106,0,0.2);
+            box-shadow: 0 0 20px rgba(212,175,55,0.2), 0 0 40px rgba(74,44,106,0.15);
           }
           50% { 
-            box-shadow: 0 0 40px rgba(255,106,0,0.5), 0 0 80px rgba(255,106,0,0.3);
+            box-shadow: 0 0 40px rgba(212,175,55,0.35), 0 0 80px rgba(74,44,106,0.2);
           }
         }
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
+        }
+        @keyframes chamberIdle {
+          0%, 100% { opacity: 0.5; transform: scale(1); }
+          50% { opacity: 0.85; transform: scale(1.08); }
+        }
+        @keyframes chamberActivePulse {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 1; }
+        }
+        @keyframes pageGlow {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
         }
       `}</style>
       
@@ -969,29 +1096,89 @@ function CraftingSlot({
     selectedCardId ? state.inventory.find(c => c.instanceId === selectedCardId) : null
   );
 
+  const chamberNumeral = index === 0 ? 'I' : 'II';
+  const isActive = !!card;
+
   return (
     <div 
       onDrop={onDrop}
       onDragOver={onDragOver}
-      className={`
-        rounded-xl border-4 transition-all duration-300 relative
-        flex items-center justify-center
-        ${card 
-          ? 'border-amber-500/50 bg-amber-900/10 border-solid' 
-          : 'border-gray-700 bg-gray-800/30 hover:border-gray-500 hover:bg-gray-800/50 border-dashed'}
-      `}
+      className={`relative flex items-center justify-center group transition-all duration-500 ${
+        !isActive ? 'hover:scale-[1.02]' : ''
+      }`}
       style={{ width: 'var(--craft-slot-w)', height: 'var(--craft-slot-h)' }}
     >
-      {/* Arcane Circle Pattern */}
+      {/* Outer containment ward */}
       <div 
-        className="absolute inset-2 rounded-lg border border-amber-900/30 pointer-events-none"
+        className="absolute inset-0 rounded-xl pointer-events-none transition-all duration-500"
         style={{
-          background: card ? 'radial-gradient(circle, rgba(245,158,11,0.1) 0%, transparent 70%)' : 'none',
+          border: `2px solid ${isActive ? 'rgba(212,175,55,0.35)' : 'rgba(74,44,106,0.35)'}`,
+          boxShadow: isActive 
+            ? '0 0 25px rgba(212,175,55,0.12), inset 0 0 35px rgba(212,175,55,0.08)' 
+            : '0 0 15px rgba(0,0,0,0.4), inset 0 0 25px rgba(74,44,106,0.15)',
+          background: isActive
+            ? 'radial-gradient(ellipse at center, rgba(212,175,55,0.05) 0%, rgba(10,10,26,0.95) 60%, rgba(5,5,16,0.98) 100%)'
+            : 'radial-gradient(ellipse at center, rgba(74,44,106,0.08) 0%, rgba(10,10,26,0.95) 60%, rgba(5,5,16,0.98) 100%)',
         }}
       />
-      
+
+      {/* Inner ward ring */}
+      <div 
+        className="absolute inset-[7px] rounded-lg pointer-events-none transition-all duration-500"
+        style={{
+          border: `1px solid ${isActive ? 'rgba(212,175,55,0.18)' : 'rgba(74,44,106,0.2)'}`,
+        }}
+      />
+
+      {/* Corner ward ornaments */}
+      {(['top-0 left-0', 'top-0 right-0', 'bottom-0 left-0', 'bottom-0 right-0'] as const).map((pos, i) => (
+        <div
+          key={i}
+          className={`absolute ${pos} pointer-events-none select-none transition-colors duration-500`}
+          style={{
+            color: isActive ? 'rgba(212,175,55,0.35)' : 'rgba(74,44,106,0.3)',
+            fontSize: 'clamp(13px, 1.3vw, 18px)',
+            padding: '2px 5px',
+            transform: i === 1 ? 'scaleX(-1)' : i === 2 ? 'scaleY(-1)' : i === 3 ? 'scale(-1)' : undefined,
+          }}
+        >
+          ❧
+        </div>
+      ))}
+
+      {/* Cardinal sigil marks */}
+      {[
+        'top-[4px] left-1/2 -translate-x-1/2',
+        'bottom-[4px] left-1/2 -translate-x-1/2',
+        'left-[4px] top-1/2 -translate-y-1/2',
+        'right-[4px] top-1/2 -translate-y-1/2',
+      ].map((pos, i) => (
+        <div
+          key={`cardinal-${i}`}
+          className={`absolute ${pos} pointer-events-none transition-colors duration-500`}
+          style={{ 
+            color: isActive ? 'rgba(212,175,55,0.25)' : 'rgba(74,44,106,0.2)',
+            fontSize: 'clamp(5px, 0.6vw, 8px)',
+          }}
+        >
+          ◆
+        </div>
+      ))}
+
+      {/* Active containment glow */}
+      {isActive && (
+        <div 
+          className="absolute inset-0 rounded-xl pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle at center, rgba(212,175,55,0.06) 0%, transparent 55%)',
+            animation: 'chamberActivePulse 3s ease-in-out infinite',
+          }}
+        />
+      )}
+
+      {/* Content */}
       {card ? (
-        <div className="relative group">
+        <div className="relative group z-10">
           <CraftingSlotPage page={card} />
           <button
             onClick={onClear}
@@ -1001,9 +1188,38 @@ function CraftingSlot({
           </button>
         </div>
       ) : (
-        <div className="text-gray-600 font-bold text-game-body pointer-events-none flex flex-col items-center gap-2">
-          <span className="text-game-subheading opacity-50">◇</span>
-          <span>Chamber {index + 1}</span>
+        <div className="flex flex-col items-center pointer-events-none z-10" style={{ gap: 'clamp(4px, 0.8vh, 10px)' }}>
+          <div 
+            style={{ 
+              color: 'rgba(74,44,106,0.45)', 
+              fontSize: 'clamp(22px, 2.5vw, 34px)',
+              animation: 'chamberIdle 5s ease-in-out infinite',
+              filter: 'drop-shadow(0 0 8px rgba(74,44,106,0.25))',
+            }}
+          >
+            ⬡
+          </div>
+          <div className="text-center">
+            <div 
+              className="font-display tracking-[0.2em] uppercase"
+              style={{ 
+                color: 'rgba(212,175,55,0.3)', 
+                fontSize: 'clamp(11px, 1.3vw, 16px)',
+              }}
+            >
+              Chamber {chamberNumeral}
+            </div>
+            <div 
+              className="italic"
+              style={{ 
+                color: 'rgba(74,44,106,0.4)', 
+                fontSize: 'clamp(7px, 0.7vw, 9px)',
+                marginTop: '2px',
+              }}
+            >
+              Awaiting essence
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -1011,7 +1227,7 @@ function CraftingSlot({
 }
 
 /**
- * GrimoirePage - Displays a page in the grimoire (same size as book slots)
+ * GrimoirePage - Arcane specimen page from the Society's archives
  */
 function GrimoirePage({ 
   page,
@@ -1030,14 +1246,41 @@ function GrimoirePage({
 
   return (
     <div 
-      className={`relative overflow-hidden rounded-lg shadow-lg ${isNewlyForged ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-gray-900' : ''}`}
+      className="relative overflow-hidden rounded-lg"
       style={{ 
         width: 'var(--page-w)', 
         height: 'var(--page-h)',
-        border: `2px solid ${accentColor}`,
-        boxShadow: isNewlyForged ? `0 0 30px ${accentColor}` : undefined,
+        border: `2px solid ${isNewlyForged ? accentColor : 'rgba(212,175,55,0.3)'}`,
+        boxShadow: isNewlyForged 
+          ? `0 0 25px ${accentColor}66, 0 4px 16px rgba(0,0,0,0.5)` 
+          : '0 4px 16px rgba(0,0,0,0.5)',
+        background: '#050510',
       }}
     >
+      {/* Inner ward border */}
+      <div 
+        className="absolute inset-[3px] rounded-sm pointer-events-none z-20"
+        style={{
+          border: `1px solid ${isNewlyForged ? `${accentColor}33` : 'rgba(212,175,55,0.1)'}`,
+        }}
+      />
+
+      {/* Corner ornaments */}
+      {(['top-0 left-0', 'top-0 right-0', 'bottom-0 left-0', 'bottom-0 right-0'] as const).map((pos, i) => (
+        <div
+          key={i}
+          className={`absolute ${pos} pointer-events-none select-none z-20`}
+          style={{
+            color: isNewlyForged ? `${accentColor}99` : 'rgba(212,175,55,0.2)',
+            fontSize: 'clamp(9px, 1vw, 13px)',
+            padding: '1px 3px',
+            transform: i === 1 ? 'scaleX(-1)' : i === 2 ? 'scaleY(-1)' : i === 3 ? 'scale(-1)' : undefined,
+          }}
+        >
+          ❧
+        </div>
+      ))}
+
       {/* Background image */}
       <div className="absolute inset-0 overflow-hidden">
         <img
@@ -1051,42 +1294,51 @@ function GrimoirePage({
         />
       </div>
       
-      {/* Dark gradient overlay */}
+      {/* Arcane vignette overlay */}
       <div 
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.1) 100%)',
+          background: `
+            linear-gradient(to top, rgba(5,5,16,0.9) 0%, rgba(5,5,16,0.35) 35%, transparent 65%),
+            radial-gradient(ellipse at center, transparent 30%, rgba(5,5,16,0.35) 100%)
+          `,
         }}
       />
       
-      {/* Newly forged glow */}
+      {/* Newly forged arcane glow */}
       {isNewlyForged && (
         <div 
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: `radial-gradient(circle, ${accentColor}33 0%, transparent 70%)`,
-            animation: 'pulse 2s ease-in-out infinite',
+            background: `radial-gradient(circle, ${accentColor}20 0%, transparent 60%)`,
+            animation: 'pageGlow 2s ease-in-out infinite',
           }}
         />
       )}
 
-      {/* Page name */}
-      <div className="absolute left-0 right-0 bottom-0 p-2">
-        <h3
-          className="text-game-caption font-bold text-white truncate"
-          style={{
-            WebkitTextStroke: '0.5px #000',
-            paintOrder: 'stroke fill',
-          }}
-        >
-          {def.name}
-        </h3>
+      {/* Name plate with separator */}
+      <div className="absolute left-0 right-0 bottom-0 z-10">
+        <div 
+          className="mx-2 h-px"
+          style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.2), transparent)' }}
+        />
+        <div className="px-2 py-1.5">
+          <h3
+            className="font-display text-game-caption font-bold truncate"
+            style={{
+              color: 'rgba(212,175,55,0.85)',
+              textShadow: '0 1px 3px rgba(0,0,0,0.9)',
+            }}
+          >
+            {def.name}
+          </h3>
+        </div>
       </div>
 
-      {/* Stats - show attack/HP or burn damage depending on page type */}
+      {/* Stats */}
       <div 
-        className="absolute right-2 bottom-2 flex items-center gap-2 text-game-caption font-bold"
-        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+        className="absolute right-2 bottom-2 flex items-center gap-2 text-game-caption font-bold z-10"
+        style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
       >
         {(def.baseStats.attack > 0 || def.baseStats.hp > 0) ? (
           <>
@@ -1107,21 +1359,32 @@ function GrimoirePage({
         ) : null}
       </div>
 
-      {/* Status Effect Indicator - only show if page also has attack/HP */}
+      {/* Status Effect Indicator */}
       {statusEffect && (def.baseStats.attack > 0 || def.baseStats.hp > 0) && (
         <div 
-          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-amber-500 shadow-lg border border-white flex items-center justify-center text-game-micro"
+          className="absolute top-2 right-2 w-6 h-6 rounded-full shadow-lg flex items-center justify-center text-game-micro z-10"
           title={statusEffect.type}
-          style={{ animation: 'pulse 1s ease-in-out infinite' }}
+          style={{ 
+            background: 'rgba(212,175,55,0.85)',
+            border: '1px solid rgba(212,175,55,0.4)',
+            animation: 'pulse 1.5s ease-in-out infinite',
+          }}
         >
           {statusEffect.type === 'burn' ? '🔥' : '!'}
         </div>
       )}
       
-      {/* Rarity indicator for rare+ pages */}
+      {/* Rarity sigil */}
       {def.rarity === 'rare' && (
-        <div className="absolute top-2 left-2 w-6 h-6 flex items-center justify-center text-game-body">
-          ⭐
+        <div 
+          className="absolute top-1.5 left-1.5 flex items-center justify-center pointer-events-none z-10"
+          style={{ 
+            color: 'rgba(212,175,55,0.75)',
+            fontSize: 'clamp(10px, 1.1vw, 14px)',
+            filter: 'drop-shadow(0 0 4px rgba(212,175,55,0.4))',
+          }}
+        >
+          ✦
         </div>
       )}
     </div>
@@ -1129,7 +1392,7 @@ function GrimoirePage({
 }
 
 /**
- * CraftingSlotPage - Smaller page for synthesis chambers
+ * CraftingSlotPage - Specimen page placed into a synthesis chamber
  */
 function CraftingSlotPage({ 
   page,
@@ -1146,13 +1409,21 @@ function CraftingSlotPage({
 
   return (
     <div 
-      className="relative overflow-hidden rounded-lg shadow-lg"
+      className="relative overflow-hidden rounded-lg"
       style={{ 
         width: 'var(--craft-page-w)',
         height: 'var(--craft-page-h)',
-        border: `2px solid ${accentColor}`,
+        border: '2px solid rgba(212,175,55,0.3)',
+        boxShadow: `0 0 15px ${accentColor}22, 0 4px 12px rgba(0,0,0,0.4)`,
+        background: '#050510',
       }}
     >
+      {/* Inner border */}
+      <div 
+        className="absolute inset-[3px] rounded-sm pointer-events-none z-20"
+        style={{ border: '1px solid rgba(212,175,55,0.1)' }}
+      />
+
       {/* Background image */}
       <div className="absolute inset-0 overflow-hidden">
         <img
@@ -1166,31 +1437,40 @@ function CraftingSlotPage({
         />
       </div>
       
-      {/* Dark gradient overlay */}
+      {/* Arcane vignette */}
       <div 
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.1) 100%)',
+          background: `
+            linear-gradient(to top, rgba(5,5,16,0.9) 0%, rgba(5,5,16,0.3) 40%, transparent 70%),
+            radial-gradient(ellipse at center, transparent 30%, rgba(5,5,16,0.3) 100%)
+          `,
         }}
       />
 
-      {/* Page name */}
-      <div className="absolute left-0 right-0 bottom-0 p-2">
-        <h3
-          className="text-game-caption font-bold text-white truncate"
-          style={{
-            WebkitTextStroke: '0.5px #000',
-            paintOrder: 'stroke fill',
-          }}
-        >
-          {def.name}
-        </h3>
+      {/* Name plate */}
+      <div className="absolute left-0 right-0 bottom-0 z-10">
+        <div 
+          className="mx-2 h-px"
+          style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.15), transparent)' }}
+        />
+        <div className="px-2 py-1.5">
+          <h3
+            className="font-display text-game-caption font-bold truncate"
+            style={{
+              color: 'rgba(212,175,55,0.85)',
+              textShadow: '0 1px 3px rgba(0,0,0,0.9)',
+            }}
+          >
+            {def.name}
+          </h3>
+        </div>
       </div>
 
-      {/* Stats - show attack/HP or burn damage depending on page type */}
+      {/* Stats */}
       <div 
-        className="absolute right-2 bottom-2 flex items-center gap-2 text-game-caption font-bold"
-        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+        className="absolute right-2 bottom-2 flex items-center gap-2 text-game-caption font-bold z-10"
+        style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
       >
         {(def.baseStats.attack > 0 || def.baseStats.hp > 0) ? (
           <>
@@ -1211,10 +1491,14 @@ function CraftingSlotPage({
         ) : null}
       </div>
 
-      {/* Status Effect Indicator - only show if page also has attack/HP */}
+      {/* Status Effect Indicator */}
       {statusEffect && (def.baseStats.attack > 0 || def.baseStats.hp > 0) && (
         <div 
-          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-amber-500 shadow-lg border border-white flex items-center justify-center text-game-micro"
+          className="absolute top-2 right-2 w-6 h-6 rounded-full shadow-lg flex items-center justify-center text-game-micro z-10"
+          style={{ 
+            background: 'rgba(212,175,55,0.85)',
+            border: '1px solid rgba(212,175,55,0.4)',
+          }}
         >
           {statusEffect.type === 'burn' ? '🔥' : '!'}
         </div>

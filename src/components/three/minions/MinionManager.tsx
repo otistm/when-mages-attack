@@ -7,8 +7,23 @@
 import { useCombatStore } from '@/stores/combatStore';
 import { Minion } from './Minion';
 import { SentientSlime } from './SentientSlime';
+import { ToasterMinion } from './ToasterMinion';
+import { CactusMinion } from './CactusMinion';
+import type { CardDefinition } from '@/types';
 
-export function MinionManager() {
+const TOASTER_IDS = new Set(['toaster', 'burning_toaster']);
+const CACTUS_IDS = new Set(['potted_cactus', 'dry_heat_cactus', 'spike_trap']);
+
+interface MinionManagerProps {
+  onFire: (
+    position: [number, number, number],
+    damage: number,
+    card?: CardDefinition,
+    firingTeam?: 'player' | 'enemy'
+  ) => void;
+}
+
+export function MinionManager({ onFire }: MinionManagerProps) {
   const minions = useCombatStore((state) => state.minions);
   
   // Convert Map to array, skip constructs (they have their own visual components)
@@ -24,6 +39,17 @@ export function MinionManager() {
         if (minion.cardDefinitionId === 'sentient_slime_mini') {
           return <SentientSlime key={minion.id} data={minion} sizeScale={0.55} />;
         }
+
+        // Toaster: walks to center, fires toast
+        if (TOASTER_IDS.has(minion.cardDefinitionId)) {
+          return <ToasterMinion key={minion.id} data={minion} onFire={onFire} />;
+        }
+
+        // Cactus: stationary, fires needles radially
+        if (CACTUS_IDS.has(minion.cardDefinitionId)) {
+          return <CactusMinion key={minion.id} data={minion} onFire={onFire} />;
+        }
+
         // Default fallback for other minion types
         return <Minion key={minion.id} data={minion} />;
       })}

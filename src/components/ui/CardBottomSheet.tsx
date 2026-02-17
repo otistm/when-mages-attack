@@ -75,8 +75,6 @@ export function CardBottomSheet({ card, onClose }: CardBottomSheetProps) {
   const isConstruct = card.type === 'CONSTRUCT';
   const classification = isConstruct ? 'Autonomous Construct' : 'Volatile Incantation';
   const accentColor = card.emissiveColor ?? '#ff6a00';
-  const bgColor = '#1a1a2e';
-  const headerBg = '#0a0a12';
   const statusEffect = card.statusEffect;
   const effectMeta = statusEffect ? STATUS_EFFECT_META[statusEffect.type] : null;
 
@@ -86,7 +84,9 @@ export function CardBottomSheet({ card, onClose }: CardBottomSheetProps) {
       <div
         className="fixed inset-0 z-[90] transition-opacity duration-250"
         style={{
-          backgroundColor: isVisible ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0)',
+          background: isVisible 
+            ? 'radial-gradient(ellipse at center bottom, rgba(74,44,106,0.15), rgba(0,0,0,0.7))'
+            : 'rgba(0,0,0,0)',
           pointerEvents: isVisible ? 'auto' : 'none',
         }}
         onClick={handleClose}
@@ -107,48 +107,77 @@ export function CardBottomSheet({ card, onClose }: CardBottomSheetProps) {
         onTouchEnd={handleTouchEnd}
       >
         {/* Drag handle */}
-        <div className="flex justify-center py-2" style={{ backgroundColor: bgColor, borderRadius: '16px 16px 0 0' }}>
-          <div className="w-10 h-1 rounded-full bg-white/30" />
+        <div 
+          className="flex justify-center py-2 relative"
+          style={{ 
+            background: 'linear-gradient(180deg, rgba(10,10,26,0.98), rgba(10,10,26,0.98))',
+            borderRadius: '16px 16px 0 0',
+            borderTop: '2px solid rgba(212,175,55,0.3)',
+            borderLeft: '2px solid rgba(212,175,55,0.2)',
+            borderRight: '2px solid rgba(212,175,55,0.2)',
+          }}
+        >
+          <div className="w-10 h-1 rounded-full" style={{ backgroundColor: 'rgba(212,175,55,0.3)' }} />
         </div>
 
         <div
-          className="overflow-y-auto"
+          className="overflow-y-auto relative"
           style={{
-            backgroundColor: bgColor,
+            background: 'linear-gradient(180deg, rgba(10,10,26,0.98) 0%, rgba(5,5,16,0.98) 100%)',
             maxHeight: 'calc(85vh - 20px)',
-            border: '2px solid #222',
-            borderTop: 'none',
+            borderLeft: '2px solid rgba(212,175,55,0.2)',
+            borderRight: '2px solid rgba(212,175,55,0.2)',
+            borderBottom: '2px solid rgba(212,175,55,0.2)',
+            boxShadow: '0 -8px 32px rgba(0,0,0,0.5), inset 0 0 30px rgba(0,0,0,0.3)',
           }}
         >
-          {/* Header - Name & Classification */}
-          <div style={{ backgroundColor: headerBg, borderBottom: '3px solid #111111', padding: 'var(--space-sm) var(--space-lg)' }}>
+          {/* Header — Specimen Designation */}
+          <div
+            style={{ 
+              background: 'linear-gradient(180deg, rgba(5,5,16,0.6), transparent)',
+              padding: 'var(--space-sm) var(--space-lg)',
+            }}
+          >
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-2 h-2" style={{ backgroundColor: accentColor }} />
-              <span className="text-game-micro uppercase tracking-[0.2em] text-white/60 font-mono font-bold">
+              <span style={{ color: 'rgba(212,175,55,0.4)', fontSize: '10px' }}>✦</span>
+              <span 
+                className="text-game-micro uppercase tracking-[0.2em] font-display font-bold"
+                style={{ color: 'rgba(212,175,55,0.5)' }}
+              >
                 Sigil Registry
               </span>
             </div>
-            <h3 className="text-game-heading font-black text-white tracking-wide">
+            <div className="h-px mb-2" style={{ background: 'linear-gradient(to right, rgba(212,175,55,0.2), transparent)' }} />
+            <h3 
+              className="text-game-heading font-black font-display tracking-wide"
+              style={{ color: 'rgba(212,175,55,0.9)' }}
+            >
               {card.name}
             </h3>
             <div className="flex items-center justify-between mt-1">
               <p
-                className="text-game-micro uppercase tracking-widest font-mono font-bold"
+                className="text-game-micro uppercase tracking-widest font-display font-bold"
                 style={{ color: accentColor }}
               >
                 {classification}
               </p>
-              <span className="text-game-micro uppercase tracking-widest text-white/40 font-mono font-bold">
+              <span 
+                className="text-game-micro uppercase tracking-widest font-display font-bold"
+                style={{ color: 'rgba(212,175,55,0.35)' }}
+              >
                 T{card.tier} · {card.rarity}
               </span>
             </div>
           </div>
 
+          {/* Separator */}
+          <div className="mx-4 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.15), transparent)' }} />
+
           {/* Card Image */}
           {card.imagePath && (
             <div
               className="relative w-full"
-              style={{ borderBottom: '3px solid #111111', backgroundColor: '#0a0a12' }}
+              style={{ background: 'rgba(5,5,16,0.5)' }}
             >
               <img
                 src={card.imagePath}
@@ -156,13 +185,30 @@ export function CardBottomSheet({ card, onClose }: CardBottomSheetProps) {
                 className="w-full object-cover"
                 style={{ aspectRatio: '1 / 1', display: 'block' }}
               />
+              {/* Image vignette */}
+              <div 
+                className="absolute inset-0 pointer-events-none"
+                style={{ 
+                  background: `
+                    linear-gradient(to top, rgba(5,5,16,0.6) 0%, transparent 30%),
+                    linear-gradient(to bottom, rgba(5,5,16,0.4) 0%, transparent 20%),
+                    radial-gradient(ellipse at center, transparent 50%, rgba(5,5,16,0.3) 100%)
+                  `,
+                }}
+              />
             </div>
           )}
 
-          {/* Combat Statistics - PRIMARY FOCUS */}
-          <div style={{ backgroundColor: '#0a0a12', borderBottom: '3px solid #111111', padding: 'var(--space-sm) var(--space-lg)' }}>
-            <div className="text-game-micro uppercase tracking-[0.15em] text-white/50 mb-2 font-mono font-bold">
-              ▸ Combat Statistics
+          {/* Separator */}
+          <div className="mx-4 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.15), transparent)' }} />
+
+          {/* Combat Statistics */}
+          <div style={{ padding: 'var(--space-sm) var(--space-lg)' }}>
+            <div 
+              className="text-game-micro uppercase tracking-[0.15em] mb-2 font-display font-bold"
+              style={{ color: 'rgba(212,175,55,0.4)' }}
+            >
+              ◆ Combat Statistics
             </div>
             <div className="grid grid-cols-3 gap-2">
               <StatBox icon="⚔" label="DMG" value={card.baseStats.attack} color="#ef4444" />
@@ -174,105 +220,130 @@ export function CardBottomSheet({ card, onClose }: CardBottomSheetProps) {
             </div>
           </div>
 
-          {/* Status Effect - prominent if present */}
+          {/* Status Effect */}
           {statusEffect && effectMeta && (
-            <div style={{ borderBottom: '3px solid #111111', padding: 'var(--space-sm) var(--space-lg)' }}>
-              <div className="text-game-micro uppercase tracking-[0.15em] text-white/50 mb-2 font-mono font-bold">
-                ▸ Applied Effect
-              </div>
-              <div
-                className="flex items-center gap-3 rounded"
-                style={{
-                  padding: 'var(--space-xs) var(--space-sm)',
-                  backgroundColor: `${effectMeta.color}12`,
-                  border: `2px solid ${effectMeta.color}40`,
-                }}
-              >
-                <span style={{ fontSize: 'clamp(18px, 2vw, 24px)' }}>{effectMeta.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-game-caption font-black" style={{ color: effectMeta.color }}>
-                      {effectMeta.label}
-                    </span>
+            <>
+              <div className="mx-4 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.1), transparent)' }} />
+              <div style={{ padding: 'var(--space-sm) var(--space-lg)' }}>
+                <div 
+                  className="text-game-micro uppercase tracking-[0.15em] mb-2 font-display font-bold"
+                  style={{ color: 'rgba(212,175,55,0.4)' }}
+                >
+                  ◆ Applied Effect
+                </div>
+                <div
+                  className="flex items-center gap-3 rounded-md"
+                  style={{
+                    padding: 'var(--space-xs) var(--space-sm)',
+                    backgroundColor: `${effectMeta.color}0a`,
+                    border: `1px solid ${effectMeta.color}30`,
+                  }}
+                >
+                  <span style={{ fontSize: 'clamp(18px, 2vw, 24px)' }}>{effectMeta.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-game-caption font-black" style={{ color: effectMeta.color }}>
+                        {effectMeta.label}
+                      </span>
+                    </div>
+                    <div className="flex gap-3 mt-0.5">
+                      <span className="text-game-micro text-white/60 font-mono">
+                        {statusEffect.damagePerTick} dmg / {statusEffect.tickInterval}s
+                      </span>
+                      <span className="text-game-micro text-white/40 font-mono">
+                        {statusEffect.duration}s duration
+                      </span>
+                    </div>
+                    {statusEffect.flavorText && (
+                      <p className="text-game-micro italic mt-1 leading-snug" style={{ color: 'rgba(212,175,55,0.4)' }}>
+                        "{statusEffect.flavorText}"
+                      </p>
+                    )}
                   </div>
-                  <div className="flex gap-3 mt-0.5">
-                    <span className="text-game-micro text-white/70 font-mono">
-                      {statusEffect.damagePerTick} dmg / {statusEffect.tickInterval}s
-                    </span>
-                    <span className="text-game-micro text-white/50 font-mono">
-                      {statusEffect.duration}s duration
-                    </span>
-                  </div>
-                  {statusEffect.flavorText && (
-                    <p className="text-game-micro italic text-white/40 mt-1 leading-snug">
-                      "{statusEffect.flavorText}"
-                    </p>
-                  )}
                 </div>
               </div>
-            </div>
+            </>
           )}
 
           {/* Abilities */}
           {card.abilities.length > 0 && (
-            <div style={{ borderBottom: '2px solid #222', padding: 'var(--space-sm) var(--space-lg)' }}>
-              <div className="text-game-micro uppercase tracking-[0.15em] text-white/50 mb-2 font-mono font-bold">
-                ▸ Abilities
-              </div>
-              {card.abilities.map((ability) => (
-                <div key={ability.id} className="mb-2 last:mb-0">
-                  <div className="flex items-center gap-2">
-                    <span style={{ color: accentColor }} className="font-bold">◆</span>
-                    <span className="text-game-caption font-bold text-amber-300">
-                      {ability.name}
-                    </span>
-                    {ability.trigger && (
-                      <span className="text-game-micro text-white/30 font-mono uppercase">
-                        {ability.trigger}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-game-micro text-white/60 ml-5 mt-0.5 leading-relaxed">
-                    {ability.description}
-                  </p>
+            <>
+              <div className="mx-4 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.1), transparent)' }} />
+              <div style={{ padding: 'var(--space-sm) var(--space-lg)' }}>
+                <div 
+                  className="text-game-micro uppercase tracking-[0.15em] mb-2 font-display font-bold"
+                  style={{ color: 'rgba(212,175,55,0.4)' }}
+                >
+                  ◆ Abilities
                 </div>
-              ))}
-            </div>
+                {card.abilities.map((ability) => (
+                  <div key={ability.id} className="mb-2 last:mb-0">
+                    <div className="flex items-center gap-2">
+                      <span style={{ color: 'rgba(212,175,55,0.5)' }}>✦</span>
+                      <span className="text-game-caption font-bold" style={{ color: 'rgba(212,175,55,0.8)' }}>
+                        {ability.name}
+                      </span>
+                      {ability.trigger && (
+                        <span className="text-game-micro text-white/25 font-mono uppercase">
+                          {ability.trigger}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-game-micro text-white/50 ml-5 mt-0.5 leading-relaxed">
+                      {ability.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
 
-          {/* Tags */}
-          <div style={{ borderBottom: '2px solid #222', padding: 'var(--space-sm) var(--space-lg)' }}>
-            <div className="text-game-micro uppercase tracking-[0.15em] text-white/50 mb-2 font-mono font-bold">
-              ▸ Properties
+          {/* Properties / Tags */}
+          <div className="mx-4 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.1), transparent)' }} />
+          <div style={{ padding: 'var(--space-sm) var(--space-lg)' }}>
+            <div 
+              className="text-game-micro uppercase tracking-[0.15em] mb-2 font-display font-bold"
+              style={{ color: 'rgba(212,175,55,0.4)' }}
+            >
+              ◆ Properties
             </div>
             <div className="flex flex-wrap gap-1.5">
               {card.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="px-2 py-0.5 text-game-micro font-mono font-bold"
+                  className="px-2 py-0.5 text-game-micro font-display font-bold uppercase tracking-wider rounded-sm"
                   style={{
-                    backgroundColor: accentColor,
-                    color: '#111111',
-                    border: '2px solid #111111',
+                    backgroundColor: 'rgba(212,175,55,0.08)',
+                    color: 'rgba(212,175,55,0.7)',
+                    border: '1px solid rgba(212,175,55,0.2)',
                   }}
                 >
-                  {tag.toUpperCase()}
+                  {tag}
                 </span>
               ))}
             </div>
           </div>
 
-          {/* Lore Section - reduced visual weight */}
-          <div style={{ backgroundColor: '#12121f', padding: 'var(--space-sm) var(--space-lg)' }}>
-            <div className="text-game-micro uppercase tracking-[0.15em] text-white/30 mb-1.5 font-mono font-bold">
-              ▸ Field Notes
+          {/* Field Notes / Lore */}
+          <div className="mx-4 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.08), transparent)' }} />
+          <div 
+            style={{ 
+              background: 'linear-gradient(180deg, transparent, rgba(5,5,16,0.5))',
+              padding: 'var(--space-sm) var(--space-lg)',
+            }}
+          >
+            <div 
+              className="text-game-micro uppercase tracking-[0.15em] mb-1.5 font-display font-bold"
+              style={{ color: 'rgba(212,175,55,0.3)' }}
+            >
+              ◆ Field Notes
             </div>
             {card.flavorText && (
-              <p className="text-game-micro italic text-amber-200/60 leading-relaxed mb-2">
+              <p className="text-game-micro italic leading-relaxed mb-2" style={{ color: 'rgba(212,175,55,0.45)' }}>
                 "{card.flavorText}"
               </p>
             )}
-            <p className="text-game-micro text-white/50 leading-relaxed">
+            <p className="text-game-micro text-white/40 leading-relaxed">
               {card.description}
             </p>
           </div>
@@ -298,12 +369,15 @@ function StatBox({
 }) {
   return (
     <div
-      className="flex flex-col items-center p-1.5"
-      style={{ backgroundColor: '#12121f', border: '2px solid #222' }}
+      className="flex flex-col items-center p-1.5 rounded-md"
+      style={{ 
+        background: 'radial-gradient(ellipse at center, rgba(74,44,106,0.08) 0%, rgba(5,5,16,0.5) 100%)',
+        border: '1px solid rgba(212,175,55,0.1)',
+      }}
     >
       <span className="text-game-caption font-bold" style={{ color }}>{icon}</span>
       <span className="text-white font-black text-game-caption">{value}</span>
-      <span className="text-white/50 text-game-micro tracking-wider font-bold">{label}</span>
+      <span className="text-game-micro tracking-wider font-display font-bold" style={{ color: 'rgba(212,175,55,0.35)' }}>{label}</span>
     </div>
   );
 }

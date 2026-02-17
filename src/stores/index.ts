@@ -10,3 +10,4 @@ export { useUIStore } from './uiStore';
 export { useDamageStore } from './damageStore';
 export { useCardStore } from './cardStore';
 export { useCombatStore } from './combatStore';
+export { initAccessibilityPrefs, subscribeAccessibilitySync } from './preferencesStore';

@@ -19,8 +19,9 @@ import { ArenaEnvironment } from './ArenaEnvironment';
 import { ArenaFloor } from './ArenaFloor';
 import { CardSlotTracker } from './CardSlotTracker';
 import { SpawnedToaster } from './SpawnedToaster';
+import { SpawnedCactus } from './SpawnedCactus';
 import { MinionManager } from '../minions/MinionManager';
-import { ImpactEffects, SpawnEffects, ToastProjectile, ShivProjectile, DamageNumbers } from '../effects';
+import { ImpactEffects, SpawnEffects, ToastProjectile, ShivProjectile, SpineProjectile, DamageNumbers } from '../effects';
 import { ShivRotationDebug } from '../debug/ShivRotationDebug';
 import { useCameraShake } from '@/hooks/useCameraShake';
 import { useCombatStore } from '@/stores/combatStore';
@@ -38,7 +39,7 @@ import { getCardDefinition } from '@/data/cards';
 // ============================================================
 const SHOW_MODEL_DEBUG = false;
 
-type ProjectileType = 'toast' | 'shiv';
+type ProjectileType = 'toast' | 'shiv' | 'spine';
 
 interface Projectile {
   id: string;
@@ -50,6 +51,11 @@ interface Projectile {
   statusEffect?: StatusEffectConfig;
   sourceCardId?: string;
   projectileType: ProjectileType;
+  /** True if this projectile was initially aimed at a minion. Used to prevent
+   *  spine projectiles from retargeting to the HP bar when their target dies. */
+  initiallyTargetedMinion?: boolean;
+  /** Last known position of the target — used when the target is removed from the store. */
+  lastTargetPosition?: [number, number, number];
 }
 
 interface SpawnedConstruct {
@@ -222,8 +228,25 @@ export function Arena() {
     
     // Determine projectile type based on card
     const isShivCard = sourceCardId?.includes('shiv') || sourceCardId?.includes('blade');
+    const isCactusCard = sourceCardId === 'potted_cactus' || sourceCardId === 'spike_trap' || sourceCardId === 'dry_heat_cactus';
     
-    if (isShivCard) {
+    if (isCactusCard) {
+      // Cactus fires one spine needle per call (fireNeedleBurst handles the 5-needle spread)
+      const closestEnemy = getClosestEnemy(position, firingTeam);
+      
+      newProjectiles.push({
+        id: `spine-${projectileIdCounter++}`,
+        startPosition: [startX, startY + 0.2, startZ],
+        targetMinionId: closestEnemy?.id,
+        targetTeam: opposingTeam,
+        damage,
+        delay: 0,
+        statusEffect,
+        sourceCardId,
+        projectileType: 'spine',
+        initiallyTargetedMinion: !!closestEnemy,
+      });
+    } else if (isShivCard) {
       const shivStartZ = firingTeam === 'player'
         ? ARENA.playerThroneZ - 1
         : ARENA.enemyThroneZ + 1;
@@ -288,10 +311,10 @@ export function Arena() {
     
     const slot = CARD_SLOTS[slotIndex];
     
-    // Calculate position (same as SpawnedToaster)
+    // Spawn constructs near their respective HP bars
     const zPosition = team === 'player'
-      ? ARENA.playerSlotZ - 4
-      : ARENA.enemySlotZ + 4;
+      ? ARENA.playerThroneZ - 2
+      : ARENA.enemyThroneZ + 2;
     const position: [number, number, number] = [slot.xPosition, 0.5, zPosition];
     
     // Register in combat store so minions can target this construct
@@ -307,7 +330,12 @@ export function Arena() {
     }]);
   }, [registerConstruct]);
   
-  // Handle MINION spawn from card (spawns a new minion each cooldown)
+  // Toaster: only one alive at a time per slot
+  const TOASTER_IDS = useRef(new Set(['toaster', 'burning_toaster']));
+  const CACTUS_IDS = useRef(new Set(['potted_cactus', 'dry_heat_cactus', 'spike_trap']));
+  const toasterMinionIds = useRef<Map<string, string>>(new Map());
+
+  // Handle MINION spawn from card
   const handleMinionSpawn = useCallback((
     slotIndex: number,
     card: CardDefinition,
@@ -316,6 +344,67 @@ export function Arena() {
     if (card.id) {
       recordTrigger(card.id, card.name, team);
     }
+
+    const isToaster = TOASTER_IDS.current.has(card.id);
+    const isCactus = CACTUS_IDS.current.has(card.id);
+
+    // Toaster: only one at a time per slot
+    if (isToaster) {
+      const slotKey = `${team}-${slotIndex}`;
+      const existingId = toasterMinionIds.current.get(slotKey);
+      if (existingId) {
+        const entity = useCombatStore.getState().getMinion(existingId);
+        if (entity && entity.state !== 'dying' && entity.state !== 'dead') {
+          return; // Toaster still alive, skip
+        }
+      }
+      const minionId = spawnMinion(card, team, slotIndex);
+      toasterMinionIds.current.set(slotKey, minionId);
+      return;
+    }
+
+    // Cactus: spawn at random position across the whole arena, with minimum distance from others
+    if (isCactus) {
+      const halfW = ARENA.width / 2 - 2;
+      const zMin = ARENA.enemyThroneZ + 3;
+      const zMax = ARENA.playerThroneZ - 3;
+      const minSpacing = 5.0;
+      const maxAttempts = 20;
+
+      const aliveMinions = useCombatStore.getState().getAliveMinions();
+
+      let bestPos: [number, number, number] = [0, 0.5, 0];
+      let bestMinDist = 0;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const cx = (Math.random() - 0.5) * halfW * 2;
+        const cz = zMin + Math.random() * (zMax - zMin);
+
+        let closest = Infinity;
+        for (const m of aliveMinions) {
+          const dx = cx - m.position[0];
+          const dz = cz - m.position[2];
+          const d = Math.sqrt(dx * dx + dz * dz);
+          if (d < closest) closest = d;
+        }
+
+        if (closest >= minSpacing) {
+          bestPos = [cx, 0.5, cz];
+          bestMinDist = closest;
+          break;
+        }
+
+        if (closest > bestMinDist) {
+          bestMinDist = closest;
+          bestPos = [cx, 0.5, cz];
+        }
+      }
+
+      spawnMinion(card, team, slotIndex, bestPos);
+      return;
+    }
+
+    // Default minion spawn
     spawnMinion(card, team, slotIndex);
   }, [spawnMinion, recordTrigger]);
   
@@ -339,8 +428,12 @@ export function Arena() {
     // Try to damage target minion
     if (proj.targetMinionId) {
       damageMinion(proj.targetMinionId, damage, proj.statusEffect?.type);
+    } else if (proj.initiallyTargetedMinion) {
+      // This projectile was aimed at a minion that died in flight.
+      // The HP bar must only take damage from a direct physical hit,
+      // so we absorb the damage — it hits nothing.
     } else {
-      // No minion target - damage HP bar
+      // No minion target and was never aimed at one — damage HP bar directly
       if (proj.targetTeam === 'enemy') {
         damageEnemy(damage);
         if (proj.statusEffect) {
@@ -377,10 +470,29 @@ export function Arena() {
     if (proj.targetMinionId) {
       const minion = store.getMinion(proj.targetMinionId);
       if (minion && minion.state !== 'dying' && minion.state !== 'dead') {
+        // Save last known position in case minion dies/is removed
+        proj.lastTargetPosition = [...minion.position];
         return minion.position;
       }
-      // Original target died — clear it so we can retarget
+      
+      // Target died — for spine projectiles, keep flying to last known
+      // position and let the damage be absorbed (no HP bar fallback)
+      if (proj.initiallyTargetedMinion) {
+        if (proj.lastTargetPosition) {
+          return proj.lastTargetPosition;
+        }
+        // Minion removed before we captured position — fly to start and fizzle
+        return proj.startPosition;
+      }
+      
+      // For other projectile types, clear and retarget
       proj.targetMinionId = undefined;
+    }
+    
+    // Spine projectiles that originally targeted a minion should never
+    // retarget to the HP bar — they only hit what they were aimed at
+    if (proj.initiallyTargetedMinion) {
+      return proj.lastTargetPosition ?? proj.startPosition;
     }
     
     // 2. Dynamically find the closest enemy minion to home toward
@@ -438,10 +550,10 @@ export function Arena() {
             card={entry.card}
             onFire={(pos, dmg, card) => handleCardFire(pos, dmg, card, 'player')}
             onSpawnMinion={(card) => {
-              if (card.type === 'MINION') {
-                handleMinionSpawn(entry.slotIndex, card, 'player');
-              } else {
+              if (card.type === 'CONSTRUCT') {
                 handleConstructSpawn(entry.slotIndex, card, 'player');
+              } else {
+                handleMinionSpawn(entry.slotIndex, card, 'player');
               }
             }}
           />
@@ -460,19 +572,36 @@ export function Arena() {
             card={entry.card}
             onFire={(pos, dmg, card) => handleCardFire(pos, dmg, card, 'enemy')}
             onSpawnMinion={(card) => {
-              if (card.type === 'MINION') {
-                handleMinionSpawn(entry.slotIndex, card, 'enemy');
-              } else {
+              if (card.type === 'CONSTRUCT') {
                 handleConstructSpawn(entry.slotIndex, card, 'enemy');
+              } else {
+                handleMinionSpawn(entry.slotIndex, card, 'enemy');
               }
             }}
           />
         );
       })}
       
-      {/* Spawned constructs (toasters, etc.) */}
+      {/* Spawned constructs (toasters, cactus, etc.) */}
       {constructs.map((construct) => {
         const cardId = construct.card.id;
+        const sharedProps = {
+          key: construct.id,
+          slot: construct.slot,
+          team: construct.team,
+          damage: construct.card.baseStats.attack,
+          cooldown: construct.card.cooldown ?? 5,
+          onFire: (position: [number, number, number], damage: number) => handleCardFire(position, damage, construct.card, construct.team),
+          combatId: construct.combatId,
+          onDestroy: () => {
+            setConstructs(prev => prev.filter(c => c.id !== construct.id));
+          },
+        };
+        
+        // Route to cactus-type constructs
+        if (cardId === 'potted_cactus' || cardId === 'spike_trap' || cardId === 'dry_heat_cactus') {
+          return <SpawnedCactus {...sharedProps} />;
+        }
         
         // Default: Toaster-type constructs
         const isInfernal = !!construct.card.statusEffect || 
@@ -481,17 +610,8 @@ export function Arena() {
         
         return (
           <SpawnedToaster
-            key={construct.id}
-            slot={construct.slot}
-            team={construct.team}
-            damage={construct.card.baseStats.attack}
-            cooldown={construct.card.cooldown ?? 5}
-            onFire={(position, damage) => handleCardFire(position, damage, construct.card, construct.team)}
+            {...sharedProps}
             isInfernal={isInfernal}
-            combatId={construct.combatId}
-            onDestroy={() => {
-              setConstructs(prev => prev.filter(c => c.id !== construct.id));
-            }}
           />
         );
       })}
@@ -517,6 +637,22 @@ export function Arena() {
           );
         }
         
+        if (proj.projectileType === 'spine') {
+          return (
+            <SpineProjectile
+              key={proj.id}
+              id={proj.id}
+              startPosition={proj.startPosition}
+              endPosition={targetPos}
+              damage={proj.damage}
+              delay={proj.delay}
+              targetTeam={proj.targetTeam}
+              statusEffect={proj.statusEffect}
+              onComplete={(id) => handleProjectileComplete(id, targetPos)}
+            />
+          );
+        }
+        
         return (
           <ToastProjectile
             key={proj.id}
@@ -536,7 +672,7 @@ export function Arena() {
       <ArenaWalls />
       
       {/* Minion manager - renders all active minions */}
-      <MinionManager />
+      <MinionManager onFire={handleCardFire} />
       
       {/* Visual effects */}
       <ImpactEffects />
