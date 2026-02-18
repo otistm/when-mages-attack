@@ -211,7 +211,7 @@ export function Arena() {
     
     // Track card trigger
     if (sourceCardId && card) {
-      recordTrigger(sourceCardId, card.name, firingTeam);
+      recordTrigger(sourceCardId, card.name, firingTeam, statusEffect?.type);
       
       // Play toaster ding for toaster pages
       if (sourceCardId === 'toaster' || sourceCardId === 'burning_toaster') {
@@ -342,7 +342,7 @@ export function Arena() {
     team: 'player' | 'enemy'
   ) => {
     if (card.id) {
-      recordTrigger(card.id, card.name, team);
+      recordTrigger(card.id, card.name, team, card.statusEffect?.type);
     }
 
     const isToaster = TOASTER_IDS.current.has(card.id);

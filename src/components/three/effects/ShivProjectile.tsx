@@ -13,7 +13,7 @@
 
 import { useRef, useState, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { useGLTF, Text } from '@react-three/drei';
+import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { useDamageStore } from '@/stores/damageStore';
 import { useGameStore } from '@/stores/gameStore';
@@ -328,10 +328,7 @@ export function ShivProjectile({
       
       {/* Impact flash */}
       {phase === 'impact' && (
-        <>
-          <ImpactFlash position={endPosition} />
-          <StabText position={endPosition} />
-        </>
+        <ImpactFlash position={endPosition} />
       )}
     </group>
   );
@@ -373,76 +370,6 @@ function ImpactFlash({ position }: { position: [number, number, number] }) {
         depthTest={false}
       />
     </mesh>
-  );
-}
-
-/**
- * Animated "STAB!" text on impact
- */
-function StabText({ position }: { position: [number, number, number] }) {
-  const textRef = useRef<THREE.Mesh>(null);
-  const startTime = useRef<number | null>(null);
-  const [visible, setVisible] = useState(true);
-  
-  useFrame((state) => {
-    if (!textRef.current || !visible) return;
-    
-    if (startTime.current === null) {
-      startTime.current = state.clock.elapsedTime;
-    }
-    
-    const elapsed = state.clock.elapsedTime - startTime.current;
-    const duration = 0.5;
-    const t = Math.min(elapsed / duration, 1);
-    
-    // Pop in, shake, then fade out
-    const popIn = t < 0.1 ? t / 0.1 : 1;
-    const shake = t < 0.3 ? (Math.random() - 0.5) * 0.3 * (1 - t / 0.3) : 0;
-    const fadeOut = t > 0.6 ? 1 - (t - 0.6) / 0.4 : 1;
-    
-    // Scale: pop in big, then settle
-    const scale = popIn * (1.5 - t * 0.5);
-    textRef.current.scale.setScalar(scale);
-    
-    // Position: rise up and shake
-    textRef.current.position.set(
-      position[0] + shake,
-      position[1] + 2 + t * 2, // Rise up
-      position[2] + shake * 0.5
-    );
-    
-    // Rotation shake
-    textRef.current.rotation.z = shake * 0.5;
-    
-    // Fade
-    const material = (textRef.current as any).material;
-    if (material) {
-      material.opacity = fadeOut;
-    }
-    
-    if (t >= 1) {
-      setVisible(false);
-    }
-  });
-  
-  if (!visible) return null;
-  
-  return (
-    <Text
-      ref={textRef}
-      position={[position[0], position[1] + 2, position[2]]}
-      fontSize={1.5}
-      color="#ff2222"
-      anchorX="center"
-      anchorY="middle"
-      fontWeight="bold"
-      outlineWidth={0.08}
-      outlineColor="#000000"
-      material-transparent={true}
-      material-depthWrite={false}
-    >
-      STAB!
-    </Text>
   );
 }
 

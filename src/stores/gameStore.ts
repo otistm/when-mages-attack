@@ -89,7 +89,7 @@ interface GameState {
 export const useGameStore = create<GameState>()(
   subscribeWithSelector((set, get) => ({
     // Initial state
-    phase: 'crafting',  // Start at crafting for autobattler flow
+    phase: 'start',  // Start at title screen
     combatPhase: 'countdown',
     isLoading: false,
     

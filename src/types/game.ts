@@ -7,6 +7,7 @@
  * Game phases in the core loop
  */
 export type GamePhase = 
+  | 'start'        // Start / title screen
   | 'menu'         // Main menu
   | 'draft'        // Selecting starting cards
   | 'shop'         // Buying and crafting
@@ -14,6 +15,7 @@ export type GamePhase =
   | 'deploy'       // Placing cards on summoning circles
   | 'combat'       // Battle phase (automated)
   | 'result'       // Victory/defeat screen
+  | 'grimoire'     // Grimoire browser
   | 'paused';      // Game paused
 
 /**

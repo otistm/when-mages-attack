@@ -10,6 +10,7 @@ import { useCardStore } from '@/stores/cardStore';
 import { useCraftingStore } from '@/stores/craftingStore';
 import { useBattleStatsStore, CardBattleStats } from '@/stores/battleStatsStore';
 import { AudioCues } from '@/stores/audioStore';
+import type { StatusEffectType } from '@/types';
 
 interface BattleSummary {
   result: 'victory' | 'defeat';
@@ -23,6 +24,17 @@ interface BattleSummary {
   duration: number;
   playerCardStats: CardBattleStats[];
   mvp: CardBattleStats | null;
+}
+
+const STATUS_EFFECT_VISUALS: Record<string, { icon: string; color: string }> = {
+  burn:    { icon: '🔥', color: '#f97316' },
+  poison:  { icon: '☠️', color: '#22c55e' },
+  shocked: { icon: '⚡', color: '#a78bfa' },
+};
+
+function getStatusEffectVisual(type?: StatusEffectType) {
+  if (!type) return { icon: '🔥', color: '#c9a84c' };
+  return STATUS_EFFECT_VISUALS[type] ?? { icon: '🔥', color: '#c9a84c' };
 }
 
 export function GameOverOverlay() {
@@ -397,7 +409,7 @@ export function GameOverOverlay() {
                 {/* Overview Stats - 3 columns in parchment-style boxes */}
                 <div className="grid grid-cols-3" style={{ gap: 'var(--space-xs)', marginBottom: 'var(--space-md)' }}>
                   <GrimoireStat label="Dmg Dealt" value={summary.totalDamageDealt} icon="⚔" color="#4ade80" accentAlpha={accentAlpha} />
-                  <GrimoireStat label="Effect Dmg" value={summary.totalStatusEffectDamage} icon="🔥" color="#c9a84c" accentAlpha={accentAlpha} />
+                  <GrimoireStat label="Effect Dmg" value={summary.totalStatusEffectDamage} icon="✦" color="#c9a84c" accentAlpha={accentAlpha} />
                   <GrimoireStat label="Duration" value={formatDuration(summary.duration)} icon="⌛" color="#60a5fa" accentAlpha={accentAlpha} />
                 </div>
                 
@@ -432,8 +444,15 @@ export function GameOverOverlay() {
                         <div className="font-display font-bold truncate" style={{ color: '#d4af37', fontSize: 'clamp(13px, 1.3vw, 16px)' }}>
                           {summary.mvp.cardName}
                         </div>
-                        <div className="font-mono" style={{ color: 'rgba(255,255,255,0.4)', fontSize: 'clamp(9px, 0.9vw, 11px)' }}>
-                          {summary.mvp.totalDamage} dmg · {summary.mvp.statusEffectDamage > 0 ? `${summary.mvp.statusEffectDamage} dot · ` : ''}{summary.mvp.timesTriggered} triggers
+                        <div className="font-mono flex items-center gap-1 flex-wrap" style={{ color: 'rgba(255,255,255,0.4)', fontSize: 'clamp(9px, 0.9vw, 11px)' }}>
+                          <span>{summary.mvp.totalDamage} dmg</span>
+                          {summary.mvp.statusEffectDamage > 0 && (() => {
+                            const visual = getStatusEffectVisual(summary.mvp!.statusEffectType);
+                            return (
+                              <span>· <span style={{ fontSize: 'clamp(9px, 0.9vw, 11px)' }}>{visual.icon}</span> <span style={{ color: visual.color }}>{summary.mvp!.statusEffectDamage}</span></span>
+                            );
+                          })()}
+                          <span>· {summary.mvp.timesTriggered} triggers</span>
                         </div>
                       </div>
                     </div>
@@ -494,14 +513,17 @@ export function GameOverOverlay() {
                                   </span>
                                   <span className="font-mono" style={{ color: 'rgba(255,255,255,0.25)', fontSize: 'clamp(8px, 0.8vw, 10px)' }}>dmg</span>
                                 </div>
-                                {stat.statusEffectDamage > 0 && (
-                                  <div className="flex items-center gap-1">
-                                    <span className="font-mono font-bold" style={{ color: '#c9a84c', fontSize: 'clamp(11px, 1.1vw, 13px)', minWidth: '28px', textAlign: 'right' }}>
-                                      {stat.statusEffectDamage}
-                                    </span>
-                                    <span className="font-mono" style={{ color: 'rgba(255,255,255,0.25)', fontSize: 'clamp(8px, 0.8vw, 10px)' }}>dot</span>
-                                  </div>
-                                )}
+                                {stat.statusEffectDamage > 0 && (() => {
+                                  const visual = getStatusEffectVisual(stat.statusEffectType);
+                                  return (
+                                    <div className="flex items-center gap-1">
+                                      <span style={{ fontSize: 'clamp(10px, 1vw, 12px)' }}>{visual.icon}</span>
+                                      <span className="font-mono font-bold" style={{ color: visual.color, fontSize: 'clamp(11px, 1.1vw, 13px)', minWidth: '28px', textAlign: 'right' }}>
+                                        {stat.statusEffectDamage}
+                                      </span>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             </div>
                           </div>

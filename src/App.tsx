@@ -11,6 +11,8 @@ import { HandheldGameLayout } from '@/components/ui/HandheldGameLayout';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { CardLorePanel } from '@/components/ui/CardLorePanel';
 import { GameOverOverlay } from '@/components/ui/GameOverOverlay';
+import { StartScreen } from '@/components/ui/StartScreen';
+import { GrimoireScreen } from '@/components/ui/GrimoireScreen';
 import { CraftingScene } from '@/components/ui/crafting/CraftingScene';
 import { HandheldCraftingScene } from '@/components/ui/crafting/HandheldCraftingScene';
 import { UIScaleControl } from '@/components/ui/hud/UIScaleControl';
@@ -65,6 +67,16 @@ function App() {
       AudioCues.onBurnEnd();
     }
   }, [hasBurnActive, phase]);
+
+  // Start screen
+  if (phase === 'start') {
+    return <StartScreen />;
+  }
+
+  // Grimoire browser
+  if (phase === 'grimoire') {
+    return <GrimoireScreen />;
+  }
 
   // Crafting phase renders its own full-screen scene
   if (phase === 'crafting') {

@@ -6,6 +6,7 @@ import { useGameStore } from '@/stores/gameStore';
 import { GamePhase } from '@/types';
 
 const PHASE_LABELS: Record<GamePhase, string> = {
+  start: 'Title',
   menu: 'Menu',
   draft: 'Draft Phase',
   shop: 'Shop Phase',
@@ -13,10 +14,12 @@ const PHASE_LABELS: Record<GamePhase, string> = {
   deploy: 'Deploy Phase',
   combat: 'Combat!',
   result: 'Result',
+  grimoire: 'Grimoire',
   paused: 'Paused',
 };
 
 const PHASE_COLORS: Record<GamePhase, string> = {
+  start: 'text-arcane-gold',
   menu: 'text-white',
   draft: 'text-blue-400',
   shop: 'text-arcane-gold',
@@ -24,6 +27,7 @@ const PHASE_COLORS: Record<GamePhase, string> = {
   deploy: 'text-purple-400',
   combat: 'text-red-400',
   result: 'text-green-400',
+  grimoire: 'text-purple-400',
   paused: 'text-gray-400',
 };
 

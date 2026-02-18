@@ -5,6 +5,7 @@
  */
 
 import { create } from 'zustand';
+import type { StatusEffectType } from '@/types';
 
 export interface CardBattleStats {
   cardId: string;
@@ -13,13 +14,14 @@ export interface CardBattleStats {
   timesTriggered: number;
   totalDamage: number;
   statusEffectDamage: number;
+  statusEffectType?: StatusEffectType;
 }
 
 interface BattleStatsState {
   cardStats: Map<string, CardBattleStats>;
   
   /** Record a card firing (cooldown completed, projectile launched) */
-  recordTrigger: (cardId: string, cardName: string, team: 'player' | 'enemy') => void;
+  recordTrigger: (cardId: string, cardName: string, team: 'player' | 'enemy', statusEffectType?: StatusEffectType) => void;
   
   /** Record direct damage dealt by a card */
   recordDamage: (cardId: string, damage: number) => void;
@@ -40,7 +42,7 @@ interface BattleStatsState {
 export const useBattleStatsStore = create<BattleStatsState>((set, get) => ({
   cardStats: new Map(),
   
-  recordTrigger: (cardId, cardName, team) => {
+  recordTrigger: (cardId, cardName, team, statusEffectType?) => {
     set((state) => {
       const newStats = new Map(state.cardStats);
       const existing = newStats.get(cardId);
@@ -49,6 +51,7 @@ export const useBattleStatsStore = create<BattleStatsState>((set, get) => ({
         newStats.set(cardId, {
           ...existing,
           timesTriggered: existing.timesTriggered + 1,
+          statusEffectType: statusEffectType ?? existing.statusEffectType,
         });
       } else {
         newStats.set(cardId, {
@@ -58,6 +61,7 @@ export const useBattleStatsStore = create<BattleStatsState>((set, get) => ({
           timesTriggered: 1,
           totalDamage: 0,
           statusEffectDamage: 0,
+          statusEffectType,
         });
       }
       
