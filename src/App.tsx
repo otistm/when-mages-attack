@@ -30,6 +30,7 @@ initializeAudio();
 
 function App() {
   const phase = useGameStore((state) => state.phase);
+
   const { isHandheld } = useLayoutMode();
   const isDev = import.meta.env.DEV;
 
@@ -109,7 +110,7 @@ function App() {
       {/* 3D Canvas - fills the arena section of the layout */}
       <Canvas
         shadows={{ type: THREE.BasicShadowMap }}
-        camera={{ position: [0, 35, 0], fov: 45 }}
+        camera={{ position: [0, 32, 18.5], fov: 45 }}
         gl={{ antialias: true, alpha: false }}
         className="!absolute inset-0 w-full h-full"
         style={{ background: '#1a1a2e' }}
@@ -117,7 +118,7 @@ function App() {
         {isDev && <Stats />}
         
         <Suspense fallback={null}>
-          <Physics gravity={[0, -9.81, 0]} debug={isDev}>
+          <Physics gravity={[0, -9.81, 0]}>
             <CameraRig />
             <Arena />
           </Physics>

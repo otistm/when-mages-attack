@@ -23,6 +23,8 @@ import { SpawnedCactus } from './SpawnedCactus';
 import { SpawnedConstruct as GenericConstruct } from './SpawnedConstruct';
 import { MinionManager } from '../minions/MinionManager';
 import { ImpactEffects, SpawnEffects, ToastProjectile, ShivProjectile, SpineProjectile, DamageNumbers } from '../effects';
+import { VfxManager } from '../effects/VfxManager';
+import { StatusVfx } from '../effects/StatusVfx';
 import { ShivRotationDebug } from '../debug/ShivRotationDebug';
 import { useCameraShake } from '@/hooks/useCameraShake';
 import { useCombatStore } from '@/stores/combatStore';
@@ -31,6 +33,7 @@ import { useUIStore } from '@/stores/uiStore';
 import { useCardStore } from '@/stores/cardStore';
 import { useBattleStatsStore } from '@/stores/battleStatsStore';
 import { AudioCues } from '@/stores/audioStore';
+import { useVfxStore } from '@/stores/vfxStore';
 import { ARENA, CARD_SLOTS, CardDefinition, CardSlotConfig, StatusEffectConfig } from '@/types';
 import { getCardDefinition } from '@/data/cards';
 
@@ -181,6 +184,10 @@ export function Arena() {
   // Battle stats tracking
   const recordTrigger = useBattleStatsStore((state) => state.recordTrigger);
   const recordDamage = useBattleStatsStore((state) => state.recordDamage);
+
+  // VFX & camera shake
+  const spawnEffect = useVfxStore((state) => state.spawnEffect);
+  const addCameraTrauma = useGameStore((state) => state.addCameraTrauma);
   
   // Keepsake trial progress
   const advanceTrialProgress = useGameStore((state) => state.advanceTrialProgress);
@@ -304,8 +311,12 @@ export function Arena() {
 
     if (newProjectiles.length > 0) {
       setProjectiles((prev) => [...prev, ...newProjectiles]);
+      spawnEffect('projectileLaunch', position, {
+        color: isCactusCard ? '#44cc44' : isShivCard ? '#aaaacc' : '#ffcc44',
+        intensity: 0.5,
+      });
     }
-  }, [getClosestEnemy, recordTrigger]);
+  }, [getClosestEnemy, recordTrigger, spawnEffect]);
   
   // Handle CONSTRUCT spawn from card — respawns after destruction
   const registerConstruct = useCombatStore((state) => state.registerConstruct);
@@ -503,7 +514,9 @@ export function Arena() {
   ) => {
     handleProjectileHit(id);
     handleProjectileRemove(id);
-  }, [handleProjectileHit, handleProjectileRemove]);
+    spawnEffect('hit', impactPosition, { intensity: 0.8 });
+    addCameraTrauma(0.08);
+  }, [handleProjectileHit, handleProjectileRemove, spawnEffect, addCameraTrauma]);
 
   // Get current target position for a projectile — minions first, then HP bar
   const getTargetPosition = useCallback((proj: Projectile): [number, number, number] => {
@@ -580,7 +593,7 @@ export function Arena() {
       
       {/* Arena floor - combat zone */}
       <ArenaFloor />
-      
+
       {/* Player card position trackers */}
       {playerCardSlots.map((entry) => {
         const slot = CARD_SLOTS[entry.slotIndex];
@@ -680,7 +693,11 @@ export function Arena() {
               delay={proj.delay}
               targetTeam={proj.targetTeam}
               statusEffect={proj.statusEffect}
-              onHit={handleProjectileHit}
+              onHit={(id) => {
+                handleProjectileHit(id);
+                spawnEffect('hit', targetPos, { intensity: 0.6 });
+                addCameraTrauma(0.06);
+              }}
               onComplete={handleProjectileRemove}
             />
           );
@@ -724,8 +741,10 @@ export function Arena() {
       <MinionManager onFire={handleCardFire} />
       
       {/* Visual effects */}
+      <VfxManager />
       <ImpactEffects />
       <SpawnEffects />
+      <StatusVfx />
       <DamageNumbers />
       
       {/* Debug: Model rotation controls (dev mode only, set SHOW_MODEL_DEBUG to true to enable) */}

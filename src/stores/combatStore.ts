@@ -12,6 +12,7 @@
 import { create } from 'zustand';
 import { MinionData, MinionState, Team, CARD_SLOTS, ARENA } from '@/types';
 import { CardDefinition, StatusEffectType } from '@/types';
+import { useVfxStore } from '@/stores/vfxStore';
 
 // Status effect on HP bar
 export interface HPStatusEffect {
@@ -204,9 +205,12 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       return { minions: newMinions };
     });
     
-    // Handle death after animation
+    // Handle death — spawn VFX and remove after animation
     const minion = get().getMinion(id);
     if (minion && minion.currentHp <= 0) {
+      useVfxStore.getState().spawnEffect('death', minion.position, {
+        color: minion.team === 'player' ? '#4ade80' : '#f87171',
+      });
       setTimeout(() => {
         get().removeMinion(id);
       }, 800);

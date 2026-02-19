@@ -61,12 +61,16 @@ interface GameState {
   // Camera shake (for juice)
   cameraTrauma: number;
   
+  // Debug
+  isDebugArena: boolean;
+  
   // Actions
   setPhase: (phase: GamePhase) => void;
   setCombatPhase: (phase: CombatPhase) => void;
   
   // Run management
   startNewRun: () => void;
+  startDebugArena: () => void;
   resetForCombat: () => void;
   endRun: (result: MatchResult) => void;
   advanceTurn: () => void;
@@ -124,12 +128,35 @@ export const useGameStore = create<GameState>()(
     run: null,
     settings: { ...DEFAULT_SETTINGS },
     cameraTrauma: 0,
+    isDebugArena: false,
 
     // Phase management
     setPhase: (phase) => set({ phase }),
     setCombatPhase: (combatPhase) => set({ combatPhase }),
 
     // Run management
+    startDebugArena: () => {
+      const run: RunState = {
+        runId: uuid(),
+        turn: 1,
+        roundsWon: 0,
+        roundsLost: 0,
+        totalDamageDealt: 0,
+        totalDamageTaken: 0,
+        cardsDiscovered: [],
+        startedAt: Date.now(),
+      };
+
+      set({
+        run,
+        player: { ...DEFAULT_PLAYER },
+        enemy: { ...DEFAULT_PLAYER },
+        isDebugArena: true,
+        phase: 'combat',
+        combatPhase: 'battling',
+      });
+    },
+
     startNewRun: () => {
       const run: RunState = {
         runId: uuid(),
@@ -151,6 +178,7 @@ export const useGameStore = create<GameState>()(
         keepsakeReady: false,
         keepsakeUnlocked: false,
         keepsakeTrialProgress: 0,
+        isDebugArena: false,
         phase: 'allegiance',
       });
     },
@@ -554,6 +582,7 @@ export const useGameStore = create<GameState>()(
         keepsakeTrialProgress: 0,
         run: null,
         cameraTrauma: 0,
+        isDebugArena: false,
       });
     },
   }))

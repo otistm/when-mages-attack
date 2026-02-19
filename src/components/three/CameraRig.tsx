@@ -1,18 +1,15 @@
 import { useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+import { useGameStore } from '@/stores/gameStore';
 
-/**
- * CameraRig
- * Ensures the camera is always oriented toward the arena center.
- * This prevents "nothing renders" situations when only position is set.
- */
 export function CameraRig({
   target = new THREE.Vector3(0, 0, 0),
 }: {
   target?: THREE.Vector3;
 }) {
   const camera = useThree((s) => s.camera);
+  const isDebug = useGameStore((s) => s.isDebugArena);
 
   useEffect(() => {
     camera.lookAt(target);
@@ -20,6 +17,11 @@ export function CameraRig({
   }, [camera, target]);
 
   useFrame(() => {
+    if (isDebug) {
+      camera.position.set(0, 32, 18.5);
+      (camera as THREE.PerspectiveCamera).fov = 45;
+      camera.updateProjectionMatrix();
+    }
     camera.lookAt(target);
   });
 
@@ -27,4 +29,3 @@ export function CameraRig({
 }
 
 export default CameraRig;
-

@@ -1,16 +1,35 @@
 /**
- * Camera Shake Hook - Disabled
- * 
- * Screen shake has been disabled. Hook structure kept for compatibility.
+ * Camera Shake Hook
+ *
+ * Reads trauma from gameStore and applies random offset to the camera each frame.
+ * Trauma decays over time. Higher trauma = more violent shake.
  */
+
+import { useFrame, useThree } from '@react-three/fiber';
+import { useGameStore } from '@/stores/gameStore';
 
 interface CameraShakeOptions {
   maxOffset?: number;
   decay?: number;
 }
 
-export function useCameraShake(_options: CameraShakeOptions = {}) {
-  // Camera shake disabled - no-op hook
+export function useCameraShake({
+  maxOffset = 0.6,
+  decay = 3,
+}: CameraShakeOptions = {}) {
+  const camera = useThree((s) => s.camera);
+  const decayTrauma = useGameStore((s) => s.decayCameraTrauma);
+
+  useFrame((_, delta) => {
+    const trauma = useGameStore.getState().cameraTrauma;
+    if (trauma <= 0.001) return;
+
+    const shake = trauma * trauma;
+    camera.position.x += (Math.random() - 0.5) * 2 * maxOffset * shake;
+    camera.position.y += (Math.random() - 0.5) * 2 * maxOffset * shake * 0.5;
+
+    decayTrauma(delta * decay);
+  });
 }
 
 export default useCameraShake;

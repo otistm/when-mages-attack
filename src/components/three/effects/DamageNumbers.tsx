@@ -64,7 +64,6 @@ function DamageNumber({ event }: DamageNumberProps) {
     <group position={[event.position[0], event.position[1] + offsetY, event.position[2]]}>
       <Html
         center
-        distanceFactor={8}
         style={{
           pointerEvents: 'none',
           userSelect: 'none',
@@ -72,12 +71,12 @@ function DamageNumber({ event }: DamageNumberProps) {
       >
         <span
           style={{
-            fontSize: '26px',
+            fontSize: '28px',
             fontWeight: 900,
             fontFamily: 'system-ui, -apple-system, sans-serif',
             color,
             opacity,
-            WebkitTextStroke: '3px #111111',
+            WebkitTextStroke: '4px #111111',
             paintOrder: 'stroke fill',
             whiteSpace: 'nowrap',
           }}

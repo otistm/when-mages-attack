@@ -1,145 +1,20 @@
 /**
- * SpawnedToaster - Cel-shaded 3D toaster that fires projectiles
+ * SpawnedToaster - Low-poly procedural 3D toaster that fires projectiles
  * 
- * Uses MeshToonMaterial for consistent cel-shaded look.
+ * Uses procedural geometry with flatShading for a stylised low-poly look.
  * Spawned from a card after initial cooldown.
- * Fires toast projectiles every 5 seconds.
- * 
- * @see https://threejs.org/docs/#MeshToonMaterial
+ * Fires toast projectiles on cooldown.
  */
 
-import { useRef, useState, useEffect, useMemo } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { useGLTF } from '@react-three/drei';
 import { useSpring, animated } from '@react-spring/three';
 import * as THREE from 'three';
 import { CardSlotConfig, ARENA } from '@/types';
 import { useCardStore } from '@/stores/cardStore';
 import { useCombatStore } from '@/stores/combatStore';
+import { LowPolyToaster } from '@/components/three/models/LowPolyToaster';
 
-// Heat particle configuration
-const PARTICLE_COUNT = 24;
-const PARTICLE_SPAWN_RADIUS = 0.8;
-const PARTICLE_RISE_SPEED = 1.5;
-const PARTICLE_MAX_HEIGHT = 2.5;
-
-// Infernal toaster: fiery oranges and yellows
-const INFERNAL_PARTICLE_COLORS = ['#ff6a00', '#ff8c00', '#ffaa00', '#ff4500', '#ff5722'];
-// Inert toaster: grey/silver tones
-const INERT_PARTICLE_COLORS = ['#9ca3af', '#6b7280', '#d1d5db', '#a3a3a3', '#737373'];
-
-interface HeatParticle {
-  position: THREE.Vector3;
-  velocity: THREE.Vector3;
-  life: number;
-  maxLife: number;
-  size: number;
-  color: string;
-}
-
-function HeatParticles({ active, colors }: { active: boolean; colors: string[] }) {
-  const particlesRef = useRef<HeatParticle[]>([]);
-  const meshRefs = useRef<(THREE.Mesh | null)[]>([]);
-  const colorsRef = useRef(colors);
-  
-  // Update colors ref when colors change
-  useEffect(() => {
-    colorsRef.current = colors;
-  }, [colors]);
-  
-  // Initialize particles
-  useEffect(() => {
-    particlesRef.current = Array.from({ length: PARTICLE_COUNT }, () => createParticle());
-  }, []);
-  
-  function createParticle(): HeatParticle {
-    const angle = Math.random() * Math.PI * 2;
-    const radius = Math.random() * PARTICLE_SPAWN_RADIUS;
-    const particleColors = colorsRef.current;
-    return {
-      position: new THREE.Vector3(
-        Math.cos(angle) * radius,
-        Math.random() * 0.5,
-        Math.sin(angle) * radius * 0.6
-      ),
-      velocity: new THREE.Vector3(
-        (Math.random() - 0.5) * 0.3,
-        PARTICLE_RISE_SPEED + Math.random() * 0.5,
-        (Math.random() - 0.5) * 0.2
-      ),
-      life: Math.random(), // Start at random life for staggered effect
-      maxLife: 1.5 + Math.random() * 1,
-      size: 0.08 + Math.random() * 0.12,
-      color: particleColors[Math.floor(Math.random() * particleColors.length)],
-    };
-  }
-  
-  useFrame((_, delta) => {
-    if (!active) return;
-    
-    particlesRef.current.forEach((particle, i) => {
-      particle.life += delta;
-      
-      // Update position
-      particle.position.add(particle.velocity.clone().multiplyScalar(delta));
-      
-      // Add some wavering motion
-      particle.position.x += Math.sin(particle.life * 3 + i) * delta * 0.2;
-      
-      // Reset particle when it dies
-      if (particle.life >= particle.maxLife || particle.position.y > PARTICLE_MAX_HEIGHT) {
-        const newParticle = createParticle();
-        particlesRef.current[i] = newParticle;
-        particle.position.copy(newParticle.position);
-        particle.velocity.copy(newParticle.velocity);
-        particle.life = 0;
-        particle.maxLife = newParticle.maxLife;
-        particle.size = newParticle.size;
-        particle.color = newParticle.color;
-      }
-      
-      // Update mesh
-      const mesh = meshRefs.current[i];
-      if (mesh) {
-        mesh.position.copy(particle.position);
-        
-        // Fade based on life
-        const lifeRatio = particle.life / particle.maxLife;
-        const opacity = lifeRatio < 0.2 
-          ? lifeRatio / 0.2 // Fade in
-          : 1 - ((lifeRatio - 0.2) / 0.8); // Fade out
-        
-        const scale = particle.size * (1 + lifeRatio * 0.5);
-        mesh.scale.setScalar(scale);
-        
-        // Update material opacity
-        const material = mesh.material as THREE.MeshBasicMaterial;
-        material.opacity = opacity * 0.7;
-      }
-    });
-  });
-  
-  if (!active) return null;
-  
-  return (
-    <group position={[0, 0.5, 0]}>
-      {Array.from({ length: PARTICLE_COUNT }).map((_, i) => (
-        <mesh
-          key={i}
-          ref={(el) => { meshRefs.current[i] = el; }}
-        >
-          <sphereGeometry args={[1, 6, 6]} />
-          <meshBasicMaterial
-            color={particlesRef.current[i]?.color || '#ff6a00'}
-            transparent
-            opacity={0.6}
-            depthWrite={false}
-          />
-        </mesh>
-      ))}
-    </group>
-  );
-}
 
 interface SpawnedToasterProps {
   slot: CardSlotConfig;
@@ -162,14 +37,16 @@ export function SpawnedToaster({
   combatId,
   onDestroy,
 }: SpawnedToasterProps) {
-  const particleColors = isInfernal ? INFERNAL_PARTICLE_COLORS : INERT_PARTICLE_COLORS;
-  const glowColor = isInfernal ? '#ff6a00' : '#9ca3af';
   const groupRef = useRef<THREE.Group>(null);
   const [isReady, setIsReady] = useState(false);
   const [spawned, setSpawned] = useState(false);
   const [isDying, setIsDying] = useState(false);
+  const [isDamaged, setIsDamaged] = useState(false);
   const lastFireRef = useRef(0);
   const hasCalledDestroy = useRef(false);
+  const cooldownProgressRef = useRef(0);
+  const [cooldownProgress, setCooldownProgress] = useState(0);
+  const prevHpRef = useRef<number | null>(null);
   
   // Read combat state for this construct
   const combatData = useCombatStore((state) => state.minions.get(combatId));
@@ -178,24 +55,17 @@ export function SpawnedToaster({
   const healthPercent = maxHp > 0 ? currentHp / maxHp : 0;
   const combatState = combatData?.state;
   
-  const updateCooldown = useCardStore((state) => state.updateCooldown);
-  
-  const gltf = useGLTF('/assets/models/toaster_cel.glb');
-  
-  const toasterModel = useMemo(() => {
-    if (gltf?.scene) {
-      const clone = gltf.scene.clone();
-      clone.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          const mesh = child as THREE.Mesh;
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-        }
-      });
-      return clone;
+  // Detect damage for flash effect
+  useEffect(() => {
+    if (prevHpRef.current !== null && currentHp < prevHpRef.current) {
+      setIsDamaged(true);
+      const timer = setTimeout(() => setIsDamaged(false), 300);
+      return () => clearTimeout(timer);
     }
-    return null;
-  }, [gltf]);
+    prevHpRef.current = currentHp;
+  }, [currentHp]);
+  
+  const updateCooldown = useCardStore((state) => state.updateCooldown);
   
   const shouldFireOnSpawn = useRef(true);
   
@@ -267,6 +137,8 @@ export function SpawnedToaster({
     const progress = Math.min(elapsed / cooldown, 1);
     const isCooldownReady = progress >= 1;
     
+    cooldownProgressRef.current = progress;
+    setCooldownProgress(progress);
     updateCooldown(slot.index, team, progress, false);
     
     if (isCooldownReady) {
@@ -298,88 +170,29 @@ export function SpawnedToaster({
       scale={springProps.scale}
       renderOrder={10}
     >
-      {/* Toaster model or fallback */}
-      {toasterModel ? (
-        <primitive 
-          object={toasterModel} 
-          scale={2.5}
-          rotation={[
-            -0.5,
-            team === 'player' ? 0 : Math.PI, 
-            0
-          ]}
-        />
-      ) : (
-        <group 
-          scale={3.0} 
-          rotation={[-0.5, 0, 0]}
-        >
-          <mesh position={[0, 0, 0]} castShadow receiveShadow>
-            <boxGeometry args={[0.8, 0.5, 0.5]} />
-            <meshBasicMaterial color="#c0c0c0" />
-          </mesh>
-          <mesh position={[-0.15, 0.28, 0]} castShadow>
-            <boxGeometry args={[0.15, 0.1, 0.35]} />
-            <meshBasicMaterial color="#1a1a1a" />
-          </mesh>
-          <mesh position={[0.15, 0.28, 0]} castShadow>
-            <boxGeometry args={[0.15, 0.1, 0.35]} />
-            <meshBasicMaterial color="#1a1a1a" />
-          </mesh>
-          <mesh position={[0.45, 0.1, 0]} castShadow>
-            <boxGeometry args={[0.1, 0.15, 0.08]} />
-            <meshBasicMaterial color="#333333" />
-          </mesh>
-        </group>
-      )}
-      
-      {/* Health bar — visible above the toaster */}
-      <group position={[0, 2.2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <mesh>
-          <planeGeometry args={[1.6, 0.22]} />
-          <meshBasicMaterial color="#000000" opacity={0.6} transparent />
-        </mesh>
-        <mesh position={[(healthPercent - 1) * 0.8, 0, 0.01]}>
-          <planeGeometry args={[1.56 * healthPercent, 0.18]} />
-          <meshBasicMaterial color={isPlayer ? '#4ade80' : '#f87171'} />
-        </mesh>
-      </group>
-      
-      <HeatParticles active={spawned && !isDying} colors={particleColors} />
-      
-      <pointLight
-        position={[0, 0.8, 0]}
-        color={glowColor}
-        intensity={spawned && !isDying ? 3 : 0}
-        distance={4}
-        decay={2}
+      <LowPolyToaster
+        team={team}
+        isInfernal={isInfernal}
+        isReady={isReady && !isDying}
+        cooldownProgress={cooldownProgress}
+        isDamaged={isDamaged}
       />
       
-      {isReady && !isDying && (
-        <>
-          <pointLight
-            position={[0, 1.2, 0]}
-            color={glowColor}
-            intensity={12}
-            distance={8}
-            decay={2}
-          />
-          <mesh position={[-0.4, 1.6, 0]} castShadow>
-            <boxGeometry args={[0.35, 0.6, 0.08]} />
-            <meshBasicMaterial color="#d4a056" />
+      {/* Circular health ring – positioned to the side */}
+      <group position={[2.4, 1.2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh>
+          <ringGeometry args={[0.32, 0.48, 32, 1, 0, Math.PI * 2]} />
+          <meshBasicMaterial color="#1a1a1a" opacity={0.5} transparent side={THREE.DoubleSide} />
+        </mesh>
+        {healthPercent > 0 && (
+          <mesh position={[0, 0, 0.01]}>
+            <ringGeometry args={[0.34, 0.46, 32, 1, Math.PI / 2, healthPercent * Math.PI * 2]} />
+            <meshBasicMaterial color={isPlayer ? '#4ade80' : '#f87171'} side={THREE.DoubleSide} />
           </mesh>
-          <mesh position={[0.4, 1.4, 0]} castShadow>
-            <boxGeometry args={[0.35, 0.5, 0.08]} />
-            <meshBasicMaterial color="#c9944d" />
-          </mesh>
-        </>
-      )}
-      
+        )}
+      </group>
     </animated.group>
   );
 }
-
-// Preload the model
-useGLTF.preload('/assets/models/toaster_cel.glb');
 
 export default SpawnedToaster;

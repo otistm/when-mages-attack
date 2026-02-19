@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useGameStore } from '@/stores/gameStore';
+import { useCardStore } from '@/stores/cardStore';
+import { CARD_DEFINITIONS } from '@/data/cards';
 import { useAudioStore } from '@/stores/audioStore';
 
 export function StartScreen() {
   const setPhase = useGameStore((state) => state.setPhase);
   const startNewRun = useGameStore((state) => state.startNewRun);
+  const startDebugArena = useGameStore((state) => state.startDebugArena);
+  const addCard = useCardStore((state) => state.addCard);
+  const clearAllCards = useCardStore((state) => state.clearAll);
   const playMusic = useAudioStore((state) => state.playMusic);
   const stopMusic = useAudioStore((state) => state.stopMusic);
   const [fadeOut, setFadeOut] = useState(false);
@@ -50,6 +55,16 @@ export function StartScreen() {
       stopMusic();
       setPhase('grimoire');
     }, 600);
+  };
+
+  const handleDebugArena = () => {
+    setFadeOut(true);
+    setTimeout(() => {
+      stopMusic();
+      clearAllCards();
+      startDebugArena();
+      addCard(2, CARD_DEFINITIONS.toaster, 'player');
+    }, 400);
   };
 
   return (
@@ -131,6 +146,13 @@ export function StartScreen() {
             sublabel="Browse Pages"
             onClick={handleGrimoire}
           />
+          {import.meta.env.DEV && (
+            <StartButton
+              label="Debug"
+              sublabel="Test Arena"
+              onClick={handleDebugArena}
+            />
+          )}
         </div>
       </div>
 

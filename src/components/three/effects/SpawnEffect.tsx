@@ -111,31 +111,47 @@ function SpawnBurst({ position, color, createdAt }: SpawnData) {
     }
   });
   
+  const elapsed = (Date.now() - createdAt) / 1000;
+  const pillarOpacity = Math.max(0, 1 - elapsed * 1.5);
+  const pillarScale = 0.3 + elapsed * 0.5;
+
   return (
     <group position={position}>
       {/* Rune circle */}
       <group ref={groupRef}>
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-          <ringGeometry args={[0.8, 1, 6]} />
+          <ringGeometry args={[1.2, 1.5, 6]} />
           <meshBasicMaterial 
             color={color} 
             transparent 
-            opacity={0.5}
+            opacity={0.5 * pillarOpacity}
             side={THREE.DoubleSide}
           />
         </mesh>
         
         {/* Inner circle */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-          <ringGeometry args={[0.3, 0.4, 6]} />
+          <ringGeometry args={[0.4, 0.6, 6]} />
           <meshBasicMaterial 
             color={color} 
             transparent 
-            opacity={0.8}
+            opacity={0.8 * pillarOpacity}
             side={THREE.DoubleSide}
           />
         </mesh>
       </group>
+
+      {/* Light pillar */}
+      <mesh position={[0, 2, 0]}>
+        <cylinderGeometry args={[pillarScale * 0.3, pillarScale, 4, 8, 1, true]} />
+        <meshBasicMaterial
+          color={color}
+          transparent
+          opacity={pillarOpacity * 0.35}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
+      </mesh>
       
       {/* Rising particles */}
       <points ref={particlesRef}>
@@ -149,9 +165,9 @@ function SpawnBurst({ position, color, createdAt }: SpawnData) {
         </bufferGeometry>
         <pointsMaterial
           color={color}
-          size={0.1}
+          size={0.15}
           transparent
-          opacity={1}
+          opacity={pillarOpacity}
           sizeAttenuation
         />
       </points>

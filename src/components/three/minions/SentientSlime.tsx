@@ -1,5 +1,5 @@
 /**
- * SentientSlime - GLB model minion with squishy scaling animation
+ * SentientSlime - Low-poly procedural slime minion
  * 
  * Movement uses direct THREE.js manipulation in useFrame.
  * A stable memoized position prop ensures R3F sets the initial position 
@@ -8,12 +8,12 @@
  * Ability: "Split" — on death, spawns two smaller slimes.
  */
 
-import { useRef, useEffect, useMemo, Suspense } from 'react';
+import { useRef, useEffect, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useSpring, animated } from '@react-spring/three';
-import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 
+import { LowPolySlime } from '../models/LowPolySlime';
 import { useCombatStore } from '@/stores/combatStore';
 import { useGameStore } from '@/stores/gameStore';
 import { useDamageStore } from '@/stores/damageStore';
@@ -23,41 +23,24 @@ import { resolveCollisions } from './separation';
 import { getCardDefinition } from '@/data/cards';
 import type { CombatMinion } from '@/stores/combatStore';
 
+// Slime trail shared geometry and material
+const trailGeo = new THREE.CircleGeometry(0.4, 6);
+trailGeo.rotateX(-Math.PI / 2);
+
+const TRAIL_MAX = 40;
+
+interface TrailDrop {
+  id: number;
+  position: [number, number, number];
+  life: number;
+  color: string;
+}
+
+let trailIdCounter = 0;
+
 interface SentientSlimeProps {
   data: CombatMinion;
   sizeScale?: number;
-}
-
-function SlimeModel({ scale }: { scale: number }) {
-  const gltf = useGLTF('/assets/models/sentient_slime.glb');
-
-  const slimeModel = useMemo(() => {
-    if (gltf?.scene) {
-      const clone = gltf.scene.clone();
-      clone.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          const mesh = child as THREE.Mesh;
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-        }
-      });
-      return clone;
-    }
-    return null;
-  }, [gltf]);
-
-  if (!slimeModel) return null;
-  return <primitive object={slimeModel} scale={scale} rotation={[0, 0, 0]} />;
-}
-
-function SlimeFallback() {
-  return (
-    <mesh castShadow>
-      <sphereGeometry args={[0.5, 16, 12]} />
-      <meshStandardMaterial color="#00FF7F" roughness={0.3} metalness={0.1}
-        emissive="#7FFF00" emissiveIntensity={0.2} transparent opacity={0.85} />
-    </mesh>
-  );
 }
 
 export function SentientSlime({ data, sizeScale = 1 }: SentientSlimeProps) {
@@ -79,6 +62,12 @@ export function SentientSlime({ data, sizeScale = 1 }: SentientSlimeProps) {
 
   // Each slime gets a unique random target-X offset for different approach paths
   const targetXOffset = useRef((Math.random() - 0.5) * 6);
+
+  // Slime trail
+  const [trails, setTrails] = useState<TrailDrop[]>([]);
+  const trailTimer = useRef(0);
+  const lastTrailPos = useRef<[number, number, number]>([...initialPosition]);
+  const trailColor = data.team === 'player' ? '#76ff03' : '#ff4444';
 
   // Spawn scale animation
   const [spawnSpring, spawnApi] = useSpring(() => ({
@@ -192,8 +181,8 @@ export function SentientSlime({ data, sizeScale = 1 }: SentientSlimeProps) {
       modelRef.current.scale.set(sizeScale * sxz, sizeScale * sy, sizeScale * sxz);
     }
 
-    // Attack range: tight for HP bar, normal for minions
-    const range = isMinion ? me.attackRange : 0.5;
+    // Attack range
+    const range = isMinion ? me.attackRange : 2.0;
 
     // Attack on cooldown when in range
     if (dist <= range) {
@@ -246,6 +235,30 @@ export function SentientSlime({ data, sizeScale = 1 }: SentientSlimeProps) {
     g.position.y = positionRef.current[1];
     g.position.z = positionRef.current[2];
 
+    // Spawn slime trail drops while moving
+    trailTimer.current += delta;
+    const movedDist = Math.sqrt(
+      (positionRef.current[0] - lastTrailPos.current[0]) ** 2 +
+      (positionRef.current[2] - lastTrailPos.current[2]) ** 2,
+    );
+    if (movedDist > 0.8 && trailTimer.current > 0.15) {
+      trailTimer.current = 0;
+      lastTrailPos.current = [...positionRef.current];
+      setTrails((prev) => {
+        const next = [
+          ...prev,
+          {
+            id: trailIdCounter++,
+            position: [positionRef.current[0], 0.02, positionRef.current[2]] as [number, number, number],
+            life: 1.0,
+            color: trailColor,
+          },
+        ];
+        if (next.length > TRAIL_MAX) return next.slice(next.length - TRAIL_MAX);
+        return next;
+      });
+    }
+
     // Sync to store for targeting by other entities
     store.updateMinion(idRef.current, {
       position: [positionRef.current[0], positionRef.current[1], positionRef.current[2]],
@@ -253,35 +266,64 @@ export function SentientSlime({ data, sizeScale = 1 }: SentientSlimeProps) {
     });
   });
 
+  // Fade and clean up trail drops
+  useEffect(() => {
+    if (trails.length === 0) return;
+    const interval = setInterval(() => {
+      setTrails((prev) =>
+        prev
+          .map((t) => ({ ...t, life: t.life - 0.02 }))
+          .filter((t) => t.life > 0),
+      );
+    }, 50);
+    return () => clearInterval(interval);
+  }, [trails.length > 0]);
+
   const healthPercent = data.currentHp / data.stats.hp;
   const isPlayer = data.team === 'player';
 
   return (
-    <group ref={groupRef} position={initialPosition}>
-      <animated.group ref={innerRef} scale={spawnSpring.scale} renderOrder={10}>
-        <group ref={modelRef}>
-          <Suspense fallback={<SlimeFallback />}>
-            <SlimeModel scale={3.5} />
-          </Suspense>
-        </group>
+    <>
+      {/* Slime trail — rendered in world space, not parented to slime */}
+      {trails.map((t) => (
+        <mesh
+          key={t.id}
+          geometry={trailGeo}
+          position={t.position}
+          scale={[0.5 + (1 - t.life) * 0.4, 1, 0.5 + (1 - t.life) * 0.4]}
+        >
+          <meshBasicMaterial
+            color={t.color}
+            transparent
+            opacity={t.life * 0.45}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
 
-        <pointLight position={[0, 0.5, 0]} color={data.color}
-          intensity={1.5} distance={3} decay={2} />
+      <group ref={groupRef} position={initialPosition}>
+        <animated.group ref={innerRef} scale={spawnSpring.scale} renderOrder={10}>
+          <group ref={modelRef}>
+            <LowPolySlime team={data.team} isDamaged={data.state === 'attacking'} state={data.state} />
+          </group>
 
-        <group position={[0, 2.0 * sizeScale, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <mesh>
-            <planeGeometry args={[1.0 * sizeScale, 0.18]} />
-            <meshBasicMaterial color="#000000" opacity={0.6} transparent />
-          </mesh>
-          <mesh position={[(healthPercent - 1) * 0.5 * sizeScale, 0, 0.01]}>
-            <planeGeometry args={[0.96 * healthPercent * sizeScale, 0.14]} />
-            <meshBasicMaterial color={isPlayer ? '#4ade80' : '#f87171'} />
-          </mesh>
-        </group>
-      </animated.group>
-    </group>
+          {/* Circular health ring */}
+          <group position={[2.4, 1.2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <mesh>
+              <ringGeometry args={[0.32, 0.48, 32, 1, 0, Math.PI * 2]} />
+              <meshBasicMaterial color="#1a1a1a" opacity={0.5} transparent side={THREE.DoubleSide} />
+            </mesh>
+            {healthPercent > 0 && (
+              <mesh position={[0, 0, 0.01]}>
+                <ringGeometry args={[0.34, 0.46, 32, 1, Math.PI / 2, healthPercent * Math.PI * 2]} />
+                <meshBasicMaterial color={isPlayer ? '#4ade80' : '#f87171'} side={THREE.DoubleSide} />
+              </mesh>
+            )}
+          </group>
+        </animated.group>
+      </group>
+    </>
   );
 }
 
-useGLTF.preload('/assets/models/sentient_slime.glb');
 export default SentientSlime;
