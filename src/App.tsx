@@ -109,7 +109,7 @@ function App() {
       {/* 3D Canvas - fills the arena section of the layout */}
       <Canvas
         shadows={{ type: THREE.BasicShadowMap }}
-        camera={{ position: [0, 35, 0.1], fov: 45 }}
+        camera={{ position: [0, 35, 0], fov: 45 }}
         gl={{ antialias: true, alpha: false }}
         className="!absolute inset-0 w-full h-full"
         style={{ background: '#1a1a2e' }}
