@@ -5,3 +5,4 @@
 export * from './card';
 export * from './minion';
 export * from './game';
+export * from './mage';

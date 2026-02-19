@@ -12,6 +12,7 @@
 import { ReactNode } from 'react';
 import { CardRow } from './CardRow';
 import { FullWidthHealthBar } from './FullWidthHealthBar';
+import { KeepsakeButton } from './hud/KeepsakeButton';
 
 interface GameLayoutProps {
   children: ReactNode; // The 3D Canvas and overlays
@@ -38,6 +39,11 @@ export function GameLayout({ children }: GameLayoutProps) {
       {/* Player HP Bar */}
       <div className="shrink-0 w-full">
         <FullWidthHealthBar side="player" />
+      </div>
+
+      {/* Keepsake ability button */}
+      <div className="shrink-0 w-full flex justify-center py-1" style={{ background: 'rgba(10,10,26,0.5)' }}>
+        <KeepsakeButton />
       </div>
       
       {/* Player Card Row - Bottom */}

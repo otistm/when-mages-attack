@@ -8,5 +8,6 @@ export { SummoningCircle } from './SummoningCircle';
 export { SlotCard } from './SlotCard';
 export { SpawnedToaster } from './SpawnedToaster';
 export { SpawnedCactus } from './SpawnedCactus';
+export { SpawnedConstruct } from './SpawnedConstruct';
 export { CardSlotTracker } from './CardSlotTracker';
 export { Throne } from './Throne';

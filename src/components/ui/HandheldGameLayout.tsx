@@ -14,6 +14,7 @@ import { useGameStore } from '@/stores/gameStore';
 import { useUIStore } from '@/stores/uiStore';
 import { HandheldCardTray } from './HandheldCardTray';
 import { CardBottomSheet } from './CardBottomSheet';
+import { KeepsakeButton } from './hud/KeepsakeButton';
 import { CardDefinition, StatusEffectType } from '@/types';
 
 interface HandheldGameLayoutProps {
@@ -53,6 +54,11 @@ export function HandheldGameLayout({ children }: HandheldGameLayoutProps) {
 
         {/* Player HP bar overlay - compact, above card tray */}
         <CompactHPBar side="player" position="bottom" />
+
+        {/* Keepsake button overlay - bottom right of arena */}
+        <div className="absolute bottom-8 right-3 z-40">
+          <KeepsakeButton />
+        </div>
       </div>
 
       {/* Player Card Tray - horizontal scroll strip at bottom */}

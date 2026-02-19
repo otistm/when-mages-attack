@@ -8,6 +8,7 @@ import { GamePhase } from '@/types';
 const PHASE_LABELS: Record<GamePhase, string> = {
   start: 'Title',
   menu: 'Menu',
+  allegiance: 'Allegiance',
   draft: 'Draft Phase',
   shop: 'Shop Phase',
   crafting: 'Crafting',
@@ -21,6 +22,7 @@ const PHASE_LABELS: Record<GamePhase, string> = {
 const PHASE_COLORS: Record<GamePhase, string> = {
   start: 'text-arcane-gold',
   menu: 'text-white',
+  allegiance: 'text-indigo-400',
   draft: 'text-blue-400',
   shop: 'text-arcane-gold',
   crafting: 'text-amber-400',

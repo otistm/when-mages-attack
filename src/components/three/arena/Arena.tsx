@@ -20,6 +20,7 @@ import { ArenaFloor } from './ArenaFloor';
 import { CardSlotTracker } from './CardSlotTracker';
 import { SpawnedToaster } from './SpawnedToaster';
 import { SpawnedCactus } from './SpawnedCactus';
+import { SpawnedConstruct as GenericConstruct } from './SpawnedConstruct';
 import { MinionManager } from '../minions/MinionManager';
 import { ImpactEffects, SpawnEffects, ToastProjectile, ShivProjectile, SpineProjectile, DamageNumbers } from '../effects';
 import { ShivRotationDebug } from '../debug/ShivRotationDebug';
@@ -68,6 +69,17 @@ interface SpawnedConstruct {
 
 let projectileIdCounter = 0;
 let constructIdCounter = 0;
+
+const TOASTER_FAMILY = new Set([
+  'toaster', 'burning_toaster', 'infernal_toaster',
+  'turbo_toaster', 'bunker_toaster', 'rancid_pop_tart',
+  'meat_grinder', 'flying_drone',
+]);
+
+const CACTUS_FAMILY = new Set([
+  'potted_cactus', 'spike_trap', 'dry_heat_cactus',
+  'stone_garden', 'stink_blossom', 'sun_catcher',
+]);
 
 /**
  * Convert screen coordinates to 3D world position on the ground plane (Y=0)
@@ -170,13 +182,19 @@ export function Arena() {
   const recordTrigger = useBattleStatsStore((state) => state.recordTrigger);
   const recordDamage = useBattleStatsStore((state) => state.recordDamage);
   
+  // Keepsake trial progress
+  const advanceTrialProgress = useGameStore((state) => state.advanceTrialProgress);
+  
   // Check for game over
   const gameOver = player.health <= 0 || enemy.health <= 0;
   
-  // Tick status effects (burn damage, etc.)
+  const tickKeepsakeCooldown = useGameStore((state) => state.tickKeepsakeCooldown);
+
+  // Tick status effects and keepsake cooldown
   useFrame((_, delta) => {
     if (!gameOver) {
       tickStatusEffects(delta);
+      tickKeepsakeCooldown(delta);
     }
   });
 
@@ -414,6 +432,7 @@ export function Arena() {
     if (!proj) return;
     
     const damage = proj.damage;
+    const isPlayerProjectile = proj.targetTeam === 'enemy';
     
     // Track damage per card
     if (proj.sourceCardId) {
@@ -425,9 +444,30 @@ export function Arena() {
       AudioCues.onShivHit();
     }
     
+    // Trial progress: track player-dealt damage
+    if (isPlayerProjectile && damage > 0) {
+      advanceTrialProgress('deal_damage', damage);
+      advanceTrialProgress('single_hit_damage', damage);
+      advanceTrialProgress('minion_damage_dealt', damage);
+    }
+    
     // Try to damage target minion
     if (proj.targetMinionId) {
+      const targetBefore = useCombatStore.getState().getMinion(proj.targetMinionId);
       damageMinion(proj.targetMinionId, damage, proj.statusEffect?.type);
+      
+      // Trial: detect enemy minion kill
+      if (isPlayerProjectile && targetBefore && targetBefore.currentHp > 0) {
+        const targetAfter = useCombatStore.getState().getMinion(proj.targetMinionId);
+        if (!targetAfter || targetAfter.currentHp <= 0) {
+          advanceTrialProgress('defeat_minions', 1);
+        }
+      }
+      
+      // Trial: status effect application on enemy
+      if (isPlayerProjectile && proj.statusEffect) {
+        advanceTrialProgress('apply_status_effects', 1);
+      }
     } else if (proj.initiallyTargetedMinion) {
       // This projectile was aimed at a minion that died in flight.
       // The HP bar must only take damage from a direct physical hit,
@@ -438,15 +478,18 @@ export function Arena() {
         damageEnemy(damage);
         if (proj.statusEffect) {
           applyStatusEffect('enemy', proj.statusEffect, proj.sourceCardId);
+          advanceTrialProgress('apply_status_effects', 1);
         }
       } else {
         damagePlayer(damage);
+        // Trial: survive_damage tracks cumulative damage taken
+        advanceTrialProgress('survive_damage', damage);
         if (proj.statusEffect) {
           applyStatusEffect('player', proj.statusEffect, proj.sourceCardId);
         }
       }
     }
-  }, [projectiles, damageMinion, damagePlayer, damageEnemy, applyStatusEffect, recordDamage]);
+  }, [projectiles, damageMinion, damagePlayer, damageEnemy, applyStatusEffect, recordDamage, advanceTrialProgress]);
 
   // Remove projectile from list (call after animation completes)
   const handleProjectileRemove = useCallback((id: string) => {
@@ -582,7 +625,7 @@ export function Arena() {
         );
       })}
       
-      {/* Spawned constructs (toasters, cactus, etc.) */}
+      {/* Spawned constructs — routed to visual component by card family */}
       {constructs.map((construct) => {
         const cardId = construct.card.id;
         const sharedProps = {
@@ -597,21 +640,27 @@ export function Arena() {
             setConstructs(prev => prev.filter(c => c.id !== construct.id));
           },
         };
-        
-        // Route to cactus-type constructs
-        if (cardId === 'potted_cactus' || cardId === 'spike_trap' || cardId === 'dry_heat_cactus') {
+
+        // Cactus family
+        if (CACTUS_FAMILY.has(cardId) || construct.card.tags?.some(t => t === 'plant' && construct.card.tags?.includes('spiky'))) {
           return <SpawnedCactus {...sharedProps} />;
         }
-        
-        // Default: Toaster-type constructs
-        const isInfernal = !!construct.card.statusEffect || 
-          cardId === 'burning_toaster' || 
-          cardId === 'infernal_toaster';
-        
+
+        // Toaster family
+        if (TOASTER_FAMILY.has(cardId)) {
+          const isInfernal = !!construct.card.statusEffect ||
+            cardId === 'burning_toaster' ||
+            cardId === 'infernal_toaster';
+          return <SpawnedToaster {...sharedProps} isInfernal={isInfernal} />;
+        }
+
+        // Everything else: generic construct with shape derived from card tags
         return (
-          <SpawnedToaster
+          <GenericConstruct
             {...sharedProps}
-            isInfernal={isInfernal}
+            cardColor={construct.card.color || '#888888'}
+            cardEmissive={construct.card.emissiveColor || '#444444'}
+            cardTags={construct.card.tags || []}
           />
         );
       })}

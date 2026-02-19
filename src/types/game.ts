@@ -9,6 +9,7 @@
 export type GamePhase = 
   | 'start'        // Start / title screen
   | 'menu'         // Main menu
+  | 'allegiance'   // Mage allegiance selection
   | 'draft'        // Selecting starting cards
   | 'shop'         // Buying and crafting
   | 'crafting'     // Crafting scene

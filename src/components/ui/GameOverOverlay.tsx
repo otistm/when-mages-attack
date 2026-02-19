@@ -41,7 +41,9 @@ export function GameOverOverlay() {
   const player = useGameStore((state) => state.player);
   const enemy = useGameStore((state) => state.enemy);
   const run = useGameStore((state) => state.run);
+  const selectedMage = useGameStore((state) => state.selectedMage);
   const setPhase = useGameStore((state) => state.setPhase);
+  const selectMage = useGameStore((state) => state.selectMage);
   const resetGame = useGameStore((state) => state.reset);
   const resetCombat = useCombatStore((state) => state.reset);
   const clearAllCards = useCardStore((state) => state.clearAll);
@@ -104,12 +106,17 @@ export function GameOverOverlay() {
   const isPlayerWin = winner === 'player';
   
   const handlePlayAgain = () => {
+    const mageId = selectedMage?.id;
     resetGame();
     resetCrafting();
     clearAllCards();
     resetCombat();
     resetBattleStats();
-    setPhase('crafting');
+    if (mageId) {
+      selectMage(mageId);
+    } else {
+      setPhase('crafting');
+    }
   };
 
   const goldAlpha = (a: number) => `rgba(212,175,55,${a})`;
@@ -236,19 +243,42 @@ export function GameOverOverlay() {
             </div>
           ))}
 
-          {/* Result Video / Icon — flush to top of frame */}
-          {isPlayerWin ? (
-            <video
-              src="/assets/videos/blue_witch.mp4"
-              autoPlay
-              muted
-              playsInline
-              className="w-full rounded-t-lg"
-              style={{
-                objectFit: 'cover',
-                maxHeight: 'clamp(160px, 22vw, 260px)',
-              }}
-            />
+          {/* Result Image / Icon — flush to top of frame */}
+          {isPlayerWin && selectedMage ? (
+            <div className="relative w-full rounded-t-lg overflow-hidden" style={{ maxHeight: 'clamp(160px, 22vw, 260px)' }}>
+              <img
+                src={selectedMage.imagePath}
+                alt={selectedMage.name}
+                className="w-full h-full object-cover"
+                style={{
+                  maxHeight: 'clamp(160px, 22vw, 260px)',
+                }}
+              />
+              <div className="absolute inset-0" style={{
+                background: 'linear-gradient(to top, rgba(20,14,6,1) 0%, rgba(20,14,6,0.4) 30%, transparent 60%)',
+              }} />
+            </div>
+          ) : selectedMage ? (
+            <div className="relative w-full rounded-t-lg overflow-hidden" style={{ maxHeight: 'clamp(160px, 22vw, 260px)' }}>
+              <img
+                src={selectedMage.imagePath}
+                alt={selectedMage.name}
+                className="w-full h-full object-cover"
+                style={{
+                  maxHeight: 'clamp(160px, 22vw, 260px)',
+                  filter: 'grayscale(0.7) brightness(0.5)',
+                }}
+              />
+              <div className="absolute inset-0" style={{
+                background: 'linear-gradient(to top, rgba(25,8,8,1) 0%, rgba(25,8,8,0.5) 30%, rgba(180,40,40,0.1) 100%)',
+              }} />
+              <div className="absolute inset-0 flex items-center justify-center" style={{
+                fontSize: 'clamp(42px, 6vw, 64px)',
+                filter: 'drop-shadow(0 0 16px rgba(180,40,40,0.4))',
+              }}>
+                💀
+              </div>
+            </div>
           ) : (
             <div
               className="flex items-center justify-center w-full"
@@ -314,15 +344,27 @@ export function GameOverOverlay() {
               className="text-center italic relative"
               style={{
                 marginTop: '2px',
-                color: 'rgba(255,255,255,0.4)',
+                color: selectedMage ? `${selectedMage.color}99` : 'rgba(255,255,255,0.4)',
                 fontSize: 'clamp(9px, 1vw, 12px)',
                 fontFamily: "'Cinzel', serif",
               }}
             >
-              {isPlayerWin
-                ? '"The enemy has been vanquished. Record this triumph."'
-                : '"The grimoire demands further study. Return prepared."'}
+              {selectedMage
+                ? (isPlayerWin ? selectedMage.victoryQuote : selectedMage.defeatQuote)
+                : (isPlayerWin
+                  ? '"The enemy has been vanquished. Record this triumph."'
+                  : '"The grimoire demands further study. Return prepared."')}
             </p>
+            {selectedMage && (
+              <p style={{
+                marginTop: '4px',
+                color: 'rgba(255,255,255,0.25)',
+                fontSize: 'clamp(7px, 0.8vw, 10px)',
+                fontFamily: "'Cinzel', serif",
+              }}>
+                — {selectedMage.name}, {selectedMage.title}
+              </p>
+            )}
           </div>
 
           {/* Content */}
@@ -468,17 +510,23 @@ export function GameOverOverlay() {
                     <div className="flex flex-col" style={{ gap: '3px' }}>
                       {summary.playerCardStats.map((stat) => {
                         const isMVP = summary.mvp?.cardId === stat.cardId;
+                        const isKeepsake = stat.cardId.startsWith('keepsake_');
                         const combinedDamage = stat.totalDamage + stat.statusEffectDamage;
                         const maxDamage = Math.max(...summary.playerCardStats.map(s => s.totalDamage + s.statusEffectDamage), 1);
                         const barPercent = maxDamage > 0 ? (combinedDamage / maxDamage) * 100 : 0;
+                        const keepsakeColor = isKeepsake && selectedMage ? selectedMage.color : undefined;
                         
                         return (
                           <div
                             key={stat.cardId}
                             className="relative rounded overflow-hidden"
                             style={{
-                              background: 'rgba(20,15,10,0.6)',
-                              border: isMVP ? `1px solid ${goldAlpha(0.3)}` : `1px solid ${accentAlpha(0.1)}`,
+                              background: isKeepsake ? 'rgba(25,18,12,0.7)' : 'rgba(20,15,10,0.6)',
+                              border: isMVP
+                                ? `1px solid ${goldAlpha(0.3)}`
+                                : isKeepsake && keepsakeColor
+                                  ? `1px solid ${keepsakeColor}30`
+                                  : `1px solid ${accentAlpha(0.1)}`,
                             }}
                           >
                             {/* Damage proportion bar */}
@@ -488,16 +536,33 @@ export function GameOverOverlay() {
                                 width: `${barPercent}%`,
                                 background: isMVP
                                   ? 'linear-gradient(90deg, rgba(212,175,55,0.1) 0%, rgba(212,175,55,0.03) 100%)'
-                                  : `linear-gradient(90deg, ${accentAlpha(0.06)} 0%, transparent 100%)`,
+                                  : isKeepsake && keepsakeColor
+                                    ? `linear-gradient(90deg, ${keepsakeColor}15 0%, transparent 100%)`
+                                    : `linear-gradient(90deg, ${accentAlpha(0.06)} 0%, transparent 100%)`,
                               }}
                             />
                             
                             <div className="relative flex items-center justify-between" style={{ padding: 'var(--space-xs) var(--space-sm)' }}>
                               <div className="flex items-center gap-2 min-w-0 flex-1">
                                 {isMVP && <span style={{ fontSize: 'clamp(10px, 1vw, 13px)' }} className="shrink-0">⭐</span>}
-                                <span className="font-display font-bold truncate" style={{ color: isMVP ? '#d4af37' : 'rgba(255,255,255,0.7)', fontSize: 'clamp(11px, 1.1vw, 14px)' }}>
+                                {isKeepsake && selectedMage && (
+                                  <span style={{ fontSize: 'clamp(10px, 1vw, 13px)' }} className="shrink-0">{selectedMage.keepsake.iconEmoji}</span>
+                                )}
+                                <span className="font-display font-bold truncate" style={{
+                                  color: isMVP ? '#d4af37' : isKeepsake && keepsakeColor ? keepsakeColor : 'rgba(255,255,255,0.7)',
+                                  fontSize: 'clamp(11px, 1.1vw, 14px)',
+                                }}>
                                   {stat.cardName}
                                 </span>
+                                {isKeepsake && (
+                                  <span className="font-mono uppercase shrink-0" style={{
+                                    fontSize: 'clamp(7px, 0.7vw, 9px)',
+                                    color: keepsakeColor ? `${keepsakeColor}66` : 'rgba(255,255,255,0.2)',
+                                    letterSpacing: '0.1em',
+                                  }}>
+                                    keepsake
+                                  </span>
+                                )}
                               </div>
                               
                               <div className="flex items-center shrink-0" style={{ gap: 'var(--space-sm)' }}>

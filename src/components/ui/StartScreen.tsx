@@ -4,6 +4,7 @@ import { useAudioStore } from '@/stores/audioStore';
 
 export function StartScreen() {
   const setPhase = useGameStore((state) => state.setPhase);
+  const startNewRun = useGameStore((state) => state.startNewRun);
   const playMusic = useAudioStore((state) => state.playMusic);
   const stopMusic = useAudioStore((state) => state.stopMusic);
   const [fadeOut, setFadeOut] = useState(false);
@@ -35,11 +36,19 @@ export function StartScreen() {
     };
   }, [startMusic]);
 
-  const handleNavigate = (target: 'crafting' | 'grimoire') => {
+  const handlePlay = () => {
     setFadeOut(true);
     setTimeout(() => {
       stopMusic();
-      setPhase(target);
+      startNewRun();
+    }, 600);
+  };
+
+  const handleGrimoire = () => {
+    setFadeOut(true);
+    setTimeout(() => {
+      stopMusic();
+      setPhase('grimoire');
     }, 600);
   };
 
@@ -72,6 +81,9 @@ export function StartScreen() {
           boxShadow: 'inset 0 0 150px 60px rgba(5,5,16,0.8)',
         }}
       />
+
+      {/* Mute button */}
+      <MuteButton />
 
       {/* Content container */}
       <div
@@ -111,13 +123,13 @@ export function StartScreen() {
           <StartButton
             label="Play"
             sublabel="Enter the Arena"
-            onClick={() => handleNavigate('crafting')}
+            onClick={handlePlay}
             primary
           />
           <StartButton
             label="Grimoire"
             sublabel="Browse Pages"
-            onClick={() => handleNavigate('grimoire')}
+            onClick={handleGrimoire}
           />
         </div>
       </div>
@@ -140,6 +152,29 @@ export function StartScreen() {
         }
       `}</style>
     </div>
+  );
+}
+
+function MuteButton() {
+  const isMuted = useAudioStore((state) => state.isMuted);
+  const toggleMute = useAudioStore((state) => state.toggleMute);
+
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); toggleMute(); }}
+      className="absolute top-4 right-4 z-30 flex items-center justify-center rounded-full cursor-pointer transition-all duration-200 hover:scale-110 active:scale-95"
+      style={{
+        width: '36px',
+        height: '36px',
+        backgroundColor: 'rgba(5,5,16,0.6)',
+        border: '1px solid rgba(212,175,55,0.2)',
+        backdropFilter: 'blur(4px)',
+        color: isMuted ? 'rgba(255,255,255,0.35)' : 'rgba(212,175,55,0.7)',
+      }}
+      title={isMuted ? 'Unmute' : 'Mute'}
+    >
+      <span style={{ fontSize: '16px', lineHeight: 1 }}>{isMuted ? '🔇' : '🔊'}</span>
+    </button>
   );
 }
 

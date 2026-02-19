@@ -12,6 +12,7 @@ import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { CardLorePanel } from '@/components/ui/CardLorePanel';
 import { GameOverOverlay } from '@/components/ui/GameOverOverlay';
 import { StartScreen } from '@/components/ui/StartScreen';
+import { AllegianceScreen } from '@/components/ui/AllegianceScreen';
 import { GrimoireScreen } from '@/components/ui/GrimoireScreen';
 import { CraftingScene } from '@/components/ui/crafting/CraftingScene';
 import { HandheldCraftingScene } from '@/components/ui/crafting/HandheldCraftingScene';
@@ -73,6 +74,11 @@ function App() {
     return <StartScreen />;
   }
 
+  // Mage allegiance selection
+  if (phase === 'allegiance') {
+    return <AllegianceScreen />;
+  }
+
   // Grimoire browser
   if (phase === 'grimoire') {
     return <GrimoireScreen />;
@@ -87,7 +93,7 @@ function App() {
         <UIScaleControl />
         {/* Phase indicator (dev) */}
         {isDev && (
-          <div className="fixed top-2 right-2 bg-arcane-purple/80 px-2 py-0.5 rounded text-xs font-mono z-[100]">
+          <div className="fixed top-2 right-2 bg-arcane-purple/80 px-2 py-0.5 rounded text-xs font-mono z-[100] invisible">
             Phase: {phase} · {isHandheld ? 'Handheld' : 'Desktop'}
           </div>
         )}

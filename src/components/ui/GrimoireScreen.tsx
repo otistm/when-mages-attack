@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 import { CARD_DEFINITIONS, SYNTHESIS_RECIPES } from '@/data/cards';
 import { CardDefinition } from '@/types';
@@ -57,7 +57,7 @@ export function GrimoireScreen() {
     <div className="fixed inset-0 z-50 flex flex-col" style={{ backgroundColor: '#050510' }}>
       {/* Top bar */}
       <div
-        className="flex items-center justify-between shrink-0 px-6 py-3"
+        className="flex items-center justify-between shrink-0 px-6 py-8"
         style={{
           background: 'linear-gradient(to bottom, rgba(10,10,26,0.98), rgba(5,5,16,0.95))',
           borderBottom: '1px solid var(--border-secondary)',
@@ -304,6 +304,10 @@ function DetailView({ card, recipe }: { card: CardDefinition; recipe: { a: CardD
   const effectMeta = statusEffect ? STATUS_EFFECT_META[statusEffect.type] : null;
   const classification = TYPE_LABELS[card.type] ?? card.type;
   const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [card.id]);
 
   const hasImage = card.imagePath && !imgError;
 

@@ -17,8 +17,11 @@ import {
   StatusEffectConfig,
   StatusEffectType,
 } from '@/types';
+import { MageDefinition, TrialObjectiveType } from '@/types/mage';
+import { getMageDefinition } from '@/data/mages';
 import { v4 as uuid } from 'uuid';
 import { useBattleStatsStore } from '@/stores/battleStatsStore';
+import { useCombatStore } from '@/stores/combatStore';
 
 /**
  * Active status effects for each team
@@ -42,6 +45,13 @@ interface GameState {
   // Status effects (DOT, debuffs, etc.)
   statusEffects: StatusEffectsState;
   
+  // Mage allegiance
+  selectedMage: MageDefinition | null;
+  keepsakeCooldownRemaining: number;
+  keepsakeReady: boolean;
+  keepsakeUnlocked: boolean;
+  keepsakeTrialProgress: number;
+  
   // Run state
   run: RunState | null;
   
@@ -57,8 +67,15 @@ interface GameState {
   
   // Run management
   startNewRun: () => void;
+  resetForCombat: () => void;
   endRun: (result: MatchResult) => void;
   advanceTurn: () => void;
+  
+  // Mage allegiance
+  selectMage: (mageId: string) => void;
+  activateKeepsake: () => void;
+  tickKeepsakeCooldown: (delta: number) => void;
+  advanceTrialProgress: (type: TrialObjectiveType, amount: number) => void;
   
   // Health management
   dealDamageToPlayer: (amount: number) => void;
@@ -98,6 +115,12 @@ export const useGameStore = create<GameState>()(
     
     statusEffects: { player: [], enemy: [] },
     
+    selectedMage: null,
+    keepsakeCooldownRemaining: 0,
+    keepsakeReady: false,
+    keepsakeUnlocked: false,
+    keepsakeTrialProgress: 0,
+    
     run: null,
     settings: { ...DEFAULT_SETTINGS },
     cameraTrauma: 0,
@@ -123,7 +146,24 @@ export const useGameStore = create<GameState>()(
         run,
         player: { ...DEFAULT_PLAYER },
         enemy: { ...DEFAULT_PLAYER },
-        phase: 'crafting',
+        selectedMage: null,
+        keepsakeCooldownRemaining: 0,
+        keepsakeReady: false,
+        keepsakeUnlocked: false,
+        keepsakeTrialProgress: 0,
+        phase: 'allegiance',
+      });
+    },
+
+    resetForCombat: () => {
+      const { keepsakeUnlocked } = get();
+      set({
+        player: { ...DEFAULT_PLAYER },
+        enemy: { ...DEFAULT_PLAYER },
+        statusEffects: { player: [], enemy: [] },
+        keepsakeCooldownRemaining: 0,
+        keepsakeReady: keepsakeUnlocked,
+        combatPhase: 'countdown',
       });
     },
 
@@ -131,11 +171,11 @@ export const useGameStore = create<GameState>()(
       const { run } = get();
       if (!run) return;
       
-      // Update run stats based on result
       if (result === 'victory') {
         set((state) => ({
           run: state.run ? { ...state.run, roundsWon: state.run.roundsWon + 1 } : null,
         }));
+        get().advanceTrialProgress('win_battle', 1);
       } else if (result === 'defeat') {
         set((state) => ({
           run: state.run ? { ...state.run, roundsLost: state.run.roundsLost + 1 } : null,
@@ -152,6 +192,152 @@ export const useGameStore = create<GameState>()(
           : null,
         phase: 'crafting',
       }));
+    },
+
+    // Mage allegiance
+    selectMage: (mageId) => {
+      const mage = getMageDefinition(mageId);
+      if (!mage) return;
+      set({
+        selectedMage: mage,
+        keepsakeCooldownRemaining: 0,
+        keepsakeReady: false,
+        keepsakeUnlocked: false,
+        keepsakeTrialProgress: 0,
+        phase: 'crafting',
+      });
+    },
+
+    activateKeepsake: () => {
+      const { selectedMage, keepsakeReady, keepsakeUnlocked } = get();
+      if (!selectedMage || !keepsakeReady || !keepsakeUnlocked) return;
+
+      const { keepsake } = selectedMage;
+      const { effectConfig } = keepsake;
+      const combatStore = useCombatStore.getState();
+      const battleStats = useBattleStatsStore.getState();
+
+      const keepsakeCardId = `keepsake_${selectedMage.id}`;
+      const statusEffectType = effectConfig.statusEffect?.type;
+      battleStats.recordTrigger(keepsakeCardId, keepsake.name, 'player', statusEffectType);
+
+      let totalDirectDamage = 0;
+
+      if (keepsake.abilityType === 'cc' && effectConfig.freezeDuration) {
+        const enemies = combatStore.getMinionsByTeam('enemy');
+        enemies.forEach((m: { id: string }) => {
+          combatStore.updateMinion(m.id, { state: 'idle' as const });
+        });
+        setTimeout(() => {
+          const store = useCombatStore.getState();
+          enemies.forEach((m: { id: string }) => {
+            const current = store.getMinion(m.id);
+            if (current && current.state === 'idle') {
+              store.updateMinion(m.id, { state: 'moving' as const });
+            }
+          });
+        }, (effectConfig.freezeDuration ?? 2) * 1000);
+      }
+
+      if (keepsake.abilityType === 'damage' || keepsake.abilityType === 'debuff') {
+        const enemies = combatStore.getMinionsByTeam('enemy');
+        if (effectConfig.damage) {
+          enemies.forEach((m: { id: string }) => {
+            combatStore.damageMinion(m.id, effectConfig.damage!);
+            totalDirectDamage += effectConfig.damage!;
+          });
+        }
+        if (effectConfig.statusEffect) {
+          enemies.forEach((m: { id: string }) => {
+            combatStore.damageMinion(m.id, 0, effectConfig.statusEffect!.type);
+          });
+          get().applyStatusEffect('enemy', effectConfig.statusEffect, keepsakeCardId);
+        }
+      }
+
+      if (keepsake.abilityType === 'drain') {
+        const enemies = combatStore.getMinionsByTeam('enemy');
+        if (effectConfig.damage) {
+          enemies.forEach((m: { id: string }) => {
+            combatStore.damageMinion(m.id, effectConfig.damage!);
+            totalDirectDamage += effectConfig.damage!;
+          });
+        }
+        if (effectConfig.healAmount) {
+          get().healPlayer(effectConfig.healAmount);
+        }
+      }
+
+      if (keepsake.abilityType === 'buff') {
+        const allies = combatStore.getMinionsByTeam('player');
+        const multiplier = effectConfig.buffMultiplier ?? 2.0;
+        const duration = effectConfig.buffDuration ?? 4;
+        const isShield = multiplier < 1;
+
+        allies.forEach((m: { id: string; stats: { attack: number } }) => {
+          if (isShield) {
+            // Damage reduction: halve incoming damage by doubling HP temporarily
+          } else {
+            const originalAttack = m.stats.attack;
+            combatStore.updateMinion(m.id, {
+              stats: { ...combatStore.getMinion(m.id)!.stats, attack: Math.round(originalAttack * multiplier) },
+            });
+            setTimeout(() => {
+              const store = useCombatStore.getState();
+              const current = store.getMinion(m.id);
+              if (current) {
+                store.updateMinion(m.id, {
+                  stats: { ...current.stats, attack: originalAttack },
+                });
+              }
+            }, duration * 1000);
+          }
+        });
+      }
+
+      if (totalDirectDamage > 0) {
+        battleStats.recordDamage(keepsakeCardId, totalDirectDamage);
+      }
+
+      // Start cooldown
+      set({
+        keepsakeCooldownRemaining: keepsake.cooldownSeconds,
+        keepsakeReady: false,
+      });
+
+      // Camera shake for feedback
+      get().addCameraTrauma(0.3);
+    },
+
+    tickKeepsakeCooldown: (delta) => {
+      const { keepsakeCooldownRemaining, keepsakeReady } = get();
+      if (keepsakeReady || keepsakeCooldownRemaining <= 0) return;
+      
+      const newRemaining = Math.max(0, keepsakeCooldownRemaining - delta);
+      set({
+        keepsakeCooldownRemaining: newRemaining,
+        keepsakeReady: newRemaining <= 0,
+      });
+    },
+
+    advanceTrialProgress: (type, amount) => {
+      const { selectedMage, keepsakeUnlocked } = get();
+      if (!selectedMage || keepsakeUnlocked) return;
+
+      const { trial } = selectedMage.keepsake;
+      if (trial.objectiveType !== type) return;
+
+      const newProgress = Math.min(get().keepsakeTrialProgress + amount, trial.targetCount);
+      const justUnlocked = newProgress >= trial.targetCount;
+
+      set({
+        keepsakeTrialProgress: newProgress,
+        ...(justUnlocked ? { keepsakeUnlocked: true, keepsakeReady: true } : {}),
+      });
+
+      if (justUnlocked) {
+        get().addCameraTrauma(0.25);
+      }
     },
 
     // Health management
@@ -361,6 +547,11 @@ export const useGameStore = create<GameState>()(
         player: { ...DEFAULT_PLAYER },
         enemy: { ...DEFAULT_PLAYER },
         statusEffects: { player: [], enemy: [] },
+        selectedMage: null,
+        keepsakeCooldownRemaining: 0,
+        keepsakeReady: false,
+        keepsakeUnlocked: false,
+        keepsakeTrialProgress: 0,
         run: null,
         cameraTrauma: 0,
       });

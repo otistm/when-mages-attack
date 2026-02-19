@@ -21,7 +21,8 @@ export function CraftingScene() {
   const clearLastCrafted = useCraftingStore((state) => state.clearLastCrafted);
   
   const setPhase = useGameStore((state) => state.setPhase);
-  const startNewRun = useGameStore((state) => state.startNewRun);
+  const selectedMage = useGameStore((state) => state.selectedMage);
+  const resetForCombat = useGameStore((state) => state.resetForCombat);
   const addCard = useCardStore((state) => state.addCard);
   const clearAllCards = useCardStore((state) => state.clearAll);
   const setHoveredCard = useUIStore((state) => state.setHoveredCard);
@@ -166,8 +167,8 @@ export function CraftingScene() {
   }, [canCraft]);
 
   const handleReady = useCallback(() => {
-    // Start a new run to track damage/time stats
-    startNewRun();
+    // Reset health/effects for next combat round
+    resetForCombat();
     resetBattleStats();
     
     // Clear existing cards from previous combat
@@ -193,7 +194,7 @@ export function CraftingScene() {
     }
     
     setPhase('combat');
-  }, [deckSlots, inventory, addCard, clearAllCards, setPhase, startNewRun, resetBattleStats]);
+  }, [deckSlots, inventory, addCard, clearAllCards, setPhase, resetForCombat, resetBattleStats]);
 
   const handleCollectResult = () => {
     if (resultCard) {
@@ -316,17 +317,95 @@ export function CraftingScene() {
       {!isPlayingVideo && (
         <>
           {/* Threat Assessment Header */}
-          <div className="shrink-0 w-full z-10" style={{ padding: 'var(--space-md) var(--space-lg)', background: 'linear-gradient(to bottom, rgba(60,20,20,0.5), transparent)' }}>
+          <div className="shrink-0 w-full z-10" style={{ padding: 'var(--space-md) var(--space-lg)', background: `linear-gradient(to bottom, ${selectedMage ? selectedMage.color + '30' : 'rgba(60,20,20,0.5)'}, transparent)` }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center" style={{ gap: 'var(--space-md)' }}>
-                <div className="text-game-subheading font-bold font-display" style={{ color: 'rgba(200,80,80,0.8)', letterSpacing: '0.05em' }}>
-                  ??? Unidentified Threat ???
-                </div>
-                <div className="text-game-caption border rounded-full" style={{ padding: 'var(--space-xs) var(--space-sm)', color: 'rgba(200,100,100,0.6)', borderColor: 'rgba(200,80,80,0.25)', background: 'rgba(60,20,20,0.3)' }}>
-                  Classification Pending
-                </div>
               </div>
-              <div className="text-game-caption italic" style={{ color: 'rgba(212,175,55,0.3)' }}>Prepare your grimoire...</div>
+              <div className="flex items-center" style={{ gap: 'var(--space-md)' }}>
+                {selectedMage && (
+                  <div className="relative group" style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                    <button
+                      onClick={() => setPhase('allegiance')}
+                      className="flex items-center cursor-pointer transition-all duration-200 active:scale-95"
+                      style={{
+                        gap: 'var(--space-sm)',
+                        padding: 'var(--space-xs) var(--space-md)',
+                        border: `1px solid ${selectedMage.color}30`,
+                        borderRadius: '6px',
+                        background: `linear-gradient(135deg, ${selectedMage.color}10, transparent)`,
+                        color: `${selectedMage.color}cc`,
+                        fontSize: 'clamp(10px, 1vw, 13px)',
+                        fontFamily: "'Cinzel', serif",
+                        letterSpacing: '0.08em',
+                      }}
+                    >
+                      <span style={{ fontSize: 'clamp(12px, 1.2vw, 16px)' }}>{selectedMage.keepsake.iconEmoji}</span>
+                      <span>{selectedMage.name}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.25)', margin: '0 2px' }}>·</span>
+                      <span style={{ color: 'rgba(255,255,255,0.4)' }}>Change Alliance</span>
+                    </button>
+                    {/* Keepsake tooltip on hover */}
+                    <div
+                      className="absolute right-0 top-full mt-2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200"
+                      style={{
+                        minWidth: '100%',
+                        width: 'clamp(240px, 22vw, 320px)',
+                        padding: 'clamp(10px, 1.2vw, 16px)',
+                        background: 'linear-gradient(135deg, rgba(15,10,25,0.97), rgba(8,6,16,0.98))',
+                        border: `1px solid ${selectedMage.color}25`,
+                        borderRadius: '8px',
+                        boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 20px ${selectedMage.color}10`,
+                        zIndex: 50,
+                      }}
+                    >
+                      <div className="font-mono uppercase" style={{
+                        fontSize: 'clamp(0.5rem, 0.65vw, 0.6rem)',
+                        color: 'rgba(255,255,255,0.2)',
+                        letterSpacing: '0.15em',
+                        marginBottom: '6px',
+                      }}>Keepsake</div>
+                      <div className="flex items-center gap-2" style={{ marginBottom: '8px' }}>
+                        <span style={{ fontSize: '1.2rem' }}>{selectedMage.keepsake.iconEmoji}</span>
+                        <span className="font-display font-bold" style={{
+                          fontSize: 'clamp(0.8rem, 1vw, 0.95rem)',
+                          color: selectedMage.color,
+                        }}>
+                          {selectedMage.keepsake.name}
+                        </span>
+                      </div>
+                      <p style={{
+                        fontSize: 'clamp(0.65rem, 0.85vw, 0.8rem)',
+                        color: 'rgba(255,255,255,0.6)',
+                        lineHeight: 1.5,
+                        marginBottom: '8px',
+                      }}>
+                        {selectedMage.keepsake.description}
+                      </p>
+                      <div className="flex items-center gap-3 font-mono" style={{
+                        fontSize: 'clamp(0.55rem, 0.7vw, 0.7rem)',
+                        color: 'rgba(255,255,255,0.3)',
+                      }}>
+                        <span>{selectedMage.keepsake.cooldownSeconds}s cooldown</span>
+                        <span>·</span>
+                        <span style={{ color: `${selectedMage.color}88` }}>{selectedMage.keepsake.abilityType}</span>
+                      </div>
+                      <div style={{
+                        marginTop: '8px',
+                        paddingTop: '8px',
+                        borderTop: `1px solid ${selectedMage.color}15`,
+                      }}>
+                        <p className="italic" style={{
+                          fontSize: 'clamp(0.55rem, 0.75vw, 0.7rem)',
+                          color: `${selectedMage.color}55`,
+                          lineHeight: 1.4,
+                        }}>
+                          {selectedMage.keepsake.flavorText}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -397,7 +476,7 @@ export function CraftingScene() {
                 className="absolute inset-4 flex flex-col rounded-xl z-40"
               >
                 {/* Grimoire Header */}
-                <div className="relative z-10" style={{ padding: 'var(--space-lg)' }}>
+                <div className="relative z-10" style={{ padding: 'var(--space-lg)', marginTop: '100px' }}>
                   <div className="flex items-center justify-center gap-3 mb-1">
                     <div className="flex-1 max-w-[80px] h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.25))' }} />
                     <h1 
@@ -414,7 +493,7 @@ export function CraftingScene() {
                 </div>
 
                 {/* Crafting Area */}
-                <div className="flex-1 flex flex-col items-center justify-center" style={{ padding: 'var(--space-lg)' }}>
+                <div className="flex-1 flex flex-col items-center justify-center" style={{ padding: 'var(--space-lg)', marginTop: '-100px' }}>
                   <div className="flex items-center relative" style={{ gap: 'var(--space-xl)' }}>
                     {/* Containment ward glow */}
                     {canCraft() && (
