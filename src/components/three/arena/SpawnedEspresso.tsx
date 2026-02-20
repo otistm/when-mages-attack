@@ -1,23 +1,20 @@
 /**
- * SpawnedCactus - 3D potted cactus construct that fires spine projectiles
+ * SpawnedEspresso - 3D espresso cup construct
  * 
- * Uses the procedural LowPolyCactus model.
- * Spawned from the Potted Cactus card after initial cooldown.
- * Fires spine projectiles on cooldown with swell animation.
+ * Uses the procedural LowPolyEspresso model.
+ * Vibrates with caffeine energy and fires speed-boosting projectiles.
  */
 
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useSpring, animated } from '@react-spring/three';
 import * as THREE from 'three';
 import { CardSlotConfig, ARENA } from '@/types';
 import { useCardStore } from '@/stores/cardStore';
 import { useCombatStore } from '@/stores/combatStore';
-import { LowPolyCactus } from '../models/LowPolyCactus';
+import { LowPolyEspresso } from '../models/LowPolyEspresso';
 
-const NEEDLE_COUNT = 5;
-
-interface SpawnedCactusProps {
+interface SpawnedEspressoProps {
   slot: CardSlotConfig;
   team: 'player' | 'enemy';
   onFire: (position: [number, number, number], damage: number) => void;
@@ -27,7 +24,7 @@ interface SpawnedCactusProps {
   onDestroy?: () => void;
 }
 
-export function SpawnedCactus({
+export function SpawnedEspresso({
   slot,
   team,
   onFire,
@@ -35,14 +32,13 @@ export function SpawnedCactus({
   cooldown,
   combatId,
   onDestroy,
-}: SpawnedCactusProps) {
+}: SpawnedEspressoProps) {
   const groupRef = useRef<THREE.Group>(null);
   const [spawned, setSpawned] = useState(false);
   const [isDying, setIsDying] = useState(false);
   const [isDamaged, setIsDamaged] = useState(false);
   const lastFireRef = useRef(0);
   const hasCalledDestroy = useRef(false);
-  const swellRef = useRef(0);
   const prevHpRef = useRef<number | null>(null);
 
   const combatData = useCombatStore((state) => state.minions.get(combatId));
@@ -52,7 +48,6 @@ export function SpawnedCactus({
   const combatState = combatData?.state;
 
   const updateCooldown = useCardStore((state) => state.updateCooldown);
-
   const shouldFireOnSpawn = useRef(true);
 
   const [springProps, springApi] = useSpring(() => ({
@@ -66,7 +61,6 @@ export function SpawnedCactus({
     springApi.start({ scale: 1, positionY: 0 });
   }, [springApi]);
 
-  // Detect damage for flash
   useEffect(() => {
     if (prevHpRef.current !== null && currentHp < prevHpRef.current) {
       setIsDamaged(true);
@@ -97,24 +91,7 @@ export function SpawnedCactus({
     ? ARENA.playerThroneZ - 2
     : ARENA.enemyThroneZ + 2;
 
-  const fireNeedleBurst = useCallback(() => {
-    const spreadRadius = 0.6;
-    for (let i = 0; i < NEEDLE_COUNT; i++) {
-      const angle = (i / NEEDLE_COUNT) * Math.PI * 2;
-      const offsetX = Math.cos(angle) * spreadRadius;
-      const offsetZ = Math.sin(angle) * spreadRadius;
-      const firePosition: [number, number, number] = [
-        slot.xPosition + offsetX,
-        0.8,
-        zPosition + offsetZ,
-      ];
-      setTimeout(() => {
-        onFire(firePosition, damage);
-      }, i * 40);
-    }
-  }, [slot.xPosition, zPosition, onFire, damage]);
-
-  useFrame(({ clock }, delta) => {
+  useFrame(({ clock }) => {
     const time = clock.elapsedTime;
     if (!spawned || isDying) return;
 
@@ -122,7 +99,7 @@ export function SpawnedCactus({
       lastFireRef.current = time;
       if (shouldFireOnSpawn.current) {
         shouldFireOnSpawn.current = false;
-        fireNeedleBurst();
+        onFire([slot.xPosition, 0.5, zPosition], damage);
         updateCooldown(slot.index, team, 0, false);
       }
       return;
@@ -130,20 +107,11 @@ export function SpawnedCactus({
 
     const elapsed = time - lastFireRef.current;
     const progress = Math.min(elapsed / cooldown, 1);
-
     updateCooldown(slot.index, team, progress, false);
-
-    // Swell builds in the last 40% of cooldown
-    if (progress > 0.6) {
-      swellRef.current = Math.min((progress - 0.6) / 0.4, 1);
-    } else {
-      swellRef.current = Math.max(swellRef.current - delta * 3, 0);
-    }
 
     if (progress >= 1) {
       lastFireRef.current = time;
-      swellRef.current = 0;
-      fireNeedleBurst();
+      onFire([slot.xPosition, 0.5, zPosition], damage);
       setTimeout(() => {
         updateCooldown(slot.index, team, 0, false);
       }, 200);
@@ -161,15 +129,14 @@ export function SpawnedCactus({
       scale={springProps.scale}
       renderOrder={10}
     >
-      <LowPolyCactus
+      <LowPolyEspresso
         team={team}
         isDamaged={isDamaged}
         state={combatState}
-        swellAmount={swellRef.current}
       />
 
       {/* Health bar */}
-      <group position={[0, 3.8, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <group position={[0, 3.2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <mesh>
           <planeGeometry args={[1.6, 0.22]} />
           <meshBasicMaterial color="#000000" opacity={0.6} transparent />
@@ -179,19 +146,8 @@ export function SpawnedCactus({
           <meshBasicMaterial color={isPlayer ? '#4ade80' : '#f87171'} />
         </mesh>
       </group>
-
-      {/* Needle burst flash */}
-      {swellRef.current > 0.8 && !isDying && (
-        <pointLight
-          position={[0, 1.8, 0]}
-          color="#90EE90"
-          intensity={10}
-          distance={8}
-          decay={2}
-        />
-      )}
     </animated.group>
   );
 }
 
-export default SpawnedCactus;
+export default SpawnedEspresso;

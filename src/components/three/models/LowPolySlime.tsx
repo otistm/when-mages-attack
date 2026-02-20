@@ -2,8 +2,8 @@
  * LowPolySlime — Procedural low-poly slime built from IcosahedronGeometry.
  *
  * Based on docs/slime.md:
- * - Body: IcosahedronGeometry(1,1) with green flatShading material
- * - Eyes: Two icosahedron whites + pupils on the front face
+ * - Body: IcosahedronGeometry(1,1) with widened base, green flatShading material
+ * - Eyes: Flat circle pupils + white highlights on the front face
  * - Idle breathing: Y scale oscillates, XZ inverse
  * - Blink: eyes squash shut briefly every few seconds
  * - Damage flash: emissive pulse on hit
@@ -17,10 +17,26 @@ import * as THREE from 'three';
 const bodyGeo = (() => {
   const g = new THREE.IcosahedronGeometry(1, 1);
   g.translate(0, 1, 0);
+
+  // Widen the base for a blob-like shape (per doc)
+  const pos = g.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    let x = pos.getX(i);
+    const y = pos.getY(i);
+    let z = pos.getZ(i);
+
+    const heightFactor = Math.max(0, 1.2 - y);
+    const widen = 1 + heightFactor * 0.6;
+
+    pos.setXYZ(i, x * widen, y, z * widen);
+  }
+  g.computeVertexNormals();
   return g;
 })();
-const eyeWhiteGeo = new THREE.IcosahedronGeometry(0.25, 0);
-const eyePupilGeo = new THREE.IcosahedronGeometry(0.12, 0);
+
+const eyeBaseGeo = new THREE.CircleGeometry(0.22, 8);
+const highlightMainGeo = new THREE.CircleGeometry(0.07, 8);
+const highlightSecGeo = new THREE.CircleGeometry(0.03, 8);
 
 const BASE_SCALE = 1.5;
 
@@ -42,9 +58,9 @@ export function LowPolySlime({ team, isDamaged, state }: LowPolySlimeProps) {
 
   const bodyMat = useMemo(
     () =>
-      new THREE.MeshStandardMaterial({
+      new THREE.MeshPhysicalMaterial({
         color: team === 'player' ? 0x76ff03 : 0xff4444,
-        roughness: 0.3,
+        roughness: 0.2,
         metalness: 0.1,
         flatShading: true,
         emissive: team === 'player' ? 0x2e7d32 : 0x7d2e2e,
@@ -53,13 +69,13 @@ export function LowPolySlime({ team, isDamaged, state }: LowPolySlimeProps) {
     [team],
   );
 
-  const eyeWhiteMat = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: 0xffffff }),
+  const eyePupilMat = useMemo(
+    () => new THREE.MeshBasicMaterial({ color: 0x000000 }),
     [],
   );
 
-  const eyePupilMat = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: 0x111111 }),
+  const eyeWhiteMat = useMemo(
+    () => new THREE.MeshBasicMaterial({ color: 0xffffff }),
     [],
   );
 
@@ -115,7 +131,6 @@ export function LowPolySlime({ team, isDamaged, state }: LowPolySlimeProps) {
       breathXZ * attackScale,
     );
 
-    // Base group scale
     group.scale.setScalar(BASE_SCALE);
   });
 
@@ -124,17 +139,19 @@ export function LowPolySlime({ team, isDamaged, state }: LowPolySlimeProps) {
       {/* Body */}
       <mesh ref={bodyRef} geometry={bodyGeo} material={bodyMat} castShadow />
 
-      {/* Eyes container — attached relative to body front face */}
-      <group position={[0, 1.2, 0.8]}>
+      {/* Eyes container — positioned on the front face */}
+      <group position={[0, 1.15, 0.93]}>
         {/* Left eye */}
-        <group ref={leftEyeRef} position={[-0.3, 0, 0]}>
-          <mesh geometry={eyeWhiteGeo} material={eyeWhiteMat} />
-          <mesh geometry={eyePupilGeo} material={eyePupilMat} position={[0, 0, 0.2]} />
+        <group ref={leftEyeRef} position={[-0.35, 0, 0]}>
+          <mesh geometry={eyeBaseGeo} material={eyePupilMat} />
+          <mesh geometry={highlightMainGeo} material={eyeWhiteMat} position={[0.08, 0.08, 0.01]} />
+          <mesh geometry={highlightSecGeo} material={eyeWhiteMat} position={[-0.08, -0.08, 0.01]} />
         </group>
         {/* Right eye */}
-        <group ref={rightEyeRef} position={[0.3, 0, 0]}>
-          <mesh geometry={eyeWhiteGeo} material={eyeWhiteMat} />
-          <mesh geometry={eyePupilGeo} material={eyePupilMat} position={[0, 0, 0.2]} />
+        <group ref={rightEyeRef} position={[0.35, 0, 0]}>
+          <mesh geometry={eyeBaseGeo} material={eyePupilMat} />
+          <mesh geometry={highlightMainGeo} material={eyeWhiteMat} position={[0.08, 0.08, 0.01]} />
+          <mesh geometry={highlightSecGeo} material={eyeWhiteMat} position={[-0.08, -0.08, 0.01]} />
         </group>
       </group>
 

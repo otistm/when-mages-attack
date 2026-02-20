@@ -78,11 +78,13 @@ Cactus
         scene.add(sunLight);
 
         // \--- Materials \---  
-        const potMat \= new THREE.MeshStandardMaterial({ color: 0x8D6E63, roughness: 0.8 }); // Terracotta  
+        const potMat \= new THREE.MeshStandardMaterial({ color: 0xE2725B, roughness: 0.8 }); // Terracotta Orange  
         const dirtMat \= new THREE.MeshStandardMaterial({ color: 0x3E2723, roughness: 1.0 });  
         const cactusMat \= new THREE.MeshStandardMaterial({ color: 0x66BB6A, roughness: 0.4, flatShading: true });  
         const spikeMat \= new THREE.MeshStandardMaterial({ color: 0xFFF9C4, roughness: 0.2 }); // Light yellow  
-        const floorMat \= new THREE.MeshStandardMaterial({ color: 0xE0C097, roughness: 0.9 });
+        const floorMat \= new THREE.MeshStandardMaterial({ color: 0xE0C097, roughness: 0.9 });  
+        const flowerCenterMat \= new THREE.MeshStandardMaterial({ color: 0xFFEB3B, roughness: 0.6, flatShading: true }); // Yellow center  
+        const flowerPetalMat \= new THREE.MeshStandardMaterial({ color: 0xFF69B4, roughness: 0.5, flatShading: true }); // Pink petals
 
         // \--- Geometry Builders \---  
           
@@ -117,6 +119,28 @@ Cactus
         body.castShadow \= true;  
         cactusGroup.add(body);
 
+        // \--- The Flower \---  
+        const flowerGroup \= new THREE.Group();  
+        flowerGroup.position.set(0.4, 0.85, 0.3); // Moved slightly to the side  
+        flowerGroup.rotation.set(0.4, 0, \-0.4); // Tilted to match surface curvature  
+          
+        const flowerCenter \= new THREE.Mesh(new THREE.IcosahedronGeometry(0.15, 0), flowerCenterMat);  
+        flowerGroup.add(flowerCenter);
+
+        for (let i \= 0; i \< 6; i++) {  
+            const pivot \= new THREE.Group();  
+            pivot.rotation.y \= (i / 6\) \* Math.PI \* 2;  
+              
+            const petal \= new THREE.Mesh(new THREE.IcosahedronGeometry(0.12, 0), flowerPetalMat);  
+            petal.scale.set(1, 0.4, 2.2); // Flatten and stretch into a petal shape  
+            petal.position.z \= 0.22; // Push outward  
+            petal.rotation.x \= \-0.15; // Tilt up slightly  
+              
+            pivot.add(petal);  
+            flowerGroup.add(pivot);  
+        }  
+        body.add(flowerGroup);
+
         // 3\. The Spikes (Static/Attached)  
         // We place a spike at every vertex of the cactus body  
         const attachedSpikes \= \[\];  
@@ -129,6 +153,9 @@ Cactus
 
         for (let i \= 0; i \< posAttribute.count; i++) {  
             vertex.fromBufferAttribute(posAttribute, i);  
+              
+            // Skip vertices near the flower to prevent spikes from clipping through it  
+            if (vertex.distanceTo(flowerGroup.position) \< 0.45) continue;  
               
             // Create a spike  
             const spike \= new THREE.Mesh(spikeGeo, spikeMat);  
@@ -344,4 +371,5 @@ Cactus
 
     \</script\>  
 \</body\>  
-\</html\>  
+\</html\>
+

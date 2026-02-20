@@ -296,7 +296,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
         powerCost: 3,
       },
     ],
-    cooldown: 3,
+    cooldown: 5,
     color: '#00FF7F',
     emissiveColor: '#7FFF00',
     iconPath: '/assets/cards/sentient_slime.png',

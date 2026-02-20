@@ -114,27 +114,50 @@ Slime
         // We pivot the mesh so y=0 is the bottom, making scaling easier  
         const geometry \= new THREE.IcosahedronGeometry(1, 1);  
         geometry.translate(0, 1, 0); // Shift center up so scale happens from floor  
+          
+        // Morph vertices to make the base wider and more "blob" like  
+        const pos \= geometry.attributes.position;  
+        for(let i \= 0; i \< pos.count; i++) {  
+            let x \= pos.getX(i);  
+            let y \= pos.getY(i);  
+            let z \= pos.getZ(i);
+
+            // Widen the bottom half (where y is closer to 0\)  
+            let heightFactor \= Math.max(0, 1.2 \- y);   
+            let widen \= 1 \+ (heightFactor \* 0.6);   
+              
+            pos.setXYZ(i, x \* widen, y, z \* widen);  
+        }  
+        geometry.computeVertexNormals(); // Recalculate lighting after modifying shape
+
         const bodyMesh \= new THREE.Mesh(geometry, slimeMaterial);  
         bodyMesh.castShadow \= true;  
         slimeGroup.add(bodyMesh);
 
         // Eyes Container (Attached to body so they move/squash with it)  
         const eyesGroup \= new THREE.Group();  
-        eyesGroup.position.set(0, 1.2, 0.8); // Front of face  
+        eyesGroup.position.set(0, 1.15, 0.93); // Pushed out slightly to rest on the surface  
         bodyMesh.add(eyesGroup); // Add to bodyMesh to inherit transforms
 
         function createEye(x) {  
             const eye \= new THREE.Group();  
             eye.position.x \= x;  
               
-            const white \= new THREE.Mesh(new THREE.IcosahedronGeometry(0.25, 0), eyeWhiteMat);  
-            white.rotation.z \= Math.random(); // Random poly rotation  
+            // Main black eye (flat octagon for low poly look)  
+            const baseEye \= new THREE.Mesh(new THREE.CircleGeometry(0.22, 8), eyePupilMat);  
+            baseEye.rotation.z \= Math.random(); // Random poly rotation  
               
-            const pupil \= new THREE.Mesh(new THREE.IcosahedronGeometry(0.1, 0), eyePupilMat);  
-            pupil.position.z \= 0.2; // Push out slightly  
+            // Large white highlight (upper right)  
+            const highlightMain \= new THREE.Mesh(new THREE.CircleGeometry(0.07, 8), eyeWhiteMat);  
+            highlightMain.position.set(0.08, 0.08, 0.01); // Just slightly forward on Z to prevent clipping  
               
-            eye.add(white);  
-            eye.add(pupil);  
+            // Small secondary white highlight (lower left)  
+            const highlightSec \= new THREE.Mesh(new THREE.CircleGeometry(0.03, 8), eyeWhiteMat);  
+            highlightSec.position.set(-0.08, \-0.08, 0.01);  
+              
+            eye.add(baseEye);  
+            eye.add(highlightMain);  
+            eye.add(highlightSec);  
             return eye;  
         }
 
@@ -357,4 +380,5 @@ Slime
 
     \</script\>  
 \</body\>  
-\</html\>  
+\</html\>
+

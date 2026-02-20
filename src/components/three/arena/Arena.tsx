@@ -20,6 +20,9 @@ import { ArenaFloor } from './ArenaFloor';
 import { CardSlotTracker } from './CardSlotTracker';
 import { SpawnedToaster } from './SpawnedToaster';
 import { SpawnedCactus } from './SpawnedCactus';
+import { SpawnedBattery } from './SpawnedBattery';
+import { SpawnedBrick } from './SpawnedBrick';
+import { SpawnedEspresso } from './SpawnedEspresso';
 import { SpawnedConstruct as GenericConstruct } from './SpawnedConstruct';
 import { MinionManager } from '../minions/MinionManager';
 import { ImpactEffects, SpawnEffects, ToastProjectile, ShivProjectile, SpineProjectile, DamageNumbers } from '../effects';
@@ -82,6 +85,18 @@ const TOASTER_FAMILY = new Set([
 const CACTUS_FAMILY = new Set([
   'potted_cactus', 'spike_trap', 'dry_heat_cactus',
   'stone_garden', 'stink_blossom', 'sun_catcher',
+]);
+
+const BATTERY_FAMILY = new Set([
+  'old_battery', 'charged_battery', 'acid_cell',
+]);
+
+const BRICK_FAMILY = new Set([
+  'brick', 'rune_brick', 'heavy_brick',
+]);
+
+const ESPRESSO_FAMILY = new Set([
+  'espresso_shot', 'double_shot', 'caffeine_bomb',
 ]);
 
 /**
@@ -665,6 +680,21 @@ export function Arena() {
             cardId === 'burning_toaster' ||
             cardId === 'infernal_toaster';
           return <SpawnedToaster {...sharedProps} isInfernal={isInfernal} />;
+        }
+
+        // Battery family
+        if (BATTERY_FAMILY.has(cardId) || construct.card.tags?.includes('electric')) {
+          return <SpawnedBattery {...sharedProps} />;
+        }
+
+        // Brick family
+        if (BRICK_FAMILY.has(cardId) || (construct.card.tags?.includes('stone') && construct.card.tags?.includes('heavy'))) {
+          return <SpawnedBrick {...sharedProps} />;
+        }
+
+        // Espresso family
+        if (ESPRESSO_FAMILY.has(cardId)) {
+          return <SpawnedEspresso {...sharedProps} />;
         }
 
         // Everything else: generic construct with shape derived from card tags

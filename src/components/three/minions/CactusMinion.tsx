@@ -9,20 +9,18 @@
  * 5. Multiple can exist simultaneously
  */
 
-import { useRef, useEffect, useMemo, useCallback, Suspense } from 'react';
+import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useSpring, animated } from '@react-spring/three';
-import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 
+import { LowPolyCactus } from '../models/LowPolyCactus';
 import { useCombatStore } from '@/stores/combatStore';
 import { useBattleStatsStore } from '@/stores/battleStatsStore';
 import { getCardDefinition } from '@/data/cards';
 import { resolveCollisions } from './separation';
 import type { CombatMinion } from '@/stores/combatStore';
 import type { CardDefinition } from '@/types';
-
-useGLTF.preload('/assets/models/potted_cactus.glb');
 
 const NEEDLE_COUNT = 5;
 const SPREAD_RADIUS = 0.6;
@@ -40,6 +38,9 @@ interface CactusMinionProps {
 export function CactusMinion({ data, onFire }: CactusMinionProps) {
   const groupRef = useRef<THREE.Group>(null);
   const lastFireTimeRef = useRef(0);
+  const swellRef = useRef(0);
+  const isDamagedRef = useRef(false);
+  const prevHpRef = useRef(data.currentHp);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const initialPosition = useMemo<[number, number, number]>(() => [...data.position], []);
@@ -65,7 +66,17 @@ export function CactusMinion({ data, onFire }: CactusMinionProps) {
     }
   }, [data.state, spawnApi]);
 
-  // Fire a radial burst of needles
+  // Detect damage
+  useEffect(() => {
+    if (data.currentHp < prevHpRef.current) {
+      isDamagedRef.current = true;
+      const timer = setTimeout(() => { isDamagedRef.current = false; }, 300);
+      prevHpRef.current = data.currentHp;
+      return () => clearTimeout(timer);
+    }
+    prevHpRef.current = data.currentHp;
+  }, [data.currentHp]);
+
   const fireNeedleBurst = useCallback(() => {
     const me = useCombatStore.getState().getMinion(idRef.current);
     if (!me) return;
@@ -88,14 +99,13 @@ export function CactusMinion({ data, onFire }: CactusMinionProps) {
     useBattleStatsStore.getState().recordDamage(me.cardDefinitionId, me.stats.attack * NEEDLE_COUNT);
   }, [onFire, cardDef]);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const g = groupRef.current;
     const store = useCombatStore.getState();
     const me = store.getMinion(idRef.current);
     if (!me) return;
     if (me.state === 'dead' || me.state === 'dying' || me.state === 'spawning') return;
 
-    // Resolve collisions even though stationary — prevents overlap at spawn
     const px = positionRef.current[0];
     const py = positionRef.current[1];
     const pz = positionRef.current[2];
@@ -112,7 +122,6 @@ export function CactusMinion({ data, onFire }: CactusMinionProps) {
       position: [...positionRef.current],
     });
 
-    // Fire on cooldown
     const now = state.clock.elapsedTime;
 
     if (lastFireTimeRef.current === 0) {
@@ -121,8 +130,19 @@ export function CactusMinion({ data, onFire }: CactusMinionProps) {
       return;
     }
 
+    const elapsed = now - lastFireTimeRef.current;
+    const progress = Math.min(elapsed / fireCooldown, 1);
+
+    // Swell animation builds as cooldown progresses (last 40%)
+    if (progress > 0.6) {
+      swellRef.current = Math.min((progress - 0.6) / 0.4, 1);
+    } else {
+      swellRef.current = Math.max(swellRef.current - delta * 3, 0);
+    }
+
     if (now - lastFireTimeRef.current >= fireCooldown) {
       lastFireTimeRef.current = now;
+      swellRef.current = 0;
       fireNeedleBurst();
     }
   });
@@ -133,12 +153,15 @@ export function CactusMinion({ data, onFire }: CactusMinionProps) {
   return (
     <group ref={groupRef} position={initialPosition}>
       <animated.group scale={spawnSpring.scale} renderOrder={10}>
-        <Suspense fallback={<CactusFallback />}>
-          <CactusModel team={data.team} />
-        </Suspense>
+        <LowPolyCactus
+          team={data.team}
+          isDamaged={isDamagedRef.current}
+          state={data.state}
+          swellAmount={swellRef.current}
+        />
 
         {/* Health bar */}
-        <group position={[0, 3.4, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <group position={[0, 3.8, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <mesh>
             <planeGeometry args={[1.6, 0.22]} />
             <meshBasicMaterial color="#000000" opacity={0.6} transparent />
@@ -148,54 +171,7 @@ export function CactusMinion({ data, onFire }: CactusMinionProps) {
             <meshBasicMaterial color={isPlayer ? '#4ade80' : '#f87171'} />
           </mesh>
         </group>
-
-        {/* Ambient glow */}
-        <pointLight
-          position={[0, 1.2, 0]}
-          color="#32CD32"
-          intensity={2}
-          distance={4}
-          decay={2}
-        />
       </animated.group>
-    </group>
-  );
-}
-
-function CactusModel({ team }: { team: 'player' | 'enemy' }) {
-  const { scene } = useGLTF('/assets/models/potted_cactus.glb');
-  const model = useMemo(() => {
-    const clone = scene.clone();
-    clone.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        const mesh = child as THREE.Mesh;
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-      }
-    });
-    return clone;
-  }, [scene]);
-
-  return (
-    <primitive
-      object={model}
-      scale={4.0}
-      rotation={[-0.3, team === 'player' ? 0 : Math.PI, 0]}
-    />
-  );
-}
-
-function CactusFallback() {
-  return (
-    <group scale={3.0}>
-      <mesh position={[0, 0.15, 0]} castShadow>
-        <cylinderGeometry args={[0.25, 0.3, 0.3, 8]} />
-        <meshBasicMaterial color="#8B4513" />
-      </mesh>
-      <mesh position={[0, 0.5, 0]} castShadow>
-        <sphereGeometry args={[0.25, 8, 8]} />
-        <meshBasicMaterial color="#228B22" />
-      </mesh>
     </group>
   );
 }
