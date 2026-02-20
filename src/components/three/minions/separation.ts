@@ -1,73 +1,97 @@
 /**
  * Minion collision resolution — hard constraint that prevents overlap.
  *
- * After computing a desired position, call `resolveCollisions` to push the
- * minion out of any overlapping hitboxes. Uses iterative position-based
- * resolution with aggressive push to ensure minions never clip.
+ * Reads live positions from the minionPositionRegistry (no Zustand access).
+ * Uses a spatial hash grid for O(N) neighbor lookups instead of O(N²).
  */
 
-import { useCombatStore } from '@/stores/combatStore';
+import { minionPositions, MinionPosEntry } from '@/utils/minionPositionRegistry';
 
-/**
- * Every entity gets this collision radius. Two entities overlap when
- * their centers are closer than COLLISION_RADIUS * 2.
- */
 const COLLISION_RADIUS = 1.2;
-
-/**
- * Push multiplier — values >1 overshoot the exact separation so entities
- * bounce apart instead of sliding along each other.
- */
 const PUSH_STRENGTH = 1.6;
+const PASSES = 2;
 
-/** Number of resolution passes per frame. More = more stable clusters. */
-const PASSES = 5;
+const MIN_DIST = COLLISION_RADIUS * 2;
+const MIN_DIST_SQ = MIN_DIST * MIN_DIST;
+
+const CELL_SIZE = MIN_DIST + 0.5;
+
+const _grid = new Map<string, string[]>();
+
+function cellKey(x: number, z: number): string {
+  const cx = Math.floor(x / CELL_SIZE);
+  const cz = Math.floor(z / CELL_SIZE);
+  return `${cx},${cz}`;
+}
 
 /**
- * Given a desired position, resolves collisions against every other alive
- * entity in the combat store and returns a corrected [x, z] that does not
- * overlap any of them.
+ * Build a spatial hash grid from all live positions.
+ * Call once per frame before resolving individual minions.
+ */
+export function buildCollisionGrid(): void {
+  _grid.clear();
+  const all = minionPositions.getAll();
+  all.forEach((entry, id) => {
+    const key = cellKey(entry.x, entry.z);
+    let bucket = _grid.get(key);
+    if (!bucket) {
+      bucket = [];
+      _grid.set(key, bucket);
+    }
+    bucket.push(id);
+  });
+}
+
+/**
+ * Given a desired position, resolve collisions using the spatial hash grid.
+ * Returns corrected [x, z].
  */
 export function resolveCollisions(
   myId: string,
   desiredX: number,
   desiredZ: number,
 ): [number, number] {
-  const store = useCombatStore.getState();
-  const allMinions = store.getAliveMinions();
-
   let x = desiredX;
   let z = desiredZ;
 
-  const minDist = COLLISION_RADIUS * 2;
-  const minDistSq = minDist * minDist;
-
   for (let pass = 0; pass < PASSES; pass++) {
-    for (const other of allMinions) {
-      if (other.id === myId) continue;
+    const cx = Math.floor(x / CELL_SIZE);
+    const cz = Math.floor(z / CELL_SIZE);
 
-      const dx = x - other.position[0];
-      const dz = z - other.position[2];
-      const distSq = dx * dx + dz * dz;
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        const bucket = _grid.get(`${cx + dx},${cz + dz}`);
+        if (!bucket) continue;
 
-      if (distSq >= minDistSq) continue;
+        for (let i = 0; i < bucket.length; i++) {
+          const otherId = bucket[i];
+          if (otherId === myId) continue;
 
-      // Exactly on top — random nudge
-      if (distSq < 0.0001) {
-        const angle = Math.random() * Math.PI * 2;
-        x += Math.cos(angle) * minDist;
-        z += Math.sin(angle) * minDist;
-        continue;
+          const other = minionPositions.get(otherId);
+          if (!other) continue;
+
+          const ddx = x - other.x;
+          const ddz = z - other.z;
+          const distSq = ddx * ddx + ddz * ddz;
+
+          if (distSq >= MIN_DIST_SQ) continue;
+
+          if (distSq < 0.0001) {
+            const angle = Math.random() * Math.PI * 2;
+            x += Math.cos(angle) * MIN_DIST;
+            z += Math.sin(angle) * MIN_DIST;
+            continue;
+          }
+
+          const dist = Math.sqrt(distSq);
+          const overlap = MIN_DIST - dist;
+          const nx = ddx / dist;
+          const nz = ddz / dist;
+
+          x += nx * overlap * PUSH_STRENGTH;
+          z += nz * overlap * PUSH_STRENGTH;
+        }
       }
-
-      const dist = Math.sqrt(distSq);
-      const overlap = minDist - dist;
-      const nx = dx / dist;
-      const nz = dz / dist;
-
-      // Push the full overlap with extra strength so they bounce apart
-      x += nx * overlap * PUSH_STRENGTH;
-      z += nz * overlap * PUSH_STRENGTH;
     }
   }
 

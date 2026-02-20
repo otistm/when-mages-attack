@@ -30,10 +30,12 @@ import { VfxManager } from '../effects/VfxManager';
 import { StatusVfx } from '../effects/StatusVfx';
 import { ShivRotationDebug } from '../debug/ShivRotationDebug';
 import { useCameraShake } from '@/hooks/useCameraShake';
+import { shallow } from 'zustand/shallow';
 import { useCombatStore } from '@/stores/combatStore';
 import { useGameStore } from '@/stores/gameStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useCardStore } from '@/stores/cardStore';
+import { buildCollisionGrid } from '../minions/separation';
 import { useBattleStatsStore } from '@/stores/battleStatsStore';
 import { AudioCues } from '@/stores/audioStore';
 import { useVfxStore } from '@/stores/vfxStore';
@@ -88,7 +90,7 @@ const CACTUS_FAMILY = new Set([
 ]);
 
 const BATTERY_FAMILY = new Set([
-  'old_battery', 'charged_battery', 'acid_cell',
+  'charged_battery', 'acid_cell',
 ]);
 
 const BRICK_FAMILY = new Set([
@@ -99,9 +101,11 @@ const ESPRESSO_FAMILY = new Set([
   'espresso_shot', 'double_shot', 'caffeine_bomb',
 ]);
 
-/**
- * Convert screen coordinates to 3D world position on the ground plane (Y=0)
- */
+const _raycaster = new THREE.Raycaster();
+const _ndc = new THREE.Vector2();
+const _groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const _target = new THREE.Vector3();
+
 function screenToWorld(
   screenX: number, 
   screenY: number, 
@@ -109,20 +113,10 @@ function screenToWorld(
   canvasWidth: number,
   canvasHeight: number
 ): THREE.Vector3 {
-  // Convert screen coords to normalized device coordinates (-1 to 1)
-  const ndcX = (screenX / canvasWidth) * 2 - 1;
-  const ndcY = -(screenY / canvasHeight) * 2 + 1;
-  
-  // Create a ray from camera through the screen point
-  const raycaster = new THREE.Raycaster();
-  raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
-  
-  // Intersect with ground plane (Y=0)
-  const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-  const target = new THREE.Vector3();
-  raycaster.ray.intersectPlane(groundPlane, target);
-  
-  return target || new THREE.Vector3(0, 0, 0);
+  _ndc.set((screenX / canvasWidth) * 2 - 1, -(screenY / canvasHeight) * 2 + 1);
+  _raycaster.setFromCamera(_ndc, camera);
+  _raycaster.ray.intersectPlane(_groundPlane, _target);
+  return _target;
 }
 
 export function Arena() {
@@ -211,16 +205,20 @@ export function Arena() {
   const gameOver = player.health <= 0 || enemy.health <= 0;
   
   const tickKeepsakeCooldown = useGameStore((state) => state.tickKeepsakeCooldown);
+  const tickMinionStatuses = useCombatStore((state) => state.tickMinionStatuses);
 
-  // Tick status effects and keepsake cooldown
+  // Tick status effects, keepsake cooldown, minion statuses, and rebuild collision grid
   useFrame((_, delta) => {
     if (!gameOver) {
+      buildCollisionGrid();
       tickStatusEffects(delta);
       tickKeepsakeCooldown(delta);
+      tickMinionStatuses(delta);
     }
   });
 
   const [projectiles, setProjectiles] = useState<Projectile[]>([]);
+  const projectileMapRef = useRef<Map<string, Projectile>>(new Map());
   const [constructs, setConstructs] = useState<SpawnedConstruct[]>([]);
   
   // Clear constructs and projectiles when game is over
@@ -228,14 +226,23 @@ export function Arena() {
     if (gameOver) {
       setConstructs([]);
       setProjectiles([]);
+      projectileMapRef.current.clear();
     }
   }, [gameOver]);
 
   // Get player and enemy cards from cardStore (populated by crafting scene)
-  const playerCards = useCardStore((state) => state.cards.filter(c => c.team === 'player'));
-  const playerCardSlots = playerCards.map(c => ({ slotIndex: c.slotIndex, card: c.card }));
-  const enemyCards = useCardStore((state) => state.cards.filter(c => c.team === 'enemy'));
-  const enemyCardSlots = enemyCards.map(c => ({ slotIndex: c.slotIndex, card: c.card }));
+  const playerCardSlots = useCardStore(
+    (state) => state.cards
+      .filter(c => c.team === 'player')
+      .map(c => ({ slotIndex: c.slotIndex, card: c.card })),
+    shallow
+  );
+  const enemyCardSlots = useCardStore(
+    (state) => state.cards
+      .filter(c => c.team === 'enemy')
+      .map(c => ({ slotIndex: c.slotIndex, card: c.card })),
+    shallow
+  );
 
   // Handle card firing - spawns projectiles targeting the opposing team
   const handleCardFire = useCallback((
@@ -325,6 +332,7 @@ export function Arena() {
     }
 
     if (newProjectiles.length > 0) {
+      newProjectiles.forEach(p => projectileMapRef.current.set(p.id, p));
       setProjectiles((prev) => [...prev, ...newProjectiles]);
       spawnEffect('projectileLaunch', position, {
         color: isCactusCard ? '#44cc44' : isShivCard ? '#aaaacc' : '#ffcc44',
@@ -454,35 +462,30 @@ export function Arena() {
   
   // Handle projectile hit (apply damage but don't remove yet)
   const handleProjectileHit = useCallback((id: string) => {
-    const proj = projectiles.find(p => p.id === id);
+    const proj = projectileMapRef.current.get(id);
     if (!proj) return;
     
     const damage = proj.damage;
     const isPlayerProjectile = proj.targetTeam === 'enemy';
     
-    // Track damage per card
     if (proj.sourceCardId) {
       recordDamage(proj.sourceCardId, damage);
     }
     
-    // Play shiv stab on impact (minion or HP bar)
     if (proj.projectileType === 'shiv') {
       AudioCues.onShivHit();
     }
     
-    // Trial progress: track player-dealt damage
     if (isPlayerProjectile && damage > 0) {
       advanceTrialProgress('deal_damage', damage);
       advanceTrialProgress('single_hit_damage', damage);
       advanceTrialProgress('minion_damage_dealt', damage);
     }
     
-    // Try to damage target minion
     if (proj.targetMinionId) {
       const targetBefore = useCombatStore.getState().getMinion(proj.targetMinionId);
       damageMinion(proj.targetMinionId, damage, proj.statusEffect?.type);
       
-      // Trial: detect enemy minion kill
       if (isPlayerProjectile && targetBefore && targetBefore.currentHp > 0) {
         const targetAfter = useCombatStore.getState().getMinion(proj.targetMinionId);
         if (!targetAfter || targetAfter.currentHp <= 0) {
@@ -490,16 +493,12 @@ export function Arena() {
         }
       }
       
-      // Trial: status effect application on enemy
       if (isPlayerProjectile && proj.statusEffect) {
         advanceTrialProgress('apply_status_effects', 1);
       }
     } else if (proj.initiallyTargetedMinion) {
-      // This projectile was aimed at a minion that died in flight.
-      // The HP bar must only take damage from a direct physical hit,
-      // so we absorb the damage — it hits nothing.
+      // Projectile aimed at a now-dead minion — absorb damage
     } else {
-      // No minion target and was never aimed at one — damage HP bar directly
       if (proj.targetTeam === 'enemy') {
         damageEnemy(damage);
         if (proj.statusEffect) {
@@ -508,17 +507,16 @@ export function Arena() {
         }
       } else {
         damagePlayer(damage);
-        // Trial: survive_damage tracks cumulative damage taken
         advanceTrialProgress('survive_damage', damage);
         if (proj.statusEffect) {
           applyStatusEffect('player', proj.statusEffect, proj.sourceCardId);
         }
       }
     }
-  }, [projectiles, damageMinion, damagePlayer, damageEnemy, applyStatusEffect, recordDamage, advanceTrialProgress]);
+  }, [damageMinion, damagePlayer, damageEnemy, applyStatusEffect, recordDamage, advanceTrialProgress]);
 
-  // Remove projectile from list (call after animation completes)
   const handleProjectileRemove = useCallback((id: string) => {
+    projectileMapRef.current.delete(id);
     setProjectiles((prev) => prev.filter((p) => p.id !== id));
   }, []);
 

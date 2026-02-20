@@ -8,7 +8,7 @@
  * Ability: "Split" — on death, spawns two smaller slimes.
  */
 
-import { useRef, useEffect, useMemo, useState } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useSpring, animated } from '@react-spring/three';
 import * as THREE from 'three';
@@ -20,23 +20,20 @@ import { useDamageStore } from '@/stores/damageStore';
 import { useBattleStatsStore } from '@/stores/battleStatsStore';
 import { useUIStore } from '@/stores/uiStore';
 import { resolveCollisions } from './separation';
+import { minionPositions } from '@/utils/minionPositionRegistry';
 import { getCardDefinition } from '@/data/cards';
 import type { CombatMinion } from '@/stores/combatStore';
 
-// Slime trail shared geometry and material
 const trailGeo = new THREE.CircleGeometry(0.4, 6);
 trailGeo.rotateX(-Math.PI / 2);
 
 const TRAIL_MAX = 40;
 
-interface TrailDrop {
-  id: number;
-  position: [number, number, number];
+interface TrailSlot {
   life: number;
-  color: string;
+  x: number;
+  z: number;
 }
-
-let trailIdCounter = 0;
 
 interface SentientSlimeProps {
   data: CombatMinion;
@@ -60,14 +57,23 @@ export function SentientSlime({ data, sizeScale = 1 }: SentientSlimeProps) {
   const idRef = useRef(data.id);
   const teamRef = useRef(data.team);
 
-  // Each slime gets a unique random target-X offset for different approach paths
   const targetXOffset = useRef((Math.random() - 0.5) * 6);
 
-  // Slime trail
-  const [trails, setTrails] = useState<TrailDrop[]>([]);
+  const trailSlots = useRef<TrailSlot[]>(
+    Array.from({ length: TRAIL_MAX }, () => ({ life: 0, x: 0, z: 0 })),
+  );
+  const trailMeshRefs = useRef<(THREE.Mesh | null)[]>([]);
   const trailTimer = useRef(0);
+  const trailWriteIdx = useRef(0);
   const lastTrailPos = useRef<[number, number, number]>([...initialPosition]);
   const trailColor = data.team === 'player' ? '#76ff03' : '#ff4444';
+  const trailMats = useMemo(() =>
+    Array.from({ length: TRAIL_MAX }, () => new THREE.MeshBasicMaterial({
+      color: trailColor, transparent: true, opacity: 0, depthWrite: false,
+    })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   // Spawn scale animation
   const [spawnSpring, spawnApi] = useSpring(() => ({
@@ -235,7 +241,6 @@ export function SentientSlime({ data, sizeScale = 1 }: SentientSlimeProps) {
     g.position.y = positionRef.current[1];
     g.position.z = positionRef.current[2];
 
-    // Spawn slime trail drops while moving
     trailTimer.current += delta;
     const movedDist = Math.sqrt(
       (positionRef.current[0] - lastTrailPos.current[0]) ** 2 +
@@ -244,61 +249,49 @@ export function SentientSlime({ data, sizeScale = 1 }: SentientSlimeProps) {
     if (movedDist > 0.8 && trailTimer.current > 0.15) {
       trailTimer.current = 0;
       lastTrailPos.current = [...positionRef.current];
-      setTrails((prev) => {
-        const next = [
-          ...prev,
-          {
-            id: trailIdCounter++,
-            position: [positionRef.current[0], 0.02, positionRef.current[2]] as [number, number, number],
-            life: 1.0,
-            color: trailColor,
-          },
-        ];
-        if (next.length > TRAIL_MAX) return next.slice(next.length - TRAIL_MAX);
-        return next;
-      });
+      const slot = trailSlots.current[trailWriteIdx.current % TRAIL_MAX];
+      slot.life = 1.0;
+      slot.x = positionRef.current[0];
+      slot.z = positionRef.current[2];
+      trailWriteIdx.current++;
     }
 
-    // Sync to store for targeting by other entities
-    store.updateMinion(idRef.current, {
-      position: [positionRef.current[0], positionRef.current[1], positionRef.current[2]],
-      rotation: rotationRef.current,
-    });
-  });
+    for (let i = 0; i < TRAIL_MAX; i++) {
+      const s = trailSlots.current[i];
+      const mesh = trailMeshRefs.current[i];
+      if (!mesh) continue;
+      if (s.life <= 0) {
+        mesh.visible = false;
+        continue;
+      }
+      s.life -= delta * 0.5;
+      mesh.visible = true;
+      mesh.position.set(s.x, 0.02, s.z);
+      const sc = 0.5 + (1 - s.life) * 0.4;
+      mesh.scale.set(sc, 1, sc);
+      trailMats[i].opacity = s.life * 0.45;
+    }
 
-  // Fade and clean up trail drops
-  useEffect(() => {
-    if (trails.length === 0) return;
-    const interval = setInterval(() => {
-      setTrails((prev) =>
-        prev
-          .map((t) => ({ ...t, life: t.life - 0.02 }))
-          .filter((t) => t.life > 0),
-      );
-    }, 50);
-    return () => clearInterval(interval);
-  }, [trails.length > 0]);
+    minionPositions.set(
+      idRef.current,
+      positionRef.current[0], positionRef.current[1], positionRef.current[2],
+      rotationRef.current,
+    );
+  });
 
   const healthPercent = data.currentHp / data.stats.hp;
   const isPlayer = data.team === 'player';
 
   return (
     <>
-      {/* Slime trail — rendered in world space, not parented to slime */}
-      {trails.map((t) => (
+      {trailMats.map((mat, i) => (
         <mesh
-          key={t.id}
+          key={i}
+          ref={(el) => { trailMeshRefs.current[i] = el; }}
           geometry={trailGeo}
-          position={t.position}
-          scale={[0.5 + (1 - t.life) * 0.4, 1, 0.5 + (1 - t.life) * 0.4]}
-        >
-          <meshBasicMaterial
-            color={t.color}
-            transparent
-            opacity={t.life * 0.45}
-            depthWrite={false}
-          />
-        </mesh>
+          material={mat}
+          visible={false}
+        />
       ))}
 
       <group ref={groupRef} position={initialPosition}>

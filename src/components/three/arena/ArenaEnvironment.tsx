@@ -392,33 +392,37 @@ function VolumetricClouds() {
     { pos: [25, 38, -25] as [number, number, number], scale: [35, 10, 1] as [number, number, number], opacity: 0.2 },
   ], []);
   
+  const cloudMaterials = useMemo(() => {
+    return cloudLayers.map((cloud) => {
+      const mat = cloudMaterial.clone();
+      mat.uniforms.uOpacity.value = cloud.opacity;
+      return mat;
+    });
+  }, [cloudMaterial, cloudLayers]);
+  
+  materialsRef.current = cloudMaterials;
+
   useFrame(({ clock }) => {
     if (groupRef.current) {
       groupRef.current.rotation.y = clock.elapsedTime * 0.001;
     }
-    materialsRef.current.forEach((mat) => {
+    cloudMaterials.forEach((mat) => {
       mat.uniforms.uTime.value = clock.elapsedTime;
     });
   });
   
   return (
     <group ref={groupRef}>
-      {cloudLayers.map((cloud, i) => {
-        const mat = cloudMaterial.clone();
-        mat.uniforms.uOpacity.value = cloud.opacity;
-        materialsRef.current[i] = mat;
-        
-        return (
-          <mesh 
-            key={i} 
-            position={cloud.pos}
-            rotation={[0, cloud.rotation || 0, 0]}
-          >
-            <planeGeometry args={[cloud.scale[0], cloud.scale[1], 32, 32]} />
-            <primitive object={mat} attach="material" />
-          </mesh>
-        );
-      })}
+      {cloudLayers.map((cloud, i) => (
+        <mesh 
+          key={i} 
+          position={cloud.pos}
+          rotation={[0, cloud.rotation || 0, 0]}
+        >
+          <planeGeometry args={[cloud.scale[0], cloud.scale[1], 32, 32]} />
+          <primitive object={cloudMaterials[i]} attach="material" />
+        </mesh>
+      ))}
     </group>
   );
 }

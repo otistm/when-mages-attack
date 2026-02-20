@@ -555,9 +555,10 @@ export const useGameStore = create<GameState>()(
     },
 
     decayCameraTrauma: (delta) => {
-      set((state) => ({
-        cameraTrauma: Math.max(0, state.cameraTrauma - delta * 2),
-      }));
+      set((state) => {
+        if (state.cameraTrauma <= 0) return state;
+        return { cameraTrauma: Math.max(0, state.cameraTrauma - delta * 2) };
+      });
     },
 
     // Settings

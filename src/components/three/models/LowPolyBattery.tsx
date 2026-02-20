@@ -9,7 +9,7 @@
  * - Damage flash: emissive pulse
  */
 
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, type RefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -25,11 +25,17 @@ interface LowPolyBatteryProps {
   team: 'player' | 'enemy';
   isDamaged?: boolean;
   state?: string;
+  /** Mutable ref holding the roll angle. When provided, overrides idle oscillation. */
+  rollAngleRef?: RefObject<number>;
+  /** When true, the model skips its own Y-rotation (parent handles facing). */
+  skipYRotation?: boolean;
 }
 
 export function LowPolyBattery({
   team,
   isDamaged,
+  rollAngleRef,
+  skipYRotation = false,
 }: LowPolyBatteryProps) {
   const groupRef = useRef<THREE.Group>(null);
   const batteryRef = useRef<THREE.Group>(null);
@@ -109,8 +115,11 @@ export function LowPolyBattery({
       materials.body.emissive.setHex(0x000000);
     }
 
-    // Gentle idle roll
-    battery.rotation.x = Math.sin(t * 1.5) * 0.15;
+    if (rollAngleRef && rollAngleRef.current !== null) {
+      battery.rotation.x = rollAngleRef.current;
+    } else {
+      battery.rotation.x = Math.sin(t * 1.5) * 0.15;
+    }
 
     // Glow flicker
     if (glowRef.current) {
@@ -157,7 +166,7 @@ export function LowPolyBattery({
     group.scale.setScalar(BASE_SCALE);
   });
 
-  const yRotation = isPlayer ? 0 : Math.PI;
+  const yRotation = skipYRotation ? 0 : (isPlayer ? 0 : Math.PI);
 
   return (
     <group ref={groupRef} scale={BASE_SCALE} rotation={[0, yRotation, 0]}>

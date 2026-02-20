@@ -43,7 +43,7 @@ export function SpineProjectile({
 }: SpineProjectileProps) {
   const needleRef = useRef<THREE.Group>(null);
   const trailRef = useRef<THREE.Group>(null);
-  const glowRef = useRef<THREE.PointLight>(null);
+  const glowRef = useRef<THREE.Mesh>(null);
 
   const [started, setStarted] = useState(false);
   const [hit, setHit] = useState(false);
@@ -125,7 +125,9 @@ export function SpineProjectile({
       });
 
       if (glowRef.current) {
-        glowRef.current.intensity = 6 * (1 - impactT);
+        const glowMat = glowRef.current.material as THREE.MeshBasicMaterial;
+        glowMat.opacity = 0.6 * (1 - impactT);
+        glowRef.current.scale.setScalar(0.3 * (1 - impactT));
       }
 
       if (impactT >= 1) {
@@ -176,10 +178,10 @@ export function SpineProjectile({
         }
       });
 
-      // Update glow
       if (glowRef.current) {
         glowRef.current.position.copy(currentPos);
-        glowRef.current.intensity = 3 + Math.sin(time * 20) * 1.5;
+        const pulse = 0.25 + Math.sin(time * 20) * 0.1;
+        glowRef.current.scale.setScalar(pulse);
       }
 
       prevPos.current.copy(currentPos);
@@ -232,15 +234,17 @@ export function SpineProjectile({
         ))}
       </group>
 
-      {/* Green glow that follows the needle */}
-      <pointLight
-        ref={glowRef}
-        position={startPosition}
-        color="#32CD32"
-        intensity={3}
-        distance={4}
-        decay={2}
-      />
+      {/* Green glow sphere that follows the needle */}
+      <mesh ref={glowRef} position={startPosition} renderOrder={16}>
+        <sphereGeometry args={[0.25, 6, 6]} />
+        <meshBasicMaterial
+          color="#32CD32"
+          transparent
+          opacity={0.6}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </mesh>
 
       {/* Impact flash */}
       {hit && <ImpactFlash position={endPosition} />}

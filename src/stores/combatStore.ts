@@ -10,9 +10,20 @@
  */
 
 import { create } from 'zustand';
-import { MinionData, MinionState, Team, CARD_SLOTS, ARENA } from '@/types';
-import { CardDefinition, StatusEffectType } from '@/types';
+import { MinionData, MinionState, Team, CARD_SLOTS, ARENA, StatusEffect } from '@/types';
+import { CardDefinition, StatusEffectType, StatusEffectConfig } from '@/types';
 import { useVfxStore } from '@/stores/vfxStore';
+import { minionPositions } from '@/utils/minionPositionRegistry';
+
+const DEFAULT_STATUS_CONFIGS: Record<StatusEffectType, Omit<StatusEffectConfig, 'type'>> = {
+  shocked: { damagePerTick: 0, tickInterval: 0.5, duration: 1.0 },
+  burn:    { damagePerTick: 1, tickInterval: 1.0, duration: 3.0 },
+  poison:  { damagePerTick: 1, tickInterval: 0.5, duration: 2.0 },
+  freeze:  { damagePerTick: 0, tickInterval: 1.0, duration: 2.0 },
+  blighted:{ damagePerTick: 2, tickInterval: 1.0, duration: 3.0 },
+};
+
+let statusIdCounter = 0;
 
 // Status effect on HP bar
 export interface HPStatusEffect {
@@ -49,6 +60,10 @@ interface CombatStore {
   removeMinion: (id: string) => void;
   updateMinion: (id: string, updates: Partial<CombatMinion>) => void;
   damageMinion: (id: string, damage: number, statusEffect?: StatusEffectType) => void;
+  
+  // Per-minion status effects
+  applyMinionStatus: (id: string, type: StatusEffectType, config?: Partial<StatusEffectConfig>, sourceId?: string) => void;
+  tickMinionStatuses: (delta: number) => void;
   
   // HP bar status effects
   applyStatusToHPBar: (team: Team, effect: HPStatusEffect) => void;
@@ -100,7 +115,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       stats: { ...card.baseStats },
       currentHp: card.baseStats.hp,
       position,
-      rotation: team === 'player' ? 0 : Math.PI, // Face toward enemy
+      rotation: team === 'player' ? Math.PI : 0, // Face toward enemy
       tags: card.tags ?? [],
       abilities: card.abilities ?? [],
       color: card.emissiveColor ?? (team === 'player' ? '#4ade80' : '#f87171'),
@@ -112,6 +127,8 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       attackRange: 1.5,
       attackCooldown: 1 / (card.baseStats.attackSpeed ?? 1),
     };
+    
+    minionPositions.set(id, position[0], position[1], position[2], minion.rotation);
     
     set((state) => {
       const newMinions = new Map(state.minions);
@@ -143,7 +160,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       stats: { ...card.baseStats },
       currentHp: card.baseStats.hp,
       position,
-      rotation: team === 'player' ? 0 : Math.PI,
+      rotation: team === 'player' ? Math.PI : 0, // Face toward enemy
       tags: card.tags ?? [],
       abilities: card.abilities ?? [],
       color: card.emissiveColor ?? (team === 'player' ? '#4ade80' : '#f87171'),
@@ -157,6 +174,8 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       isConstruct: true,
     };
     
+    minionPositions.set(id, position[0], position[1], position[2], minion.rotation);
+    
     set((state) => {
       const newMinions = new Map(state.minions);
       newMinions.set(id, minion);
@@ -167,6 +186,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   },
   
   removeMinion: (id) => {
+    minionPositions.remove(id);
     set((state) => {
       const newMinions = new Map(state.minions);
       newMinions.delete(id);
@@ -204,6 +224,10 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       
       return { minions: newMinions };
     });
+
+    if (statusEffect) {
+      get().applyMinionStatus(id, statusEffect);
+    }
     
     // Handle death — spawn VFX and remove after animation
     const minion = get().getMinion(id);
@@ -217,6 +241,113 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
     }
   },
   
+  applyMinionStatus: (id, type, config, sourceId) => {
+    const defaults = DEFAULT_STATUS_CONFIGS[type];
+    const duration = config?.duration ?? defaults.duration;
+    const damagePerTick = config?.damagePerTick ?? defaults.damagePerTick;
+    const tickInterval = config?.tickInterval ?? defaults.tickInterval;
+
+    set((state) => {
+      const minion = state.minions.get(id);
+      if (!minion || minion.state === 'dying' || minion.state === 'dead') return state;
+
+      const existingIdx = minion.debuffs.findIndex((d) => d.type === type);
+      let newDebuffs: StatusEffect[];
+
+      if (existingIdx >= 0) {
+        newDebuffs = [...minion.debuffs];
+        newDebuffs[existingIdx] = {
+          ...newDebuffs[existingIdx],
+          duration,
+          damagePerTick,
+          tickInterval,
+          timeSinceLastTick: 0,
+        };
+      } else {
+        const effect: StatusEffect = {
+          id: `status-${statusIdCounter++}`,
+          type,
+          name: type,
+          duration,
+          damagePerTick,
+          tickInterval,
+          timeSinceLastTick: 0,
+          sourceId: sourceId ?? '',
+        };
+        newDebuffs = [...minion.debuffs, effect];
+      }
+
+      const newMinions = new Map(state.minions);
+      newMinions.set(id, { ...minion, debuffs: newDebuffs });
+      return { minions: newMinions };
+    });
+  },
+
+  tickMinionStatuses: (delta) => {
+    set((state) => {
+      let changed = false;
+      const newMinions = new Map(state.minions);
+
+      state.minions.forEach((minion, id) => {
+        if (minion.debuffs.length === 0) return;
+        if (minion.state === 'dying' || minion.state === 'dead') return;
+
+        let hp = minion.currentHp;
+        const survivingDebuffs: StatusEffect[] = [];
+
+        for (const debuff of minion.debuffs) {
+          const remaining = debuff.duration - delta;
+          if (remaining <= 0) {
+            changed = true;
+            continue;
+          }
+
+          let timeSinceLastTick = (debuff.timeSinceLastTick ?? 0) + delta;
+          const interval = debuff.tickInterval ?? 1;
+
+          if (debuff.damagePerTick && debuff.damagePerTick > 0 && timeSinceLastTick >= interval) {
+            hp = Math.max(0, hp - debuff.damagePerTick);
+            timeSinceLastTick -= interval;
+            changed = true;
+          }
+
+          survivingDebuffs.push({
+            ...debuff,
+            duration: remaining,
+            timeSinceLastTick,
+          });
+          if (remaining !== debuff.duration) changed = true;
+        }
+
+        if (minion.debuffs.length !== survivingDebuffs.length || hp !== minion.currentHp || changed) {
+          const newState: MinionState = hp <= 0 ? 'dying' : minion.state;
+          newMinions.set(id, {
+            ...minion,
+            debuffs: survivingDebuffs,
+            currentHp: hp,
+            state: newState,
+          });
+          changed = true;
+
+          if (hp <= 0 && minion.currentHp > 0) {
+            const pos = minionPositions.get(id);
+            const position: [number, number, number] = pos
+              ? [pos.x, pos.y, pos.z]
+              : minion.position;
+            useVfxStore.getState().spawnEffect('death', position, {
+              color: minion.team === 'player' ? '#4ade80' : '#f87171',
+            });
+            setTimeout(() => {
+              useCombatStore.getState().removeMinion(id);
+            }, 800);
+          }
+        }
+      });
+
+      return changed ? { minions: newMinions } : state;
+    });
+  },
+
   applyStatusToHPBar: (team, effect) => {
     set((state) => {
       const key = team === 'player' ? 'playerStatusEffects' : 'enemyStatusEffects';
@@ -250,7 +381,13 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   },
   
   getMinion: (id) => {
-    return get().minions.get(id);
+    const minion = get().minions.get(id);
+    if (!minion) return undefined;
+    const livePos = minionPositions.get(id);
+    if (livePos) {
+      return { ...minion, position: [livePos.x, livePos.y, livePos.z] as [number, number, number] };
+    }
+    return minion;
   },
   
   getMinionsByTeam: (team) => {
@@ -283,8 +420,11 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
     let closestDist = Infinity;
     
     enemies.forEach((enemy) => {
-      const dx = enemy.position[0] - position[0];
-      const dz = enemy.position[2] - position[2];
+      const livePos = minionPositions.get(enemy.id);
+      const ex = livePos ? livePos.x : enemy.position[0];
+      const ez = livePos ? livePos.z : enemy.position[2];
+      const dx = ex - position[0];
+      const dz = ez - position[2];
       const dist = Math.sqrt(dx * dx + dz * dz);
       
       if (dist < closestDist) {
@@ -292,6 +432,16 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
         closest = enemy;
       }
     });
+    
+    if (closest) {
+      const livePos = minionPositions.get(closest.id);
+      if (livePos) {
+        closest = {
+          ...closest,
+          position: [livePos.x, livePos.y, livePos.z],
+        };
+      }
+    }
     
     return closest;
   },
@@ -322,6 +472,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   },
   
   reset: () => {
+    minionPositions.clear();
     set({
       minions: new Map(),
       playerStatusEffects: [],

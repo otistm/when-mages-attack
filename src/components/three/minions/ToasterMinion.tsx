@@ -18,6 +18,7 @@ import { useCombatStore } from '@/stores/combatStore';
 import { useBattleStatsStore } from '@/stores/battleStatsStore';
 import { getCardDefinition } from '@/data/cards';
 import { resolveCollisions } from './separation';
+import { minionPositions } from '@/utils/minionPositionRegistry';
 import { LowPolyToaster } from '@/components/three/models/LowPolyToaster';
 import type { CombatMinion } from '@/stores/combatStore';
 import type { CardDefinition } from '@/types';
@@ -155,10 +156,11 @@ export function ToasterMinion({ data, onFire }: ToasterMinionProps) {
     g.position.y = positionRef.current[1];
     g.position.z = positionRef.current[2];
 
-    store.updateMinion(idRef.current, {
-      position: [...positionRef.current],
-      rotation: rotationRef.current,
-    });
+    minionPositions.set(
+      idRef.current,
+      positionRef.current[0], positionRef.current[1], positionRef.current[2],
+      rotationRef.current,
+    );
   });
 
   const healthPercent = data.currentHp / data.stats.hp;

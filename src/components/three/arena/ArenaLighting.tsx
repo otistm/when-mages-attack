@@ -35,7 +35,7 @@ export function ArenaLighting() {
         intensity={2.8}
         color="#fff4e8"
         castShadow
-        shadow-mapSize={[4096, 4096]}
+        shadow-mapSize={[2048, 2048]}
         shadow-camera-far={80}
         shadow-camera-left={-30}
         shadow-camera-right={30}

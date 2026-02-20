@@ -39,11 +39,12 @@ export type PropertyTag =
 
 // Behavior tags for synthesis system
 export type BehaviorTag =
-  | 'stationary' 
-  | 'minion' 
-  | 'consumable' 
+  | 'stationary'
+  | 'minion'
+  | 'consumable'
   | 'catalyst'
-  | 'essence';
+  | 'essence'
+  | 'aura';
 
 // Category tags for synthesis system
 export type CategoryTag =

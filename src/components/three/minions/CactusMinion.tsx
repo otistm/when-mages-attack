@@ -19,6 +19,7 @@ import { useCombatStore } from '@/stores/combatStore';
 import { useBattleStatsStore } from '@/stores/battleStatsStore';
 import { getCardDefinition } from '@/data/cards';
 import { resolveCollisions } from './separation';
+import { minionPositions } from '@/utils/minionPositionRegistry';
 import type { CombatMinion } from '@/stores/combatStore';
 import type { CardDefinition } from '@/types';
 
@@ -118,9 +119,11 @@ export function CactusMinion({ data, onFire }: CactusMinionProps) {
       g.position.z = resolvedZ;
     }
 
-    store.updateMinion(idRef.current, {
-      position: [...positionRef.current],
-    });
+    minionPositions.set(
+      idRef.current,
+      positionRef.current[0], positionRef.current[1], positionRef.current[2],
+      0,
+    );
 
     const now = state.clock.elapsedTime;
 

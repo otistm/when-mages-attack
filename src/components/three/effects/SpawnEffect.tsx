@@ -10,29 +10,26 @@ import { useArenaStore } from '@/stores/arenaStore';
 export function SpawnEffects() {
   const minions = useArenaStore((state) => state.minions);
   const [effects, setEffects] = useState<SpawnData[]>([]);
+  const seenIds = useRef(new Set<string>());
   
-  // Track new spawns
   useEffect(() => {
     minions.forEach((minion, id) => {
-      if (minion.state === 'spawning') {
-        // Check if we already have an effect for this minion
-        if (!effects.find((e) => e.minionId === id)) {
-          setEffects((prev) => [
-            ...prev,
-            {
-              id: `spawn-${id}`,
-              minionId: id,
-              position: minion.position,
-              color: minion.team === 'player' ? '#00ff88' : '#ff4444',
-              createdAt: Date.now(),
-            },
-          ]);
-        }
+      if (minion.state === 'spawning' && !seenIds.current.has(id)) {
+        seenIds.current.add(id);
+        setEffects((prev) => [
+          ...prev,
+          {
+            id: `spawn-${id}`,
+            minionId: id,
+            position: minion.position,
+            color: minion.team === 'player' ? '#00ff88' : '#ff4444',
+            createdAt: Date.now(),
+          },
+        ]);
       }
     });
-  }, [minions, effects]);
+  }, [minions]);
   
-  // Clean up old effects
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();

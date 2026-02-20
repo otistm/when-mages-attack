@@ -18,7 +18,12 @@ import { useDamageStore } from '@/stores/damageStore';
 import { useBattleStatsStore } from '@/stores/battleStatsStore';
 import { useUIStore } from '@/stores/uiStore';
 import { resolveCollisions } from './separation';
+import { minionPositions } from '@/utils/minionPositionRegistry';
 import type { CombatMinion } from '@/stores/combatStore';
+
+const _hpBgGeo = new THREE.PlaneGeometry(0.8, 0.15);
+const _hpFillGeo = new THREE.PlaneGeometry(1, 0.12);
+const _hpBgMat = new THREE.MeshBasicMaterial({ color: '#000000', opacity: 0.6, transparent: true });
 
 interface MinionProps {
   data: CombatMinion;
@@ -142,10 +147,11 @@ export function Minion({ data, modelPath, modelScale = 1 }: MinionProps) {
     g.position.y = positionRef.current[1];
     g.position.z = positionRef.current[2];
 
-    store.updateMinion(idRef.current, {
-      position: [positionRef.current[0], positionRef.current[1], positionRef.current[2]],
-      rotation: rotationRef.current,
-    });
+    minionPositions.set(
+      idRef.current,
+      positionRef.current[0], positionRef.current[1], positionRef.current[2],
+      rotationRef.current,
+    );
   });
 
   const healthPercent = data.currentHp / data.stats.hp;
@@ -164,12 +170,8 @@ export function Minion({ data, modelPath, modelScale = 1 }: MinionProps) {
           <DefaultMinionMesh color={data.color} isPlayer={isPlayer} />
         )}
         <group position={[0, healthBarY, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <mesh>
-            <planeGeometry args={[0.8, 0.15]} />
-            <meshBasicMaterial color="#000000" opacity={0.6} transparent />
-          </mesh>
-          <mesh position={[(healthPercent - 1) * 0.4, 0, 0.01]}>
-            <planeGeometry args={[0.78 * healthPercent, 0.12]} />
+          <mesh geometry={_hpBgGeo} material={_hpBgMat} />
+          <mesh position={[(healthPercent - 1) * 0.4, 0, 0.01]} scale={[0.78 * healthPercent, 1, 1]} geometry={_hpFillGeo}>
             <meshBasicMaterial color={isPlayer ? '#4ade80' : '#f87171'} />
           </mesh>
         </group>

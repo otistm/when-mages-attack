@@ -4,6 +4,7 @@
  */
 
 import { CardStats, Tag, CardAbility } from './card';
+import { StatusEffectType } from './game';
 
 /**
  * Team affiliation
@@ -58,15 +59,20 @@ export interface MinionData {
 }
 
 /**
- * Status effect applied to a minion
+ * Status effect applied to a minion.
+ * `type` identifies the effect kind (shocked, burn, poison, etc.).
+ * Same-type effects refresh duration rather than stacking.
  */
 export interface StatusEffect {
   id: string;
+  type: StatusEffectType;
   name: string;
-  duration: number;        // Remaining duration in seconds
-  tickInterval?: number;   // For DoT effects
+  duration: number;           // Remaining duration in seconds
+  tickInterval?: number;      // Seconds between DoT ticks
+  damagePerTick?: number;     // Damage dealt each tick
+  timeSinceLastTick?: number; // Runtime: time elapsed since last tick
   statModifiers?: Partial<CardStats>;
-  sourceId: string;        // Who applied this effect
+  sourceId: string;           // Who applied this effect
 }
 
 /**
