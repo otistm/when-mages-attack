@@ -240,14 +240,14 @@ export function CraftingScene() {
   );
 
   return (
-    <div className="fixed inset-0 flex flex-col" style={{ background: '#0a0a1a' }}>
-      {/* Background Video - always present, paused until synthesis */}
+    <div className="fixed inset-0 flex flex-col" style={{ background: '#1a1610' }}>
+      {/* Background Video - only visible during synthesis */}
       <video
         ref={videoRef}
         className="absolute inset-0 w-full h-full object-cover z-0"
         style={{ 
-          opacity: isPlayingVideo ? 1 : 0.15,
-          filter: isPlayingVideo ? 'none' : 'grayscale(0.5) brightness(0.3)',
+          opacity: isPlayingVideo ? 1 : 0,
+          pointerEvents: isPlayingVideo ? 'auto' : 'none',
         }}
         src="/assets/videos/crafting.mp4"
         muted
@@ -255,56 +255,15 @@ export function CraftingScene() {
         onEnded={handleVideoEnded}
       />
       
-      {/* Animated Mesh Gradient Background */}
+      {/* Parchment background overlay */}
       {!isPlayingVideo && (
-        <div className="absolute inset-0 z-[1] overflow-hidden">
-          {/* Base dark overlay */}
-          <div className="absolute inset-0 bg-black/50" />
-          
-          {/* Animated gradient blobs - responsive sizes */}
-          <div 
-            className="absolute rounded-full blur-[120px] opacity-30"
-            style={{
-              width: 'var(--blob-lg)',
-              height: 'var(--blob-lg)',
-              background: 'radial-gradient(circle, #ff6a00 0%, transparent 70%)',
-              left: '10%',
-              top: '20%',
-              animation: 'floatBlob1 15s ease-in-out infinite',
-            }}
-          />
-          <div 
-            className="absolute rounded-full blur-[100px] opacity-25"
-            style={{
-              width: 'var(--blob-md)',
-              height: 'var(--blob-md)',
-              background: 'radial-gradient(circle, #7c3aed 0%, transparent 70%)',
-              right: '10%',
-              bottom: '10%',
-              animation: 'floatBlob2 18s ease-in-out infinite',
-            }}
-          />
-          <div 
-            className="absolute rounded-full blur-[80px] opacity-20"
-            style={{
-              width: 'var(--blob-sm)',
-              height: 'var(--blob-sm)',
-              background: 'radial-gradient(circle, #0ea5e9 0%, transparent 70%)',
-              left: '50%',
-              top: '50%',
-              transform: 'translate(-50%, -50%)',
-              animation: 'pulseBlob 8s ease-in-out infinite',
-            }}
-          />
-          
-          
-          {/* Vignette */}
-          <div 
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.6) 100%)',
-            }}
-          />
+        <div className="absolute inset-0 z-[1] pointer-events-none">
+          <div className="absolute inset-0" style={{
+            background: 'radial-gradient(ellipse at 50% 40%, #2a2218 0%, #1a1610 60%, #12100c 100%)',
+          }} />
+          <div className="absolute inset-0" style={{
+            background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.5) 100%)',
+          }} />
         </div>
       )}
       
@@ -316,453 +275,308 @@ export function CraftingScene() {
       {/* Main UI - hidden during video playback */}
       {!isPlayingVideo && (
         <>
-          {/* Threat Assessment Header */}
-          <div className="shrink-0 w-full z-10" style={{ padding: 'var(--space-md) var(--space-lg)', background: `linear-gradient(to bottom, ${selectedMage ? selectedMage.color + '30' : 'rgba(60,20,20,0.5)'}, transparent)` }}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center" style={{ gap: 'var(--space-md)' }}>
-              </div>
-              <div className="flex items-center" style={{ gap: 'var(--space-md)' }}>
-                {selectedMage && (
-                  <div className="relative group" style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                    <button
-                      onClick={() => setPhase('allegiance')}
-                      className="flex items-center cursor-pointer transition-all duration-200 active:scale-95"
-                      style={{
-                        gap: 'var(--space-sm)',
-                        padding: 'var(--space-xs) var(--space-md)',
-                        border: `1px solid ${selectedMage.color}30`,
+          {/* Two-Page Grimoire Spread */}
+          <div className="flex-1 flex z-10 overflow-hidden" style={{ padding: 'clamp(8px, 1.5vw, 20px)' }}>
+
+            {/* ═══ LEFT PAGE — Mage Dossier ═══ */}
+            <div
+              className="relative flex flex-col overflow-hidden"
+              style={{
+                flex: '0 0 45%',
+                background: 'linear-gradient(135deg, #2e2519 0%, #241e16 50%, #2a2218 100%)',
+                borderRadius: '8px 0 0 8px',
+                boxShadow: 'inset -8px 0 20px rgba(0,0,0,0.3), inset 0 0 30px rgba(0,0,0,0.15)',
+              }}
+            >
+              {/* Inner page border */}
+              <div className="absolute inset-[6px] rounded-l pointer-events-none" style={{ border: '1px solid rgba(212,175,55,0.12)' }} />
+
+              {/* Page content */}
+              <div className="relative z-10 flex h-full" style={{ padding: 'clamp(12px, 1.5vw, 20px)' }}>
+
+                {/* Portrait + Mage Info column */}
+                <div className="flex flex-col" style={{ flex: '1 1 55%', minWidth: 0 }}>
+                  {selectedMage && (
+                    <>
+                      {/* Large rectangular portrait */}
+                      <div className="relative flex-1 min-h-0 overflow-hidden" style={{
                         borderRadius: '6px',
-                        background: `linear-gradient(135deg, ${selectedMage.color}10, transparent)`,
-                        color: `${selectedMage.color}cc`,
-                        fontSize: 'clamp(10px, 1vw, 13px)',
-                        fontFamily: "'Cinzel', serif",
-                        letterSpacing: '0.08em',
-                      }}
-                    >
-                      <span style={{ fontSize: 'clamp(12px, 1.2vw, 16px)' }}>{selectedMage.keepsake.iconEmoji}</span>
-                      <span>{selectedMage.name}</span>
-                      <span style={{ color: 'rgba(255,255,255,0.25)', margin: '0 2px' }}>·</span>
-                      <span style={{ color: 'rgba(255,255,255,0.4)' }}>Change Alliance</span>
-                    </button>
-                    {/* Keepsake tooltip on hover */}
-                    <div
-                      className="absolute right-0 top-full mt-2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200"
-                      style={{
-                        minWidth: '100%',
-                        width: 'clamp(240px, 22vw, 320px)',
-                        padding: 'clamp(10px, 1.2vw, 16px)',
-                        background: 'linear-gradient(135deg, rgba(15,10,25,0.97), rgba(8,6,16,0.98))',
-                        border: `1px solid ${selectedMage.color}25`,
-                        borderRadius: '8px',
-                        boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 20px ${selectedMage.color}10`,
-                        zIndex: 50,
-                      }}
-                    >
-                      <div className="font-mono uppercase" style={{
-                        fontSize: 'clamp(0.5rem, 0.65vw, 0.6rem)',
-                        color: 'rgba(255,255,255,0.2)',
-                        letterSpacing: '0.15em',
-                        marginBottom: '6px',
-                      }}>Keepsake</div>
-                      <div className="flex items-center gap-2" style={{ marginBottom: '8px' }}>
-                        <span style={{ fontSize: '1.2rem' }}>{selectedMage.keepsake.iconEmoji}</span>
-                        <span className="font-display font-bold" style={{
-                          fontSize: 'clamp(0.8rem, 1vw, 0.95rem)',
+                        border: `2px solid ${selectedMage.color}30`,
+                        boxShadow: `0 4px 20px rgba(0,0,0,0.4), 0 0 15px ${selectedMage.color}10`,
+                      }}>
+                        <img
+                          src={selectedMage.imagePath}
+                          alt={selectedMage.name}
+                          className="w-full h-full object-cover"
+                          style={{ transform: 'scale(1.05)' }}
+                        />
+                        <div className="absolute inset-0 pointer-events-none" style={{
+                          background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 40%)',
+                        }} />
+                      </div>
+
+                      {/* Alliance badge + name below portrait */}
+                      <div style={{ marginTop: 'clamp(8px, 0.8vw, 12px)' }}>
+                        <div className="font-mono uppercase" style={{
+                          fontSize: 'clamp(8px, 0.65vw, 10px)',
+                          color: 'rgba(212,175,55,0.45)',
+                          letterSpacing: '0.15em',
+                          marginBottom: '4px',
+                          padding: '2px 8px',
+                          border: '1px solid rgba(212,175,55,0.15)',
+                          borderRadius: '3px',
+                          background: 'rgba(212,175,55,0.04)',
+                          display: 'inline-block',
+                        }}>Alliance Pledged</div>
+                        <h2 className="font-display font-bold" style={{
+                          fontSize: 'clamp(16px, 1.8vw, 26px)',
                           color: selectedMage.color,
-                        }}>
-                          {selectedMage.keepsake.name}
-                        </span>
+                          textShadow: `0 0 12px ${selectedMage.color}25`,
+                          letterSpacing: '0.04em',
+                          marginTop: '4px',
+                        }}>{selectedMage.name}</h2>
+                        <div style={{
+                          fontSize: 'clamp(9px, 0.8vw, 12px)',
+                          color: 'rgba(235,220,190,0.4)',
+                          marginTop: '2px',
+                        }}>{selectedMage.title}</div>
                       </div>
-                      <p style={{
-                        fontSize: 'clamp(0.65rem, 0.85vw, 0.8rem)',
-                        color: 'rgba(255,255,255,0.6)',
-                        lineHeight: 1.5,
-                        marginBottom: '8px',
-                      }}>
-                        {selectedMage.keepsake.description}
-                      </p>
-                      <div className="flex items-center gap-3 font-mono" style={{
-                        fontSize: 'clamp(0.55rem, 0.7vw, 0.7rem)',
-                        color: 'rgba(255,255,255,0.3)',
-                      }}>
-                        <span>{selectedMage.keepsake.cooldownSeconds}s cooldown</span>
-                        <span>·</span>
-                        <span style={{ color: `${selectedMage.color}88` }}>{selectedMage.keepsake.abilityType}</span>
-                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Keepsake Card panel */}
+                {selectedMage && (
+                  <div className="flex flex-col" style={{
+                    flex: '0 0 auto',
+                    width: 'clamp(140px, 14vw, 200px)',
+                    marginLeft: 'clamp(8px, 1vw, 14px)',
+                    padding: 'clamp(10px, 1.2vw, 16px)',
+                    background: 'linear-gradient(135deg, rgba(245,240,230,0.95), rgba(235,225,210,0.92))',
+                    borderRadius: '6px',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.2)',
+                    color: '#2d2418',
+                  }}>
+                    <div className="font-mono uppercase tracking-widest" style={{
+                      fontSize: 'clamp(8px, 0.7vw, 10px)',
+                      color: '#8a7a60',
+                      letterSpacing: '0.18em',
+                      marginBottom: 'clamp(8px, 1vw, 14px)',
+                    }}>Keepsake</div>
+
+                    {/* Active keepsake */}
+                    <div className="flex items-start" style={{ gap: 'clamp(6px, 0.6vw, 10px)', marginBottom: 'clamp(10px, 1vw, 16px)' }}>
                       <div style={{
-                        marginTop: '8px',
-                        paddingTop: '8px',
-                        borderTop: `1px solid ${selectedMage.color}15`,
-                      }}>
-                        <p className="italic" style={{
-                          fontSize: 'clamp(0.55rem, 0.75vw, 0.7rem)',
-                          color: `${selectedMage.color}55`,
+                        width: 'clamp(24px, 2.5vw, 34px)',
+                        height: 'clamp(24px, 2.5vw, 34px)',
+                        borderRadius: '50%',
+                        border: `2px solid ${selectedMage.color}60`,
+                        background: `${selectedMage.color}15`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        fontSize: 'clamp(12px, 1.2vw, 16px)',
+                      }}>{selectedMage.keepsake.iconEmoji}</div>
+                      <div>
+                        <div className="font-display font-bold" style={{
+                          fontSize: 'clamp(10px, 0.9vw, 13px)',
+                          color: '#2d2418',
+                        }}>{selectedMage.keepsake.name}</div>
+                        <div style={{
+                          fontSize: 'clamp(8px, 0.7vw, 10px)',
+                          color: '#8a7a60',
                           lineHeight: 1.4,
-                        }}>
-                          {selectedMage.keepsake.flavorText}
-                        </p>
+                          marginTop: '2px',
+                        }}>{selectedMage.keepsake.description}</div>
                       </div>
+                    </div>
+
+                    {/* Trial progression */}
+                    <div style={{ borderTop: '1px solid rgba(0,0,0,0.1)', paddingTop: 'clamp(6px, 0.7vw, 10px)' }}>
+                      {[
+                        { threshold: selectedMage.keepsake.trial.targetCount, label: selectedMage.keepsake.trial.name, unlocked: true },
+                        { threshold: 10, label: 'Locked', unlocked: false },
+                        { threshold: 15, label: 'Locked', unlocked: false },
+                        { threshold: 20, label: 'Locked', unlocked: false },
+                        { threshold: 30, label: 'Locked', unlocked: false },
+                      ].map((trial, i) => (
+                        <div key={i} className="flex items-center" style={{
+                          gap: 'clamp(6px, 0.6vw, 8px)',
+                          marginBottom: 'clamp(4px, 0.4vw, 6px)',
+                          opacity: trial.unlocked ? 1 : 0.45,
+                        }}>
+                          <div style={{
+                            fontSize: 'clamp(8px, 0.7vw, 10px)',
+                            color: '#8a7a60',
+                            width: 'clamp(16px, 1.6vw, 22px)',
+                            textAlign: 'right',
+                            flexShrink: 0,
+                          }}>{trial.threshold}</div>
+                          <div style={{
+                            width: 'clamp(10px, 1vw, 14px)',
+                            height: 'clamp(10px, 1vw, 14px)',
+                            borderRadius: '50%',
+                            border: `1.5px solid ${trial.unlocked ? selectedMage.color : '#b0a890'}`,
+                            background: trial.unlocked ? `${selectedMage.color}20` : 'transparent',
+                            flexShrink: 0,
+                          }} />
+                          <div style={{
+                            fontSize: 'clamp(8px, 0.7vw, 10px)',
+                            color: trial.unlocked ? '#2d2418' : '#b0a890',
+                          }}>{trial.label}</div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Main Content Area */}
-          <div className="flex-1 relative overflow-hidden z-10">
-            {/* Arcane Ambient Particles */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              {/* Drifting arcane orbs */}
-              {[...Array(8)].map((_, i) => (
-                <div
-                  key={`orb-${i}`}
-                  className="absolute rounded-full"
-                  style={{
-                    width: `${20 + Math.random() * 30}px`,
-                    height: `${20 + Math.random() * 30}px`,
-                    left: `${10 + Math.random() * 80}%`,
-                    top: `${10 + Math.random() * 80}%`,
-                    background: `radial-gradient(circle, ${
-                      ['rgba(212,175,55,0.3)', 'rgba(74,44,106,0.35)', 'rgba(136,102,170,0.25)', 'rgba(212,175,55,0.2)', 'rgba(74,44,106,0.3)'][i % 5]
-                    } 0%, transparent 70%)`,
-                    animation: `floatOrb ${8 + Math.random() * 6}s ease-in-out infinite`,
-                    animationDelay: `${Math.random() * 4}s`,
-                    filter: 'blur(2px)',
-                  }}
-                />
-              ))}
-              
-              {/* Sigil sparkles */}
-              {[...Array(35)].map((_, i) => (
-                <div
-                  key={`sparkle-${i}`}
-                  className="absolute rounded-full"
-                  style={{
-                    width: `${2 + Math.random() * 3}px`,
-                    height: `${2 + Math.random() * 3}px`,
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                    backgroundColor: ['#d4af37', '#4a2c6a', '#8866aa', '#d4af37', '#6b4d8a'][i % 5],
-                    opacity: 0.2 + Math.random() * 0.35,
-                    animation: `twinkle ${2 + Math.random() * 3}s ease-in-out infinite`,
-                    animationDelay: `${Math.random() * 3}s`,
-                    boxShadow: '0 0 6px currentColor',
-                  }}
-                />
-              ))}
-              
-              {/* Rising arcane motes */}
-              {[...Array(12)].map((_, i) => (
-                <div
-                  key={`ember-${i}`}
-                  className="absolute w-1 h-1 rounded-full"
-                  style={{
-                    left: `${20 + Math.random() * 60}%`,
-                    bottom: '-10px',
-                    opacity: 0.5,
-                    backgroundColor: i % 3 === 0 ? '#d4af37' : '#8866aa',
-                    animation: `riseEmber ${4 + Math.random() * 4}s linear infinite`,
-                    animationDelay: `${Math.random() * 4}s`,
-                    boxShadow: `0 0 6px ${i % 3 === 0 ? 'rgba(212,175,55,0.5)' : 'rgba(136,102,170,0.5)'}`,
-                  }}
-                />
-              ))}
-            </div>
+            {/* ═══ CENTER SPINE ═══ */}
+            <div style={{
+              width: 'clamp(6px, 0.6vw, 10px)',
+              background: 'linear-gradient(to right, #0e0c09, #1a1610, #0e0c09)',
+              boxShadow: '0 0 12px rgba(0,0,0,0.6), inset 0 0 4px rgba(212,175,55,0.05)',
+              flexShrink: 0,
+            }} />
 
-            {/* Grimoire Panel (toggleable) - transparent to show effects */}
-            {showGrimoire && (
-              <div 
-                className="absolute inset-4 flex flex-col rounded-xl z-40"
-              >
-                {/* Grimoire Header */}
-                <div className="relative z-10" style={{ padding: 'var(--space-lg)', marginTop: '100px' }}>
-                  <div className="flex items-center justify-center gap-3 mb-1">
-                    <div className="flex-1 max-w-[80px] h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.25))' }} />
-                    <h1 
-                      className="text-game-heading font-bold font-display text-arcane-gold text-center tracking-wider uppercase"
-                      style={{ textShadow: '0 0 25px rgba(212,175,55,0.25)', letterSpacing: '0.12em' }}
-                    >
-                      Arcane Synthesis
-                    </h1>
-                    <div className="flex-1 max-w-[80px] h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(212,175,55,0.25))' }} />
-                  </div>
-                  <p className="text-arcane-gold/30 text-center text-game-caption italic font-display">
-                    "Classification: Restricted. Dual-sigil fusion protocol."
-                  </p>
+            {/* ═══ RIGHT PAGE — Battle Prep ═══ */}
+            <div
+              className="relative flex flex-col overflow-hidden"
+              style={{
+                flex: 1,
+                background: 'linear-gradient(225deg, #2e2519 0%, #241e16 50%, #2a2218 100%)',
+                borderRadius: '0 8px 8px 0',
+                boxShadow: 'inset 8px 0 20px rgba(0,0,0,0.3), inset 0 0 30px rgba(0,0,0,0.15)',
+              }}
+            >
+              {/* Inner page border */}
+              <div className="absolute inset-[6px] rounded-r pointer-events-none" style={{ border: '1px solid rgba(212,175,55,0.12)' }} />
+
+              {/* Right page content */}
+              <div className="relative z-10 flex flex-col h-full" style={{ padding: 'clamp(16px, 2vw, 28px)' }}>
+
+                {/* Chapter Header */}
+                <div className="text-center" style={{ marginBottom: 'clamp(12px, 1.5vw, 24px)' }}>
+                  <h1 className="font-display font-bold tracking-wider uppercase" style={{
+                    fontSize: 'clamp(16px, 1.8vw, 24px)',
+                    color: 'rgba(235,220,190,0.85)',
+                    letterSpacing: '0.15em',
+                  }}>Battle Prep</h1>
+                  <p style={{
+                    fontSize: 'clamp(9px, 0.8vw, 12px)',
+                    color: 'rgba(235,220,190,0.35)',
+                    marginTop: '4px',
+                  }}>Craft and build your battle book</p>
                 </div>
 
-                {/* Crafting Area */}
-                <div className="flex-1 flex flex-col items-center justify-center" style={{ padding: 'var(--space-lg)', marginTop: '-100px' }}>
-                  <div className="flex items-center relative" style={{ gap: 'var(--space-xl)' }}>
-                    {/* Containment ward glow */}
-                    {canCraft() && (
-                      <>
-                        <div 
-                          className="absolute inset-0 -m-16 rounded-full pointer-events-none"
-                          style={{
-                            background: 'radial-gradient(circle, rgba(212,175,55,0.12) 0%, rgba(74,44,106,0.06) 40%, transparent 60%)',
-                            animation: 'pulseBlob 3s ease-in-out infinite',
-                          }}
-                        />
-                        {/* Ward ring */}
-                        <div 
-                          className="absolute inset-0 -m-20 rounded-full pointer-events-none"
-                          style={{
-                            border: '2px solid rgba(212,175,55,0.15)',
-                            animation: 'energyPulse 2.5s ease-in-out infinite',
-                          }}
-                        />
-                        {/* Rotating sigil marks */}
-                        <div 
-                          className="absolute inset-0 -m-24 pointer-events-none flex items-center justify-center"
-                          style={{
-                            animation: 'spin 25s linear infinite',
-                          }}
-                        >
-                          {[0, 60, 120, 180, 240, 300].map((angle) => (
-                            <div
-                              key={angle}
-                              className="absolute text-game-subheading"
-                              style={{
-                                transform: `rotate(${angle}deg) translateY(-120px)`,
-                                color: angle % 120 === 0 ? 'rgba(212,175,55,0.25)' : 'rgba(74,44,106,0.2)',
-                              }}
-                            >
-                              {angle % 120 === 0 ? '◆' : '✦'}
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                    
-                    {/* Slot 1 */}
-                    <CraftingSlot 
-                      index={0}
-                      selectedCardId={selectedCards[0]}
-                      onDrop={(e) => handleDropOnCraftingSlot(e, 0)}
-                      onDragOver={handleDragOver}
-                      onClear={() => selectCard(0, null)}
-                    />
+                {/* Crafting Chambers */}
+                <div className="flex items-center justify-center" style={{ gap: 'clamp(12px, 1.5vw, 24px)', marginBottom: 'clamp(16px, 2vw, 28px)', flex: '0 0 auto' }}>
+                  <CraftingSlot
+                    index={0}
+                    selectedCardId={selectedCards[0]}
+                    onDrop={(e) => handleDropOnCraftingSlot(e, 0)}
+                    onDragOver={handleDragOver}
+                    onClear={() => selectCard(0, null)}
+                  />
 
-                    {/* Synthesis Connector */}
-                    <div className="flex flex-col items-center justify-center gap-4">
-                      <div 
-                        className={`text-4xl transition-all duration-500 ${
-                          canCraft() 
-                            ? 'text-arcane-gold scale-125' 
-                            : 'text-arcane-purple/40'
-                        }`}
-                        style={{ 
-                          textShadow: canCraft() ? '0 0 20px rgba(212,175,55,0.6)' : 'none',
-                          animation: canCraft() ? 'chamberActivePulse 2s ease-in-out infinite' : 'none',
-                        }}
-                      >
-                        ✦
-                      </div>
-                      <button
-                        onClick={handleCraft}
-                        disabled={!canCraft()}
-                        className={`
-                          rounded-lg font-bold font-display text-game-body tracking-wider uppercase transition-all duration-300 relative overflow-hidden
-                          ${canCraft()
-                            ? 'hover:scale-105 active:scale-95'
-                            : 'cursor-not-allowed'}
-                        `}
-                        style={{ 
-                          padding: 'var(--space-sm) var(--space-xl)',
-                          border: canCraft() ? '2px solid rgba(212,175,55,0.4)' : '2px solid rgba(74,44,106,0.25)',
-                          background: canCraft() 
-                            ? 'linear-gradient(135deg, rgba(30,20,10,0.9), rgba(15,10,5,0.95))' 
-                            : 'rgba(20,20,35,0.6)',
-                          color: canCraft() ? 'rgba(212,175,55,0.9)' : 'rgba(74,44,106,0.4)',
-                          boxShadow: canCraft() ? '0 0 25px rgba(212,175,55,0.15), inset 0 0 15px rgba(212,175,55,0.04)' : 'none',
-                          letterSpacing: '0.1em',
-                        }}
-                      >
-                        {/* Shimmer effect */}
-                        {canCraft() && (
-                          <div 
-                            className="absolute inset-0 bg-gradient-to-r from-transparent via-arcane-gold/10 to-transparent -skew-x-12"
-                            style={{ animation: 'shimmer 2.5s infinite' }}
-                          />
-                        )}
-                        <span className="relative z-10">Synthesize</span>
-                      </button>
-                    </div>
-
-                    {/* Slot 2 */}
-                    <CraftingSlot 
-                      index={1}
-                      selectedCardId={selectedCards[1]}
-                      onDrop={(e) => handleDropOnCraftingSlot(e, 1)}
-                      onDragOver={handleDragOver}
-                      onClear={() => selectCard(1, null)}
-                    />
-                  </div>
-
-                  {/* Grimoire Pages - Arcane Tome Frame */}
-                  <div className="w-full" style={{ marginTop: 'var(--space-2xl)', padding: '0 var(--space-lg)' }}>
-                    <div
-                      className="relative rounded-lg"
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <button
+                      onClick={handleCraft}
+                      disabled={!canCraft()}
+                      className={`rounded-lg font-bold font-display tracking-wider uppercase transition-all duration-300 relative overflow-hidden ${canCraft() ? 'hover:scale-105 active:scale-95' : 'cursor-not-allowed'}`}
                       style={{
-                        border: '2px solid rgba(212,175,55,0.35)',
-                        background: 'linear-gradient(135deg, rgba(30,20,10,0.85) 0%, rgba(15,10,5,0.9) 50%, rgba(30,20,10,0.85) 100%)',
-                        boxShadow: 'inset 0 0 30px rgba(212,175,55,0.06), 0 0 20px rgba(0,0,0,0.5)',
+                        padding: 'clamp(8px, 0.8vw, 12px) clamp(18px, 2vw, 30px)',
+                        fontSize: 'clamp(11px, 1vw, 14px)',
+                        border: canCraft() ? '2px solid rgba(212,175,55,0.5)' : '2px dashed rgba(235,220,190,0.2)',
+                        background: canCraft() ? 'linear-gradient(135deg, #2e2519, #1e1a14)' : 'transparent',
+                        color: canCraft() ? 'rgba(212,175,55,0.9)' : 'rgba(235,220,190,0.3)',
+                        boxShadow: canCraft() ? '0 0 20px rgba(212,175,55,0.12)' : 'none',
+                        letterSpacing: '0.1em',
                       }}
                     >
-                      {/* Outer decorative border inset */}
-                      <div
-                        className="absolute inset-[5px] rounded pointer-events-none"
-                        style={{
-                          border: '1px solid rgba(212,175,55,0.15)',
-                        }}
-                      />
-
-                      {/* Corner ornaments */}
-                      {(['top-0 left-0', 'top-0 right-0', 'bottom-0 left-0', 'bottom-0 right-0'] as const).map((pos, i) => (
-                        <div
-                          key={i}
-                          className={`absolute ${pos} text-arcane-gold/30 pointer-events-none select-none`}
-                          style={{
-                            fontSize: 'clamp(16px, 1.5vw, 22px)',
-                            padding: '4px 7px',
-                            transform: i === 1 ? 'scaleX(-1)' : i === 2 ? 'scaleY(-1)' : i === 3 ? 'scale(-1)' : undefined,
-                          }}
-                        >
-                          ❧
-                        </div>
-                      ))}
-
-                      {/* Header area */}
-                      <div
-                        className="flex items-center justify-center gap-3 relative"
-                        style={{ padding: 'var(--space-sm) var(--space-lg)' }}
-                      >
-                        {/* Left rule */}
-                        <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(212,175,55,0.3))' }} />
-                        <h3 className="text-game-body font-bold text-arcane-gold/80 flex items-center gap-2 shrink-0 tracking-wider uppercase" style={{ fontSize: 'var(--font-game-caption)', letterSpacing: '0.15em' }}>
-                          <span className="text-arcane-gold/50">✦</span>
-                          Grimoire Pages
-                          <span className="text-arcane-gold/50">✦</span>
-                        </h3>
-                        {/* Right rule */}
-                        <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(212,175,55,0.3))' }} />
-                      </div>
-
-                      {/* Left edge arrow */}
-                      <button
-                        onClick={() => {
-                          grimoireScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' });
-                        }}
-                        className="absolute top-1/2 -translate-y-1/2 z-20 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-110 active:scale-95 group"
-                        style={{
-                          left: 'clamp(-20px, -2.5vw, -14px)',
-                          width: 'clamp(36px, 4vw, 52px)',
-                          height: 'clamp(36px, 4vw, 52px)',
-                          background: 'linear-gradient(135deg, rgba(30,20,10,0.95), rgba(15,10,5,0.95))',
-                          border: '2px solid rgba(212,175,55,0.4)',
-                          boxShadow: '0 0 12px rgba(0,0,0,0.6), inset 0 0 8px rgba(212,175,55,0.05)',
-                        }}
-                      >
-                        <span
-                          className="text-arcane-gold/60 group-hover:text-arcane-gold transition-colors duration-200 select-none"
-                          style={{ fontSize: 'clamp(22px, 2.5vw, 34px)', lineHeight: 1 }}
-                        >
-                          ‹
-                        </span>
-                      </button>
-
-                      {/* Scrollable page carousel */}
-                      <div
-                        ref={grimoireScrollRef}
-                        className="overflow-x-auto overflow-y-hidden grimoire-carousel"
-                        style={{
-                          padding: 'var(--space-sm) var(--space-lg) var(--space-lg)',
-                          scrollSnapType: 'x mandatory',
-                          WebkitOverflowScrolling: 'touch',
-                        }}
-                      >
-                        <div className="flex gap-3" style={{ minWidth: 'min-content' }}>
-                          {availableCards.map((card) => {
-                            const def = getCardDefinition(card.definitionId);
-                            return (
-                              <div
-                                key={card.instanceId}
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, card.instanceId)}
-                                onMouseEnter={() => {
-                                  if (def) setHoveredCard(def, window.innerWidth * 0.65, window.innerHeight * 0.5);
-                                }}
-                                onMouseLeave={() => setHoveredCard(null)}
-                                className="shrink-0 hover:-translate-y-2 cursor-grab active:cursor-grabbing transition-all duration-200 hover:z-10"
-                                style={{ scrollSnapAlign: 'center' }}
-                              >
-                                <GrimoirePage page={card} />
-                              </div>
-                            );
-                          })}
-                          {availableCards.length === 0 && (
-                            <div className="text-amber-200/40 text-game-caption py-8 italic whitespace-nowrap w-full text-center">
-                              All pages are placed in your book or synthesis chambers.
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Right edge arrow */}
-                      <button
-                        onClick={() => {
-                          grimoireScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' });
-                        }}
-                        className="absolute top-1/2 -translate-y-1/2 z-20 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-110 active:scale-95 group"
-                        style={{
-                          right: 'clamp(-20px, -2.5vw, -14px)',
-                          width: 'clamp(36px, 4vw, 52px)',
-                          height: 'clamp(36px, 4vw, 52px)',
-                          background: 'linear-gradient(135deg, rgba(30,20,10,0.95), rgba(15,10,5,0.95))',
-                          border: '2px solid rgba(212,175,55,0.4)',
-                          boxShadow: '0 0 12px rgba(0,0,0,0.6), inset 0 0 8px rgba(212,175,55,0.05)',
-                        }}
-                      >
-                        <span
-                          className="text-arcane-gold/60 group-hover:text-arcane-gold transition-colors duration-200 select-none"
-                          style={{ fontSize: 'clamp(22px, 2.5vw, 34px)', lineHeight: 1 }}
-                        >
-                          ›
-                        </span>
-                      </button>
-                    </div>
+                      {canCraft() && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-arcane-gold/10 to-transparent -skew-x-12" style={{ animation: 'shimmer 2.5s infinite' }} />
+                      )}
+                      <span className="relative z-10">Craft</span>
+                    </button>
                   </div>
+
+                  <CraftingSlot
+                    index={1}
+                    selectedCardId={selectedCards[1]}
+                    onDrop={(e) => handleDropOnCraftingSlot(e, 1)}
+                    onDragOver={handleDragOver}
+                    onClear={() => selectCard(1, null)}
+                  />
                 </div>
 
-              </div>
-            )}
+                {/* Page Carousel */}
+                <div className="flex-1 relative min-h-0">
+                  <div className="relative h-full">
+                    {/* Card carousel */}
+                    <div
+                      ref={grimoireScrollRef}
+                      className="overflow-x-auto overflow-y-hidden grimoire-carousel h-full"
+                      style={{ padding: 'var(--space-xs) var(--space-sm)', scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}
+                    >
+                      <div className="flex gap-3 h-full items-center" style={{ minWidth: 'min-content' }}>
+                        {availableCards.map((card) => {
+                          const def = getCardDefinition(card.definitionId);
+                          return (
+                            <div
+                              key={card.instanceId}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, card.instanceId)}
+                              onMouseEnter={() => { if (def) setHoveredCard(def, window.innerWidth * 0.65, window.innerHeight * 0.5); }}
+                              onMouseLeave={() => setHoveredCard(null)}
+                              className="shrink-0 hover:-translate-y-2 cursor-grab active:cursor-grabbing transition-all duration-200 hover:z-10"
+                              style={{ scrollSnapAlign: 'center' }}
+                            >
+                              <GrimoirePage page={card} />
+                            </div>
+                          );
+                        })}
+                        {availableCards.length === 0 && (
+                          <div className="italic whitespace-nowrap w-full text-center" style={{ color: 'rgba(235,220,190,0.3)', fontSize: 'clamp(10px, 0.9vw, 12px)', padding: 'var(--space-xl) 0' }}>
+                            All pages are placed in your book or synthesis chambers.
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-            {/* Grimoire Toggle */}
-            {!showGrimoire && !resultCard && (
-              <button
-                onClick={() => setShowGrimoire(true)}
-                className="absolute rounded-lg font-bold font-display text-game-body tracking-wider uppercase transition-all z-30 flex items-center gap-2 hover:scale-105 active:scale-95"
-                style={{ 
-                  top: 'var(--space-md)', 
-                  right: 'var(--space-md)', 
-                  padding: 'var(--space-sm) var(--space-lg)',
-                  border: '2px solid rgba(212,175,55,0.35)',
-                  background: 'linear-gradient(135deg, rgba(30,20,10,0.9), rgba(15,10,5,0.95))',
-                  color: 'rgba(212,175,55,0.85)',
-                  boxShadow: '0 0 15px rgba(212,175,55,0.1), inset 0 0 10px rgba(212,175,55,0.03)',
-                  letterSpacing: '0.08em',
-                }}
-              >
-                <span className="text-arcane-gold/50">✦</span> Grimoire
-              </button>
-            )}
+                    {/* Right scroll arrow */}
+                    <button
+                      onClick={() => grimoireScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                      className="absolute top-1/2 -translate-y-1/2 z-20 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 group"
+                      style={{
+                        right: '0',
+                        width: 'clamp(24px, 2.5vw, 36px)',
+                        height: 'clamp(24px, 2.5vw, 36px)',
+                        background: 'rgba(42,34,24,0.9)',
+                        border: '1px solid rgba(212,175,55,0.25)',
+                        borderRadius: '4px',
+                      }}
+                    >
+                      <span style={{ color: 'rgba(235,220,190,0.5)', fontSize: 'clamp(14px, 1.5vw, 20px)', lineHeight: 1 }}>→</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
 
-      {/* Player's Grimoire — Active Battle Pages */}
-      <div className="shrink-0 w-full z-10" style={{ background: 'linear-gradient(to top, rgba(74,44,106,0.35), transparent)' }}>
-        <div style={{ padding: 'var(--space-sm) var(--space-md)' }}>
+      {/* Battle Pages */}
+      <div className="shrink-0 w-full z-10" style={{ background: 'linear-gradient(to top, rgba(20,16,12,0.6), transparent)' }}>
+        <div className="text-center font-display uppercase tracking-wider" style={{
+          fontSize: 'clamp(9px, 0.8vw, 11px)',
+          color: 'rgba(235,220,190,0.4)',
+          letterSpacing: '0.12em',
+          padding: 'var(--space-xs) 0 2px',
+        }}>Battle Pages</div>
+        <div style={{ padding: '0 var(--space-md) var(--space-sm)' }}>
           <div className="flex gap-2 w-full">
             {CARD_SLOTS.map((slot, index) => {
               const pageId = deckSlots[index];
@@ -785,7 +599,7 @@ export function CraftingScene() {
       </div>
 
           {/* Initiate Combat */}
-          <div className="shrink-0 w-full flex justify-center z-10" style={{ padding: 'var(--space-md) var(--space-lg)', background: 'linear-gradient(to top, rgba(10,10,26,0.4), transparent)' }}>
+          <div className="shrink-0 w-full flex justify-center z-10" style={{ padding: 'var(--space-md) var(--space-lg)', background: 'linear-gradient(to top, rgba(20,16,12,0.4), transparent)' }}>
             <button
               onClick={handleReady}
               disabled={!hasCardInDeck}
@@ -812,7 +626,7 @@ export function CraftingScene() {
                   style={{ animation: 'shimmer 3s infinite' }}
                 />
               )}
-              <span className="relative z-10">{hasCardInDeck ? 'Begin Trial' : 'Place at least one page'}</span>
+              <span className="relative z-10">{hasCardInDeck ? 'Ready' : 'Place at least one page'}</span>
             </button>
           </div>
         </>
@@ -950,60 +764,14 @@ export function CraftingScene() {
           0% { transform: scale(0.5); opacity: 0; }
           100% { transform: scale(1); opacity: 1; }
         }
-        @keyframes burst {
-          0% { transform: translate(-50%, -50%) rotate(var(--angle)) translateX(0); opacity: 1; }
-          100% { transform: translate(-50%, -50%) rotate(var(--angle)) translateX(var(--distance)); opacity: 0; }
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 0.2; }
-          50% { opacity: 0.4; }
-        }
-        @keyframes floatBlob1 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          25% { transform: translate(50px, -30px) scale(1.1); }
-          50% { transform: translate(100px, 20px) scale(0.95); }
-          75% { transform: translate(30px, 50px) scale(1.05); }
-        }
-        @keyframes floatBlob2 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(-60px, 40px) scale(1.15); }
-          66% { transform: translate(40px, -30px) scale(0.9); }
-        }
-        @keyframes pulseBlob {
-          0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.2; }
-          50% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.35; }
-        }
-        @keyframes floatOrb {
-          0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
-          25% { transform: translate(20px, -30px) scale(1.2); opacity: 0.5; }
-          50% { transform: translate(-10px, -50px) scale(0.8); opacity: 0.4; }
-          75% { transform: translate(-30px, -20px) scale(1.1); opacity: 0.35; }
-        }
-        @keyframes twinkle {
-          0%, 100% { opacity: 0.2; transform: scale(0.8); }
-          50% { opacity: 0.8; transform: scale(1.2); }
+        @keyframes craftGlow {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
         }
         @keyframes riseEmber {
-          0% { 
-            transform: translateY(0) translateX(0) scale(1); 
-            opacity: 0.8; 
-          }
-          50% {
-            transform: translateY(-50vh) translateX(20px) scale(0.8);
-            opacity: 0.5;
-          }
-          100% { 
-            transform: translateY(-100vh) translateX(-10px) scale(0.3); 
-            opacity: 0; 
-          }
-        }
-        @keyframes energyPulse {
-          0%, 100% { 
-            box-shadow: 0 0 20px rgba(212,175,55,0.2), 0 0 40px rgba(74,44,106,0.15);
-          }
-          50% { 
-            box-shadow: 0 0 40px rgba(212,175,55,0.35), 0 0 80px rgba(74,44,106,0.2);
-          }
+          0% { transform: translateY(0) translateX(0) scale(1); opacity: 0.8; }
+          50% { transform: translateY(-50vh) translateX(20px) scale(0.8); opacity: 0.5; }
+          100% { transform: translateY(-100vh) translateX(-10px) scale(0.3); opacity: 0; }
         }
         @keyframes spin {
           from { transform: rotate(0deg); }

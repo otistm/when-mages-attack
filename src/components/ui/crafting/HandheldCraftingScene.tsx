@@ -31,6 +31,7 @@ export function HandheldCraftingScene() {
   const clearLastCrafted = useCraftingStore((state) => state.clearLastCrafted);
 
   const setPhase = useGameStore((state) => state.setPhase);
+  const selectedMage = useGameStore((state) => state.selectedMage);
   const addCard = useCardStore((state) => state.addCard);
   const clearAllCards = useCardStore((state) => state.clearAll);
 
@@ -205,14 +206,14 @@ export function HandheldCraftingScene() {
   );
 
   return (
-    <div className="fixed inset-0 flex flex-col" style={{ background: '#0a0a1a' }}>
-      {/* Background Video */}
+    <div className="fixed inset-0 flex flex-col" style={{ background: '#1a1610' }}>
+      {/* Background Video - only visible during synthesis */}
       <video
         ref={videoRef}
         className="absolute inset-0 w-full h-full object-cover z-0"
         style={{
-          opacity: isPlayingVideo ? 1 : 0.15,
-          filter: isPlayingVideo ? 'none' : 'grayscale(0.5) brightness(0.3)',
+          opacity: isPlayingVideo ? 1 : 0,
+          pointerEvents: isPlayingVideo ? 'auto' : 'none',
         }}
         src="/assets/videos/crafting.mp4"
         muted
@@ -220,34 +221,15 @@ export function HandheldCraftingScene() {
         onEnded={handleVideoEnded}
       />
 
-      {/* Animated Background */}
+      {/* Parchment background */}
       {!isPlayingVideo && (
-        <div className="absolute inset-0 z-[1] overflow-hidden">
-          <div className="absolute inset-0 bg-black/50" />
-          <div
-            className="absolute rounded-full blur-[100px] opacity-25"
-            style={{
-              width: '60vw', height: '60vw',
-              background: 'radial-gradient(circle, #ff6a00 0%, transparent 70%)',
-              left: '10%', top: '20%',
-              animation: 'floatBlob1 15s ease-in-out infinite',
-            }}
-          />
-          <div
-            className="absolute rounded-full blur-[80px] opacity-20"
-            style={{
-              width: '40vw', height: '40vw',
-              background: 'radial-gradient(circle, #7c3aed 0%, transparent 70%)',
-              right: '10%', bottom: '10%',
-              animation: 'floatBlob2 18s ease-in-out infinite',
-            }}
-          />
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.6) 100%)',
-            }}
-          />
+        <div className="absolute inset-0 z-[1] pointer-events-none">
+          <div className="absolute inset-0" style={{
+            background: 'radial-gradient(ellipse at 50% 40%, #2a2218 0%, #1a1610 60%, #12100c 100%)',
+          }} />
+          <div className="absolute inset-0" style={{
+            background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.5) 100%)',
+          }} />
         </div>
       )}
 
@@ -259,15 +241,44 @@ export function HandheldCraftingScene() {
       {/* Main UI */}
       {!isPlayingVideo && (
         <>
-          {/* Threat Assessment Header */}
-          <div className="shrink-0 w-full z-10" style={{ padding: 'var(--space-sm) var(--space-md)', background: 'linear-gradient(to bottom, rgba(60,20,20,0.5), transparent)' }}>
-            <div className="flex items-center justify-between">
-              <div className="text-game-body font-bold font-display" style={{ color: 'rgba(200,80,80,0.8)', letterSpacing: '0.05em' }}>??? Unidentified ???</div>
-              <div className="text-game-micro border rounded-full" style={{ padding: 'var(--space-xs) var(--space-sm)', color: 'rgba(200,100,100,0.6)', borderColor: 'rgba(200,80,80,0.25)', background: 'rgba(60,20,20,0.3)' }}>
-                Pending
+          {/* Mage Dossier Section */}
+          {selectedMage && (
+            <div className="shrink-0 w-full z-10" style={{
+              padding: 'var(--space-md)',
+              background: `linear-gradient(to bottom, ${selectedMage.color}18, transparent)`,
+            }}>
+              <div className="flex items-center" style={{ gap: '12px' }}>
+                <div style={{
+                  width: '52px', height: '52px',
+                  borderRadius: '50%',
+                  border: `2px solid ${selectedMage.color}50`,
+                  boxShadow: `0 0 12px ${selectedMage.color}20, 0 2px 8px rgba(0,0,0,0.3)`,
+                  overflow: 'hidden', flexShrink: 0,
+                }}>
+                  <img src={selectedMage.imagePath} alt={selectedMage.name} className="w-full h-full object-cover" style={{ transform: 'scale(1.2)' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div className="font-mono uppercase" style={{ fontSize: '8px', color: 'rgba(212,175,55,0.4)', letterSpacing: '0.15em' }}>Aligned with</div>
+                  <div className="font-display font-bold" style={{ fontSize: '15px', color: selectedMage.color, textShadow: `0 0 10px ${selectedMage.color}25` }}>{selectedMage.name}</div>
+                  <div className="italic" style={{ fontSize: '10px', color: 'rgba(235,220,190,0.4)' }}>{selectedMage.title}</div>
+                </div>
+                <button
+                  onClick={() => setPhase('allegiance')}
+                  className="cursor-pointer active:scale-95 transition-transform"
+                  style={{
+                    padding: '4px 10px',
+                    border: '1px solid rgba(212,175,55,0.2)',
+                    borderRadius: '4px',
+                    background: 'rgba(212,175,55,0.05)',
+                    color: 'rgba(212,175,55,0.5)',
+                    fontSize: '9px',
+                    fontFamily: "'Cinzel', serif",
+                    letterSpacing: '0.08em',
+                  }}
+                >Change</button>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Scrollable content area */}
           <div className="flex-1 overflow-y-auto z-10" style={{ WebkitOverflowScrolling: 'touch' }}>
@@ -320,9 +331,9 @@ export function HandheldCraftingScene() {
                         padding: 'var(--space-xs) var(--space-md)', 
                         minHeight: '44px', 
                         minWidth: '44px',
-                        border: canCraft() ? '2px solid rgba(212,175,55,0.4)' : '2px solid rgba(74,44,106,0.2)',
-                        background: canCraft() ? 'linear-gradient(135deg, rgba(30,20,10,0.9), rgba(15,10,5,0.95))' : 'rgba(20,20,35,0.5)',
-                        color: canCraft() ? 'rgba(212,175,55,0.9)' : 'rgba(74,44,106,0.35)',
+                        border: canCraft() ? '2px solid rgba(212,175,55,0.4)' : '2px solid rgba(212,175,55,0.12)',
+                        background: canCraft() ? 'linear-gradient(135deg, #2e2519, #1e1a14)' : 'rgba(30,26,20,0.4)',
+                        color: canCraft() ? 'rgba(212,175,55,0.9)' : 'rgba(212,175,55,0.25)',
                         boxShadow: canCraft() ? '0 0 15px rgba(212,175,55,0.1)' : 'none',
                         letterSpacing: '0.08em',
                       }}
@@ -350,17 +361,21 @@ export function HandheldCraftingScene() {
                   </div>
                 )}
 
-                {/* Grimoire Pages - horizontal scroll strip */}
+                {/* Catalogued Pages */}
                 <div style={{ marginBottom: 'var(--space-md)' }}>
-                  <h3 className="text-game-caption font-bold text-amber-200/80 flex items-center gap-2" style={{ marginBottom: 'var(--space-sm)' }}>
-                    <span className="text-amber-500">📜</span> Grimoire Pages
-                  </h3>
+                  <div className="flex items-center gap-2" style={{ marginBottom: 'var(--space-sm)' }}>
+                    <span style={{ color: 'rgba(212,175,55,0.35)', fontSize: '8px' }}>✦</span>
+                    <h3 className="font-display font-bold uppercase tracking-wider" style={{ fontSize: '10px', color: 'rgba(212,175,55,0.6)', letterSpacing: '0.12em' }}>Catalogued Pages</h3>
+                    <span style={{ color: 'rgba(212,175,55,0.35)', fontSize: '8px' }}>✦</span>
+                  </div>
                   <div
-                    className="overflow-x-auto overflow-y-hidden rounded-xl border border-amber-900/20 bg-black/30 backdrop-blur-sm"
+                    className="overflow-x-auto overflow-y-hidden rounded-lg"
                     style={{
                       padding: 'var(--space-sm)',
                       WebkitOverflowScrolling: 'touch',
                       scrollSnapType: 'x mandatory',
+                      border: '1px solid rgba(212,175,55,0.1)',
+                      background: 'rgba(30,26,20,0.4)',
                     }}
                   >
                     <div className="flex gap-3" style={{ minWidth: 'min-content' }}>
@@ -374,7 +389,7 @@ export function HandheldCraftingScene() {
                         />
                       ))}
                       {availableCards.length === 0 && (
-                        <div className="text-gray-500 text-game-micro py-4 italic whitespace-nowrap">
+                        <div className="italic whitespace-nowrap" style={{ color: 'rgba(235,220,190,0.3)', fontSize: '10px', padding: 'var(--space-md) 0' }}>
                           All pages placed.
                         </div>
                       )}
@@ -406,7 +421,7 @@ export function HandheldCraftingScene() {
           </div>
 
           {/* Player's Grimoire — Active Battle Pages */}
-          <div className="shrink-0 w-full z-10" style={{ background: 'linear-gradient(to top, rgba(74,44,106,0.35), transparent)' }}>
+          <div className="shrink-0 w-full z-10" style={{ background: 'linear-gradient(to top, rgba(20,16,12,0.6), transparent)' }}>
             <div
               className="overflow-x-auto overflow-y-hidden"
               style={{
@@ -434,7 +449,7 @@ export function HandheldCraftingScene() {
           </div>
 
           {/* Initiate Combat */}
-          <div className="shrink-0 w-full flex justify-center z-10" style={{ padding: 'var(--space-sm) var(--space-md)', background: 'linear-gradient(to top, rgba(10,10,26,0.4), transparent)' }}>
+          <div className="shrink-0 w-full flex justify-center z-10" style={{ padding: 'var(--space-sm) var(--space-md)', background: 'linear-gradient(to top, rgba(20,16,12,0.4), transparent)' }}>
             <button
               onClick={handleReady}
               disabled={!hasCardInDeck}
@@ -445,9 +460,9 @@ export function HandheldCraftingScene() {
               style={{ 
                 padding: 'var(--space-md)', 
                 minHeight: '48px',
-                border: hasCardInDeck ? '2px solid rgba(212,175,55,0.4)' : '2px solid rgba(74,44,106,0.2)',
-                background: hasCardInDeck ? 'linear-gradient(135deg, rgba(30,20,10,0.9), rgba(15,10,5,0.95))' : 'rgba(20,20,35,0.5)',
-                color: hasCardInDeck ? 'rgba(212,175,55,0.9)' : 'rgba(74,44,106,0.35)',
+                border: hasCardInDeck ? '2px solid rgba(212,175,55,0.4)' : '2px solid rgba(212,175,55,0.12)',
+                background: hasCardInDeck ? 'linear-gradient(135deg, #2e2519, #1e1a14)' : 'rgba(30,26,20,0.4)',
+                color: hasCardInDeck ? 'rgba(212,175,55,0.9)' : 'rgba(212,175,55,0.25)',
                 boxShadow: hasCardInDeck ? '0 0 20px rgba(212,175,55,0.12)' : 'none',
                 letterSpacing: '0.1em',
               }}
@@ -531,21 +546,6 @@ export function HandheldCraftingScene() {
         @keyframes float {
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-10px); }
-        }
-        @keyframes floatBlob1 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          25% { transform: translate(50px, -30px) scale(1.1); }
-          50% { transform: translate(100px, 20px) scale(0.95); }
-          75% { transform: translate(30px, 50px) scale(1.05); }
-        }
-        @keyframes floatBlob2 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(-60px, 40px) scale(1.15); }
-          66% { transform: translate(40px, -30px) scale(0.9); }
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 0.2; }
-          50% { opacity: 0.4; }
         }
         @keyframes chamberIdle {
           0%, 100% { opacity: 0.5; transform: scale(1); }
