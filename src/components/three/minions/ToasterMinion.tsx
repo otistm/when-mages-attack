@@ -160,6 +160,7 @@ export function ToasterMinion({ data, onFire }: ToasterMinionProps) {
       idRef.current,
       positionRef.current[0], positionRef.current[1], positionRef.current[2],
       rotationRef.current,
+      me.collisionRadius, me.stats.mass, me.team,
     );
   });
 

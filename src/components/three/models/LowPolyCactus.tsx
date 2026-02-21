@@ -11,9 +11,10 @@
  * - Damage flash: emissive pulse
  */
 
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, type MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { createToonMaterial } from '@/shaders/ToonMaterials';
 
 // Shared geometry
 const potGeo = new THREE.CylinderGeometry(1.2, 1.0, 1.5, 8);
@@ -62,8 +63,10 @@ interface LowPolyCactusProps {
   team: 'player' | 'enemy';
   isDamaged?: boolean;
   state?: string;
-  /** 0..1 swell progress for attack animation */
+  /** 0..1 swell progress for attack animation (static value, only updates on re-render) */
   swellAmount?: number;
+  /** Ref alternative for swellAmount — read every frame without requiring re-renders */
+  swellRef?: MutableRefObject<number>;
 }
 
 export function LowPolyCactus({
@@ -71,6 +74,7 @@ export function LowPolyCactus({
   isDamaged,
   state,
   swellAmount = 0,
+  swellRef,
 }: LowPolyCactusProps) {
   const groupRef = useRef<THREE.Group>(null);
   const bodyRef = useRef<THREE.Mesh>(null);
@@ -80,24 +84,19 @@ export function LowPolyCactus({
   const isPlayer = team === 'player';
 
   const materials = useMemo(() => ({
-    pot: new THREE.MeshStandardMaterial({ color: 0xe2725b, roughness: 0.8, flatShading: true }),
-    dirt: new THREE.MeshStandardMaterial({ color: 0x3e2723, roughness: 1.0, flatShading: true }),
-    cactus: new THREE.MeshStandardMaterial({
-      color: 0x66bb6a,
-      roughness: 0.4,
-      flatShading: true,
-    }),
-    spike: new THREE.MeshStandardMaterial({ color: 0xfff9c4, roughness: 0.2, flatShading: true }),
-    flowerCenter: new THREE.MeshStandardMaterial({ color: 0xffeb3b, roughness: 0.6, flatShading: true }),
-    flowerPetal: new THREE.MeshStandardMaterial({
-      color: isPlayer ? 0xff69b4 : 0xff4444,
-      roughness: 0.5,
-      flatShading: true,
+    pot: createToonMaterial({ color: '#e2725b', bands: 3 }),
+    dirt: createToonMaterial({ color: '#3e2723', bands: 2 }),
+    cactus: createToonMaterial({ color: '#66bb6a', bands: 3 }),
+    spike: createToonMaterial({ color: '#fff9c4', bands: 3 }),
+    flowerCenter: createToonMaterial({ color: '#ffeb3b', bands: 3 }),
+    flowerPetal: createToonMaterial({
+      color: isPlayer ? '#ff69b4' : '#ff4444',
+      bands: 3,
     }),
   }), [isPlayer]);
 
   const colorGreen = useMemo(() => new THREE.Color(0x66bb6a), []);
-  const colorRed = useMemo(() => new THREE.Color(0xe57373), []);
+  const colorRed = useMemo(() => new THREE.Color(0xff1111), []);
 
   useFrame((_, delta) => {
     const group = groupRef.current;
@@ -122,21 +121,20 @@ export function LowPolyCactus({
     }
 
     // Swell / breathing animation
-    if (swellAmount > 0) {
-      const scale = 1 + swellAmount * 0.5;
+    const swell = swellRef ? swellRef.current : swellAmount;
+    if (swell > 0) {
+      const scale = 1 + swell * 0.5;
       body.scale.setScalar(scale);
-      // Shake when swelling
-      const shake = 0.05 * swellAmount;
+      const shake = 0.05 * swell;
       body.position.x = (Math.random() - 0.5) * shake;
       body.position.z = (Math.random() - 0.5) * shake;
-      // Lerp toward red
-      materials.cactus.color.lerp(colorRed, delta * 2 * swellAmount);
+      materials.cactus.color.copy(colorGreen).lerp(colorRed, swell);
     } else {
       const breath = 1 + Math.sin(t * 2) * 0.02;
       body.scale.setScalar(breath);
       body.position.x = 0;
       body.position.z = 0;
-      materials.cactus.color.lerp(colorGreen, delta * 2);
+      materials.cactus.color.copy(colorGreen);
     }
 
     group.scale.setScalar(BASE_SCALE);

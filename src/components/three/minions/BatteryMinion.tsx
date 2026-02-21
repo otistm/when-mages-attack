@@ -22,6 +22,7 @@ import { useBattleStatsStore } from '@/stores/battleStatsStore';
 import { useUIStore } from '@/stores/uiStore';
 import { resolveCollisions } from './separation';
 import { minionPositions } from '@/utils/minionPositionRegistry';
+import { ARENA_BOUNDS } from '@/types';
 import type { CombatMinion } from '@/stores/combatStore';
 
 const BATTERY_RADIUS = 0.6;
@@ -119,6 +120,8 @@ export function BatteryMinion({ data }: BatteryMinionProps) {
       const ui = useUIStore.getState();
       tz = me.team === 'player' ? ui.enemyHPBarWorldZ : ui.playerHPBarWorldZ;
       tx = targetXOffset.current;
+      tz = Math.max(ARENA_BOUNDS.minZ, Math.min(ARENA_BOUNDS.maxZ, tz));
+      tx = Math.max(ARENA_BOUNDS.minX, Math.min(ARENA_BOUNDS.maxX, tx));
     }
 
     const dx = tx - px;
@@ -137,7 +140,9 @@ export function BatteryMinion({ data }: BatteryMinionProps) {
     }
     if (innerRef.current) innerRef.current.rotation.y = rotationRef.current;
 
-    const range = isMinion ? me.attackRange : 2.0;
+    const enemyRadius = enemy ? (minionPositions.get(enemy.id)?.radius ?? 0.75) : 0;
+    const meleeRange = me.collisionRadius + enemyRadius + 0.5;
+    const range = isMinion ? Math.max(me.attackRange, meleeRange) : me.attackRange;
 
     // Chain lightning attack — fires while rolling, doesn't stop
     const now = state.clock.elapsedTime;
@@ -248,6 +253,7 @@ export function BatteryMinion({ data }: BatteryMinionProps) {
       idRef.current,
       positionRef.current[0], positionRef.current[1], positionRef.current[2],
       rotationRef.current,
+      me.collisionRadius, me.stats.mass, me.team,
     );
   });
 

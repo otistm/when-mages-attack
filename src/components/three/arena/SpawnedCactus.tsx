@@ -53,8 +53,6 @@ export function SpawnedCactus({
 
   const updateCooldown = useCardStore((state) => state.updateCooldown);
 
-  const shouldFireOnSpawn = useRef(true);
-
   const [springProps, springApi] = useSpring(() => ({
     scale: 0,
     positionY: -1,
@@ -120,11 +118,6 @@ export function SpawnedCactus({
 
     if (lastFireRef.current === 0) {
       lastFireRef.current = time;
-      if (shouldFireOnSpawn.current) {
-        shouldFireOnSpawn.current = false;
-        fireNeedleBurst();
-        updateCooldown(slot.index, team, 0, false);
-      }
       return;
     }
 
@@ -133,20 +126,13 @@ export function SpawnedCactus({
 
     updateCooldown(slot.index, team, progress, false);
 
-    // Swell builds in the last 40% of cooldown
-    if (progress > 0.6) {
-      swellRef.current = Math.min((progress - 0.6) / 0.4, 1);
-    } else {
-      swellRef.current = Math.max(swellRef.current - delta * 3, 0);
-    }
+    swellRef.current = progress;
 
     if (progress >= 1) {
+      fireNeedleBurst();
       lastFireRef.current = time;
       swellRef.current = 0;
-      fireNeedleBurst();
-      setTimeout(() => {
-        updateCooldown(slot.index, team, 0, false);
-      }, 200);
+      updateCooldown(slot.index, team, 0, false);
     }
   });
 
@@ -165,19 +151,21 @@ export function SpawnedCactus({
         team={team}
         isDamaged={isDamaged}
         state={combatState}
-        swellAmount={swellRef.current}
+        swellRef={swellRef}
       />
 
-      {/* Health bar */}
-      <group position={[0, 3.8, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      {/* Circular health ring */}
+      <group position={[2.0, 1.2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <mesh>
-          <planeGeometry args={[1.6, 0.22]} />
-          <meshBasicMaterial color="#000000" opacity={0.6} transparent />
+          <ringGeometry args={[0.32, 0.48, 32, 1, 0, Math.PI * 2]} />
+          <meshBasicMaterial color="#1a1a1a" opacity={0.5} transparent side={THREE.DoubleSide} />
         </mesh>
-        <mesh position={[(healthPercent - 1) * 0.8, 0, 0.01]}>
-          <planeGeometry args={[1.56 * healthPercent, 0.18]} />
-          <meshBasicMaterial color={isPlayer ? '#4ade80' : '#f87171'} />
-        </mesh>
+        {healthPercent > 0 && (
+          <mesh position={[0, 0, 0.01]}>
+            <ringGeometry args={[0.34, 0.46, 32, 1, Math.PI / 2, healthPercent * Math.PI * 2]} />
+            <meshBasicMaterial color={isPlayer ? '#4ade80' : '#f87171'} side={THREE.DoubleSide} />
+          </mesh>
+        )}
       </group>
 
       {/* Needle burst flash */}

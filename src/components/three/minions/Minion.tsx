@@ -19,6 +19,7 @@ import { useBattleStatsStore } from '@/stores/battleStatsStore';
 import { useUIStore } from '@/stores/uiStore';
 import { resolveCollisions } from './separation';
 import { minionPositions } from '@/utils/minionPositionRegistry';
+import { ARENA_BOUNDS } from '@/types';
 import type { CombatMinion } from '@/stores/combatStore';
 
 const _hpBgGeo = new THREE.PlaneGeometry(0.8, 0.15);
@@ -85,6 +86,8 @@ export function Minion({ data, modelPath, modelScale = 1 }: MinionProps) {
       const ui = useUIStore.getState();
       tz = me.team === 'player' ? ui.enemyHPBarWorldZ : ui.playerHPBarWorldZ;
       tx = targetXOffset.current;
+      tz = Math.max(ARENA_BOUNDS.minZ, Math.min(ARENA_BOUNDS.maxZ, tz));
+      tx = Math.max(ARENA_BOUNDS.minX, Math.min(ARENA_BOUNDS.maxX, tx));
     }
 
     const dx = tx - px;
@@ -102,7 +105,9 @@ export function Minion({ data, modelPath, modelScale = 1 }: MinionProps) {
     }
     if (innerRef.current) innerRef.current.rotation.y = rotationRef.current;
 
-    const range = isMinion ? me.attackRange : 0.5;
+    const enemyRadius = enemy ? (minionPositions.get(enemy.id)?.radius ?? 0.75) : 0;
+    const meleeRange = me.collisionRadius + enemyRadius + 0.5;
+    const range = isMinion ? Math.max(me.attackRange, meleeRange) : me.attackRange;
 
     if (dist <= range) {
       const now = state.clock.elapsedTime;
@@ -151,6 +156,7 @@ export function Minion({ data, modelPath, modelScale = 1 }: MinionProps) {
       idRef.current,
       positionRef.current[0], positionRef.current[1], positionRef.current[2],
       rotationRef.current,
+      me.collisionRadius, me.stats.mass, me.team,
     );
   });
 

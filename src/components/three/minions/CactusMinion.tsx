@@ -123,30 +123,25 @@ export function CactusMinion({ data, onFire }: CactusMinionProps) {
       idRef.current,
       positionRef.current[0], positionRef.current[1], positionRef.current[2],
       0,
+      me.collisionRadius, me.stats.mass, me.team,
     );
 
     const now = state.clock.elapsedTime;
 
     if (lastFireTimeRef.current === 0) {
       lastFireTimeRef.current = now;
-      fireNeedleBurst();
       return;
     }
 
     const elapsed = now - lastFireTimeRef.current;
     const progress = Math.min(elapsed / fireCooldown, 1);
 
-    // Swell animation builds as cooldown progresses (last 40%)
-    if (progress > 0.6) {
-      swellRef.current = Math.min((progress - 0.6) / 0.4, 1);
-    } else {
-      swellRef.current = Math.max(swellRef.current - delta * 3, 0);
-    }
+    swellRef.current = progress;
 
     if (now - lastFireTimeRef.current >= fireCooldown) {
+      fireNeedleBurst();
       lastFireTimeRef.current = now;
       swellRef.current = 0;
-      fireNeedleBurst();
     }
   });
 
@@ -160,19 +155,21 @@ export function CactusMinion({ data, onFire }: CactusMinionProps) {
           team={data.team}
           isDamaged={isDamagedRef.current}
           state={data.state}
-          swellAmount={swellRef.current}
+          swellRef={swellRef}
         />
 
-        {/* Health bar */}
-        <group position={[0, 3.8, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        {/* Circular health ring */}
+        <group position={[2.0, 1.2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <mesh>
-            <planeGeometry args={[1.6, 0.22]} />
-            <meshBasicMaterial color="#000000" opacity={0.6} transparent />
+            <ringGeometry args={[0.32, 0.48, 32, 1, 0, Math.PI * 2]} />
+            <meshBasicMaterial color="#1a1a1a" opacity={0.5} transparent side={THREE.DoubleSide} />
           </mesh>
-          <mesh position={[(healthPercent - 1) * 0.8, 0, 0.01]}>
-            <planeGeometry args={[1.56 * healthPercent, 0.18]} />
-            <meshBasicMaterial color={isPlayer ? '#4ade80' : '#f87171'} />
-          </mesh>
+          {healthPercent > 0 && (
+            <mesh position={[0, 0, 0.01]}>
+              <ringGeometry args={[0.34, 0.46, 32, 1, Math.PI / 2, healthPercent * Math.PI * 2]} />
+              <meshBasicMaterial color={isPlayer ? '#4ade80' : '#f87171'} side={THREE.DoubleSide} />
+            </mesh>
+          )}
         </group>
       </animated.group>
     </group>

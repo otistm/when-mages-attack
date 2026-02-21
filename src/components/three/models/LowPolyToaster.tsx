@@ -1,6 +1,7 @@
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { createToonMaterial } from '@/shaders/ToonMaterials';
 
 // ---------- shared geometry (created once, reused across instances) ----------
 const bodyGeo = new THREE.BoxGeometry(2, 1.4, 1.2);
@@ -84,75 +85,30 @@ export function LowPolyToaster({
 
   const isPlayer = team === 'player';
   const teamColor = isPlayer ? '#4ade80' : '#f87171';
-  const teamHex = isPlayer ? 0x4ade80 : 0xf87171;
 
   const materials = useMemo(() => {
     const flameBaseColor = isInfernal ? 0xffaa00 : 0x9ca3af;
     return {
-      metal: new THREE.MeshStandardMaterial({
-        color: 0xcccccc,
-        roughness: 0.3,
-        metalness: 0.7,
-        flatShading: true,
-      }),
-      darkMetal: new THREE.MeshStandardMaterial({
-        color: 0x333333,
-        roughness: 0.7,
-        metalness: 0.4,
-        flatShading: true,
-      }),
-      plastic: new THREE.MeshStandardMaterial({
-        color: 0x222222,
-        roughness: 0.2,
-        metalness: 0.0,
-        flatShading: true,
-      }),
-      slotInterior: new THREE.MeshStandardMaterial({
-        color: 0x111111,
-        roughness: 0.9,
-        metalness: 0.1,
-        flatShading: true,
-      }),
-      accent: new THREE.MeshStandardMaterial({
-        color: teamHex,
-        roughness: 0.5,
-        metalness: 0.3,
-        emissive: teamHex,
+      metal: createToonMaterial({ color: '#cccccc', bands: 3 }),
+      darkMetal: createToonMaterial({ color: '#333333', bands: 3 }),
+      plastic: createToonMaterial({ color: '#222222', bands: 3 }),
+      slotInterior: createToonMaterial({ color: '#111111', bands: 2 }),
+      accent: createToonMaterial({
+        color: teamColor,
+        bands: 3,
+        emissive: teamColor,
         emissiveIntensity: 0.3,
-        flatShading: true,
       }),
-      dial: new THREE.MeshStandardMaterial({
-        color: 0xff5722,
-        roughness: 0.4,
-        metalness: 0.2,
-        emissive: 0xff5722,
+      dial: createToonMaterial({
+        color: '#ff5722',
+        bands: 3,
+        emissive: '#ff5722',
         emissiveIntensity: 0.15,
-        flatShading: true,
       }),
-      toastRaw: new THREE.MeshStandardMaterial({
-        color: 0xdeb887,
-        roughness: 1.0,
-        metalness: 0.0,
-        flatShading: true,
-      }),
-      crustRaw: new THREE.MeshStandardMaterial({
-        color: 0x8b4513,
-        roughness: 1.0,
-        metalness: 0.0,
-        flatShading: true,
-      }),
-      toastBurnt: new THREE.MeshStandardMaterial({
-        color: 0x1a1a1a,
-        roughness: 0.9,
-        metalness: 0.0,
-        flatShading: true,
-      }),
-      crustBurnt: new THREE.MeshStandardMaterial({
-        color: 0x000000,
-        roughness: 0.9,
-        metalness: 0.0,
-        flatShading: true,
-      }),
+      toastRaw: createToonMaterial({ color: '#deb887', bands: 3 }),
+      crustRaw: createToonMaterial({ color: '#8b4513', bands: 3 }),
+      toastBurnt: createToonMaterial({ color: '#1a1a1a', bands: 2 }),
+      crustBurnt: createToonMaterial({ color: '#000000', bands: 2 }),
       flame: new THREE.MeshBasicMaterial({
         color: flameBaseColor,
         transparent: true,
@@ -160,7 +116,7 @@ export function LowPolyToaster({
         depthWrite: false,
       }),
     };
-  }, [teamHex, isInfernal]);
+  }, [teamColor, isInfernal]);
 
   const fireAnimRef = useRef(0);
   const prevIsReady = useRef(false);

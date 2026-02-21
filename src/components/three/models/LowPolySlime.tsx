@@ -12,6 +12,7 @@
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { createToonMaterial } from '@/shaders/ToonMaterials';
 
 // Shared geometry — created once, reused across all slime instances
 const bodyGeo = (() => {
@@ -56,17 +57,17 @@ export function LowPolySlime({ team, isDamaged, state }: LowPolySlimeProps) {
   const damageFlash = useRef(0);
   const prevDamaged = useRef(false);
 
+  const teamEmissive = team === 'player' ? '#2e7d32' : '#7d2e2e';
+
   const bodyMat = useMemo(
     () =>
-      new THREE.MeshPhysicalMaterial({
-        color: team === 'player' ? 0x76ff03 : 0xff4444,
-        roughness: 0.2,
-        metalness: 0.1,
-        flatShading: true,
-        emissive: team === 'player' ? 0x2e7d32 : 0x7d2e2e,
+      createToonMaterial({
+        color: team === 'player' ? '#76ff03' : '#ff4444',
+        bands: 3,
+        emissive: teamEmissive,
         emissiveIntensity: 0.2,
       }),
-    [team],
+    [team, teamEmissive],
   );
 
   const eyePupilMat = useMemo(
@@ -134,8 +135,10 @@ export function LowPolySlime({ team, isDamaged, state }: LowPolySlimeProps) {
     group.scale.setScalar(BASE_SCALE);
   });
 
+  const yRotation = team === 'player' ? 0 : Math.PI;
+
   return (
-    <group ref={groupRef} scale={BASE_SCALE}>
+    <group ref={groupRef} scale={BASE_SCALE} rotation={[0, yRotation, 0]}>
       {/* Body */}
       <mesh ref={bodyRef} geometry={bodyGeo} material={bodyMat} castShadow />
 

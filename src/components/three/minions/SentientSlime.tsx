@@ -22,6 +22,7 @@ import { useUIStore } from '@/stores/uiStore';
 import { resolveCollisions } from './separation';
 import { minionPositions } from '@/utils/minionPositionRegistry';
 import { getCardDefinition } from '@/data/cards';
+import { ARENA_BOUNDS } from '@/types';
 import type { CombatMinion } from '@/stores/combatStore';
 
 const trailGeo = new THREE.CircleGeometry(0.4, 6);
@@ -46,6 +47,15 @@ export function SentientSlime({ data, sizeScale = 1 }: SentientSlimeProps) {
   const modelRef = useRef<THREE.Group>(null);
   const lastAttackTimeRef = useRef(0);
   const hasSplit = useRef(false);
+
+  const attackAnimTimer = useRef(-1);
+  const attackDamageDealt = useRef(false);
+  const attackTargetInfo = useRef<{
+    isMinion: boolean;
+    enemyId: string | null;
+    tx: number;
+    tz: number;
+  } | null>(null);
 
   // Stable initial position — only computed once on mount, never changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -157,10 +167,12 @@ export function SentientSlime({ data, sizeScale = 1 }: SentientSlimeProps) {
       tz = enemy.position[2];
       isMinion = true;
     } else {
-      // Target the HP bar's actual 3D world position (computed from screen coords)
       const ui = useUIStore.getState();
       tz = me.team === 'player' ? ui.enemyHPBarWorldZ : ui.playerHPBarWorldZ;
       tx = targetXOffset.current;
+      // Clamp to arena bounds so melee units can physically reach the target
+      tz = Math.max(ARENA_BOUNDS.minZ, Math.min(ARENA_BOUNDS.maxZ, tz));
+      tx = Math.max(ARENA_BOUNDS.minX, Math.min(ARENA_BOUNDS.maxX, tx));
     }
 
     const dx = tx - px;
@@ -179,43 +191,126 @@ export function SentientSlime({ data, sizeScale = 1 }: SentientSlimeProps) {
     }
     if (innerRef.current) innerRef.current.rotation.y = rotationRef.current;
 
-    // Squishy bounce animation
-    if (modelRef.current) {
-      const t = state.clock.elapsedTime;
-      const sy = 1 + Math.sin(t * 4) * 0.12;
-      const sxz = 1 - Math.sin(t * 4) * 0.06;
-      modelRef.current.scale.set(sizeScale * sxz, sizeScale * sy, sizeScale * sxz);
-    }
+    const enemyRadius = enemy ? (minionPositions.get(enemy.id)?.radius ?? 0.75) : 0;
+    const meleeRange = me.collisionRadius + enemyRadius + 0.5;
+    const range = isMinion ? Math.max(me.attackRange, meleeRange) : me.attackRange;
 
-    // Attack range
-    const range = isMinion ? me.attackRange : 2.0;
+    // Ram attack animation constants
+    const WINDUP_DUR = 0.3;
+    const SLAM_DUR = 0.1;
+    const RECOVER_DUR = 0.3;
+    const ATTACK_TOTAL = WINDUP_DUR + SLAM_DUR + RECOVER_DUR;
+    const REEL_BACK = -1.5;
+    const SLAM_FORWARD = 3.0;
 
-    // Attack on cooldown when in range
+    // Trigger attack animation when cooldown is ready and in range
     if (dist <= range) {
       const now = state.clock.elapsedTime;
-      if (now - lastAttackTimeRef.current >= me.attackCooldown) {
+      if (now - lastAttackTimeRef.current >= me.attackCooldown && attackAnimTimer.current < 0) {
         lastAttackTimeRef.current = now;
-
-        if (isMinion && enemy) {
-          store.damageMinion(enemy.id, me.stats.attack);
-          useDamageStore.getState().addDamageEvent(me.stats.attack, enemy.team, enemy.position);
-          useGameStore.getState().addCameraTrauma(0.03);
-        } else {
-          const tgt = me.team === 'player' ? 'enemy' : 'player';
-          const gs = useGameStore.getState();
-          if (tgt === 'enemy') gs.dealDamageToEnemy(me.stats.attack);
-          else gs.dealDamageToPlayer(me.stats.attack);
-          useDamageStore.getState().addDamageEvent(me.stats.attack, tgt, [tx, py, tz]);
-          gs.addCameraTrauma(0.05);
-        }
-        // Track all melee damage (to minions and HP bar) in battle stats
-        useBattleStatsStore.getState().recordDamage(me.cardDefinitionId, me.stats.attack);
+        attackAnimTimer.current = 0;
+        attackDamageDealt.current = false;
+        attackTargetInfo.current = {
+          isMinion,
+          enemyId: enemy?.id ?? null,
+          tx,
+          tz,
+        };
         store.updateMinion(idRef.current, { state: 'attacking' });
       }
     }
 
-    // Move if not in range
-    if (dist > range) {
+    // Model animation: attack ram > hop > idle breathing
+    if (modelRef.current) {
+      const t = state.clock.elapsedTime;
+      const isMoving = dist > range && attackAnimTimer.current < 0;
+
+      if (attackAnimTimer.current >= 0) {
+        attackAnimTimer.current += delta;
+        const at = attackAnimTimer.current;
+
+        if (at < WINDUP_DUR) {
+          // Windup: reel back, squash down (coiling energy)
+          const p = at / WINDUP_DUR;
+          const ease = p * p;
+          modelRef.current.position.z = REEL_BACK * ease;
+          modelRef.current.position.y = 0;
+          const sy = 1 - 0.4 * ease;
+          const sxz = 1 + 0.35 * ease;
+          modelRef.current.scale.set(sizeScale * sxz, sizeScale * sy, sizeScale * sxz);
+        } else if (at < WINDUP_DUR + SLAM_DUR) {
+          // Slam: lunge forward into enemy
+          const p = (at - WINDUP_DUR) / SLAM_DUR;
+          const ease = 1 - (1 - p) * (1 - p);
+          const z = REEL_BACK + (SLAM_FORWARD - REEL_BACK) * ease;
+          modelRef.current.position.z = z;
+          modelRef.current.position.y = Math.sin(p * Math.PI) * 0.4;
+          const sy = 0.6 + 0.7 * ease;
+          const sxz = 1.35 - 0.5 * ease;
+          modelRef.current.scale.set(sizeScale * sxz, sizeScale * sy, sizeScale * sxz);
+
+          // Deal damage at impact
+          if (p > 0.75 && !attackDamageDealt.current) {
+            attackDamageDealt.current = true;
+            const info = attackTargetInfo.current;
+            if (info) {
+              if (info.isMinion && info.enemyId) {
+                const target = store.getMinion(info.enemyId);
+                if (target) {
+                  store.damageMinion(info.enemyId, me.stats.attack);
+                  useDamageStore.getState().addDamageEvent(me.stats.attack, target.team, target.position);
+                  useGameStore.getState().addCameraTrauma(0.05);
+                }
+              } else {
+                const tgt = me.team === 'player' ? 'enemy' : 'player';
+                const gs = useGameStore.getState();
+                if (tgt === 'enemy') gs.dealDamageToEnemy(me.stats.attack);
+                else gs.dealDamageToPlayer(me.stats.attack);
+                useDamageStore.getState().addDamageEvent(me.stats.attack, tgt, [info.tx, py, info.tz]);
+                gs.addCameraTrauma(0.07);
+              }
+              useBattleStatsStore.getState().recordDamage(me.cardDefinitionId, me.stats.attack);
+            }
+          }
+        } else if (at < ATTACK_TOTAL) {
+          // Recover: bounce back to center with slight overshoot
+          const p = (at - WINDUP_DUR - SLAM_DUR) / RECOVER_DUR;
+          const ease = 1 - (1 - p) * (1 - p);
+          const overshoot = Math.sin(p * Math.PI) * -0.3;
+          modelRef.current.position.z = SLAM_FORWARD * (1 - ease) + overshoot;
+          modelRef.current.position.y = 0;
+          const sy = 1.3 - 0.3 * ease;
+          const sxz = 0.85 + 0.15 * ease;
+          modelRef.current.scale.set(sizeScale * sxz, sizeScale * sy, sizeScale * sxz);
+        } else {
+          // Animation complete
+          attackAnimTimer.current = -1;
+          attackDamageDealt.current = false;
+          attackTargetInfo.current = null;
+          modelRef.current.position.z = 0;
+          modelRef.current.position.y = 0;
+          modelRef.current.scale.set(sizeScale, sizeScale, sizeScale);
+        }
+      } else if (isMoving) {
+        const hopPeriod = 0.35;
+        const hopPhase = (t % hopPeriod) / hopPeriod;
+        const hopArc = Math.sin(hopPhase * Math.PI);
+        modelRef.current.position.y = hopArc * 0.6;
+        modelRef.current.position.z = 0;
+        const sy = 0.85 + hopArc * 0.3;
+        const sxz = 1.1 - hopArc * 0.2;
+        modelRef.current.scale.set(sizeScale * sxz, sizeScale * sy, sizeScale * sxz);
+      } else {
+        modelRef.current.position.y = 0;
+        modelRef.current.position.z = 0;
+        const sy = 1 + Math.sin(t * 3) * 0.06;
+        const sxz = 1 - Math.sin(t * 3) * 0.04;
+        modelRef.current.scale.set(sizeScale * sxz, sizeScale * sy, sizeScale * sxz);
+      }
+    }
+
+    // Move if not in range and not mid-attack
+    if (dist > range && attackAnimTimer.current < 0) {
       if (me.state !== 'moving') {
         store.updateMinion(idRef.current, { state: 'moving' });
       }
@@ -231,7 +326,6 @@ export function SentientSlime({ data, sizeScale = 1 }: SentientSlimeProps) {
       const [resolvedX, resolvedZ] = resolveCollisions(idRef.current, newX, newZ);
       positionRef.current = [resolvedX, py, resolvedZ];
     } else {
-      // In attack range — still resolve collisions so we don't overlap
       const [resolvedX, resolvedZ] = resolveCollisions(idRef.current, px, pz);
       positionRef.current = [resolvedX, py, resolvedZ];
     }
@@ -276,6 +370,7 @@ export function SentientSlime({ data, sizeScale = 1 }: SentientSlimeProps) {
       idRef.current,
       positionRef.current[0], positionRef.current[1], positionRef.current[2],
       rotationRef.current,
+      me.collisionRadius, me.stats.mass, me.team,
     );
   });
 

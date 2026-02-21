@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Low Poly Toon Shader</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #74b9ff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        #ui-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 20px;
+            border-radius: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            pointer-events: none;
+            text-align: center;
+            user-select: none;
+            border: 2px solid #2d3436;
+        }
+        h1 {
+            margin: 0;
+            font-size: 16px;
+            color: #2d3436;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 800;
+        }
+        p {
+            margin: 4px 0 0 0;
+            font-size: 12px;
+            color: #636e72;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui-container">
+        <h1>Low Poly Cel Shading</h1>
+        <p>Click & Drag to Rotate | Scroll to Zoom</p>
+    </div>
+
+    <!-- Three.js Core -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // ==========================================
+        // 1. SHADER DEFINITIONS
+        // ==========================================
+
+        // Toon Vertex Shader (Main Object)
+        const toonVertexShader = `
+            varying vec3 vNormal;
+            varying vec3 vViewPosition;
+
+            void main() {
+                // Compute normal in world space
+                vNormal = normalize(mat3(modelMatrix) * normal);
+                
+                // Compute view position for rim lighting
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                vViewPosition = -mvPosition.xyz;
+                
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        `;
+
+        // Toon Fragment Shader (Main Object)
+        const toonFragmentShader = `
+            uniform vec3 uColor;
+            uniform vec3 uLightDirection;
+
+            varying vec3 vNormal;
+            varying vec3 vViewPosition;
+
+            void main() {
+                vec3 normal = normalize(vNormal);
+                vec3 lightDir = normalize(uLightDirection);
+
+                // Calculate Diffuse Lighting
+                float NdotL = dot(normal, lightDir);
+                
+                // Discretize the lighting into distinct bands (Cel Shading)
+                float diffuse = 0.0;
+                if (NdotL > 0.6) {
+                    diffuse = 1.0;
+                } else if (NdotL > 0.2) {
+                    diffuse = 0.65;
+                } else if (NdotL > -0.1) {
+                    diffuse = 0.35;
+                } else {
+                    diffuse = 0.15; // Ambient shadow
+                }
+
+                // Calculate Rim Lighting (Highlights edges facing away from camera)
+                vec3 viewDir = normalize(vViewPosition);
+                float rimDot = 1.0 - max(dot(viewDir, normal), 0.0);
+                float rimAmount = 0.7; // How far the rim extends
+                
+                // Smooth the rim light edges slightly
+                float rimIntensity = smoothstep(rimAmount - 0.05, rimAmount + 0.05, rimDot);
+                
+                // Only apply rim light to the illuminated side
+                rimIntensity *= step(0.1, NdotL);
+
+                // Combine base color, diffuse band, and rim highlight
+                vec3 finalColor = (uColor * diffuse) + (vec3(1.0) * rimIntensity * 0.4);
+                
+                gl_FragColor = vec4(finalColor, 1.0);
+            }
+        `;
+
+        // Outline Vertex Shader
+        const outlineVertexShader = `
+            uniform float uThickness;
+
+            void main() {
+                // Push the vertices outward along their normal vector
+                vec3 pos = position + normal * uThickness;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+            }
+        `;
+
+        // Outline Fragment Shader
+        const outlineFragmentShader = `
+            uniform vec3 uOutlineColor;
+
+            void main() {
+                gl_FragColor = vec4(uOutlineColor, 1.0);
+            }
+        `;
+
+        // ==========================================
+        // 2. SCENE SETUP
+        // ==========================================
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x74b9ff); // Sky blue
+        scene.fog = new THREE.Fog(0x74b9ff, 20, 50);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 12, 25);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 - 0.05; // Prevent going under ground
+        controls.minDistance = 10;
+        controls.maxDistance = 40;
+
+        // Global Light Direction (used by the custom shader)
+        const globalLightDirection = new THREE.Vector3(1, 1.5, 1).normalize();
+
+        // ==========================================
+        // 3. TOON OBJECT FACTORY
+        // ==========================================
+        
+        // This function creates the two-pass toon setup
+        function createToonObject(geometry, colorHex, outlineThickness = 0.05) {
+            const group = new THREE.Group();
+
+            // --- PASS 1: The solid colored low-poly mesh ---
+            // Convert to non-indexed so faces aren't smoothed out. 
+            // This is CRUCIAL for the "Low Poly" faceted look.
+            const flatGeometry = geometry.toNonIndexed();
+            flatGeometry.computeVertexNormals(); 
+
+            const toonMaterial = new THREE.ShaderMaterial({
+                vertexShader: toonVertexShader,
+                fragmentShader: toonFragmentShader,
+                uniforms: {
+                    uColor: { value: new THREE.Color(colorHex) },
+                    uLightDirection: { value: globalLightDirection }
+                }
+            });
+            const mainMesh = new THREE.Mesh(flatGeometry, toonMaterial);
+            group.add(mainMesh);
+
+            // --- PASS 2: The Outline mesh (Inverted Hull technique) ---
+            // Use the ORIGINAL indexed geometry. If we used the flat geometry,
+            // the faces would tear apart when expanded!
+            geometry.computeVertexNormals();
+
+            const outlineMaterial = new THREE.ShaderMaterial({
+                vertexShader: outlineVertexShader,
+                fragmentShader: outlineFragmentShader,
+                uniforms: {
+                    uThickness: { value: outlineThickness },
+                    uOutlineColor: { value: new THREE.Color(0x2d3436) } // Dark gray/black
+                },
+                side: THREE.BackSide // Render inside out
+            });
+            
+            const outlineMesh = new THREE.Mesh(geometry, outlineMaterial);
+            group.add(outlineMesh);
+
+            return group;
+        }
+
+        // ==========================================
+        // 4. BUILD THE DIORAMA
+        // ==========================================
+        const diorama = new THREE.Group();
+        scene.add(diorama);
+
+        // A. Floating Island Base
+        const baseGeo = new THREE.CylinderGeometry(8, 6, 3, 7);
+        const base = createToonObject(baseGeo, 0x55efc4, 0.1);
+        base.position.y = -1.5;
+        diorama.add(base);
+
+        const dirtGeo = new THREE.CylinderGeometry(6, 4, 2, 7);
+        const dirt = createToonObject(dirtGeo, 0xd63031, 0.08);
+        dirt.position.y = -4;
+        diorama.add(dirt);
+
+        // B. Large Tree
+        const trunkGeo = new THREE.CylinderGeometry(0.5, 0.8, 4, 5);
+        const trunk = createToonObject(trunkGeo, 0xcc8e35, 0.06);
+        trunk.position.set(-2, 2, -1);
+        diorama.add(trunk);
+
+        const leavesGeo = new THREE.IcosahedronGeometry(2.5, 0); // Detail 0 = Low poly
+        const leaves = createToonObject(leavesGeo, 0x00b894, 0.08);
+        leaves.position.set(-2, 4.5, -1);
+        
+        // Randomly rotate to make it look organic
+        leaves.rotation.set(Math.random(), Math.random(), Math.random());
+        diorama.add(leaves);
+
+        // C. Small Tree
+        const trunkGeo2 = new THREE.CylinderGeometry(0.3, 0.5, 2.5, 5);
+        const trunk2 = createToonObject(trunkGeo2, 0xcc8e35, 0.05);
+        trunk2.position.set(3, 1.25, 2);
+        diorama.add(trunk2);
+
+        const leavesGeo2 = new THREE.DodecahedronGeometry(1.5, 0);
+        const leaves2 = createToonObject(leavesGeo2, 0x00cec9, 0.06);
+        leaves2.position.set(3, 3, 2);
+        leaves2.rotation.set(Math.random(), Math.random(), Math.random());
+        diorama.add(leaves2);
+
+        // D. Scatter Rocks
+        const rockGeo = new THREE.DodecahedronGeometry(0.8, 0);
+        const rockPositions = [
+            { x: 4, z: -3, scale: 1 },
+            { x: -5, z: 2, scale: 1.2 },
+            { x: 1, z: 5, scale: 0.7 },
+            { x: -4, z: -4, scale: 0.9 }
+        ];
+
+        rockPositions.forEach(pos => {
+            const rock = createToonObject(rockGeo, 0xb2bec3, 0.05);
+            rock.position.set(pos.x, 0.4 * pos.scale, pos.z);
+            rock.scale.setScalar(pos.scale);
+            rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+            diorama.add(rock);
+        });
+
+        // E. Floating Cloud
+        const cloudGroup = new THREE.Group();
+        const puffGeo = new THREE.IcosahedronGeometry(1.2, 0);
+        
+        const puff1 = createToonObject(puffGeo, 0xffffff, 0.05);
+        const puff2 = createToonObject(puffGeo, 0xffffff, 0.05);
+        const puff3 = createToonObject(puffGeo, 0xffffff, 0.05);
+        
+        puff2.position.set(1.5, -0.2, 0);
+        puff2.scale.setScalar(1.2);
+        puff3.position.set(-1.2, -0.4, 0.5);
+        puff3.scale.setScalar(0.8);
+
+        cloudGroup.add(puff1, puff2, puff3);
+        cloudGroup.position.set(5, 10, -5);
+        scene.add(cloudGroup);
+
+        // ==========================================
+        // 5. ANIMATION & RESIZING
+        // ==========================================
+        window.addEventListener('resize', onWindowResize, false);
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const elapsedTime = clock.getElapsedTime();
+
+            // Gently rotate the entire diorama
+            diorama.rotation.y = elapsedTime * 0.1;
+
+            // Bob the cloud up and down gently
+            cloudGroup.position.y = 10 + Math.sin(elapsedTime * 1.5) * 0.5;
+            cloudGroup.rotation.y = elapsedTime * 0.05;
+
+            controls.update(); // required if controls.enableDamping or controls.autoRotate are set
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>

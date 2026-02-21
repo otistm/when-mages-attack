@@ -142,3 +142,10 @@ export const ARENA = {
   combatZoneStart: -6,     // Where combat happens (z range)
   combatZoneEnd: 6,
 } as const;
+
+export const ARENA_BOUNDS = {
+  minX: -(ARENA.width / 2 - 1),    // -7
+  maxX:  (ARENA.width / 2 - 1),    //  7
+  minZ:  ARENA.enemyThroneZ + 1,   // -11
+  maxZ:  ARENA.playerThroneZ - 1,  //  11
+} as const;

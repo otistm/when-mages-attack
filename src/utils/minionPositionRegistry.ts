@@ -12,21 +12,34 @@ export interface MinionPosEntry {
   y: number;
   z: number;
   rotation: number;
+  radius: number;
+  mass: number;
+  team: 'player' | 'enemy';
 }
 
 const positions = new Map<string, MinionPosEntry>();
 
 export const minionPositions = {
-  set(id: string, x: number, y: number, z: number, rotation: number) {
+  set(
+    id: string,
+    x: number, y: number, z: number,
+    rotation: number,
+    radius: number,
+    mass: number,
+    team: 'player' | 'enemy',
+  ) {
     let entry = positions.get(id);
     if (!entry) {
-      entry = { x, y, z, rotation };
+      entry = { x, y, z, rotation, radius, mass, team };
       positions.set(id, entry);
     } else {
       entry.x = x;
       entry.y = y;
       entry.z = z;
       entry.rotation = rotation;
+      entry.radius = radius;
+      entry.mass = mass;
+      entry.team = team;
     }
   },
 

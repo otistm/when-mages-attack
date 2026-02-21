@@ -35,10 +35,11 @@ export interface HPStatusEffect {
 
 // Combat minion with additional tracking
 export interface CombatMinion extends MinionData {
-  speed: number;         // Movement speed
-  attackRange: number;   // Distance to start attacking
-  attackCooldown: number; // Time between attacks
-  isConstruct?: boolean; // True for stationary constructs (toasters, etc.) — rendered by their own component, not MinionManager
+  speed: number;           // Movement speed
+  attackRange: number;     // Distance to start attacking
+  attackCooldown: number;  // Time between attacks
+  collisionRadius: number; // Per-unit collision radius derived from mass
+  isConstruct?: boolean;   // True for stationary constructs (toasters, etc.) — rendered by their own component, not MinionManager
 }
 
 // Target types for projectiles/minions
@@ -105,6 +106,11 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       position = [spawnX, spawnY, spawnZ];
     }
     
+    const mass = card.baseStats.mass ?? 1;
+    const collisionRadius = 0.8 + Math.sqrt(mass) * 0.45;
+    const speed = card.baseStats.speed ?? 2;
+    const baseAttackRange = speed > 0 ? Math.max(1.5, collisionRadius + 0.5) : 0;
+
     const minion: CombatMinion = {
       id,
       cardInstanceId: `${card.id}-${Date.now()}`,
@@ -115,7 +121,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       stats: { ...card.baseStats },
       currentHp: card.baseStats.hp,
       position,
-      rotation: team === 'player' ? Math.PI : 0, // Face toward enemy
+      rotation: team === 'player' ? Math.PI : 0,
       tags: card.tags ?? [],
       abilities: card.abilities ?? [],
       color: card.emissiveColor ?? (team === 'player' ? '#4ade80' : '#f87171'),
@@ -123,12 +129,13 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       debuffs: [],
       lastAttackTime: 0,
       targetId: undefined,
-      speed: card.baseStats.speed ?? 2,
-      attackRange: 1.5,
+      speed,
+      attackRange: baseAttackRange,
       attackCooldown: 1 / (card.baseStats.attackSpeed ?? 1),
+      collisionRadius,
     };
     
-    minionPositions.set(id, position[0], position[1], position[2], minion.rotation);
+    minionPositions.set(id, position[0], position[1], position[2], minion.rotation, collisionRadius, mass, team);
     
     set((state) => {
       const newMinions = new Map(state.minions);
@@ -150,6 +157,9 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   registerConstruct: (card, team, position) => {
     const id = `construct-${minionIdCounter++}`;
     
+    const constructMass = card.baseStats.mass ?? 1;
+    const constructRadius = 0.8 + Math.sqrt(constructMass) * 0.45;
+
     const minion: CombatMinion = {
       id,
       cardInstanceId: `${card.id}-${Date.now()}`,
@@ -160,7 +170,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       stats: { ...card.baseStats },
       currentHp: card.baseStats.hp,
       position,
-      rotation: team === 'player' ? Math.PI : 0, // Face toward enemy
+      rotation: team === 'player' ? Math.PI : 0,
       tags: card.tags ?? [],
       abilities: card.abilities ?? [],
       color: card.emissiveColor ?? (team === 'player' ? '#4ade80' : '#f87171'),
@@ -171,10 +181,11 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       speed: 0,
       attackRange: 0,
       attackCooldown: card.cooldown ?? 5,
+      collisionRadius: constructRadius,
       isConstruct: true,
     };
     
-    minionPositions.set(id, position[0], position[1], position[2], minion.rotation);
+    minionPositions.set(id, position[0], position[1], position[2], minion.rotation, constructRadius, constructMass, team);
     
     set((state) => {
       const newMinions = new Map(state.minions);
