@@ -95,6 +95,9 @@ export interface CardStats {
   mass: number;       // Physics mass, affects knockback
   range: number;      // Attack range in units
   attackSpeed: number; // Attacks per second
+  critChance?: number;  // 0–1, chance to deal double damage
+  dodgeChance?: number; // 0–1, chance to avoid an attack entirely
+  armor?: number;       // Flat damage reduction per hit
 }
 
 /**

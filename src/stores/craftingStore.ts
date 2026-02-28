@@ -302,7 +302,7 @@ function synthesizeCards(cardA: CardInstance, cardB: CardInstance): CardInstance
  * Get effective stat value including modifiers
  */
 function getEffectiveStat(card: CardInstance, stat: keyof CardStats): number {
-  const base = DEFAULT_STATS[stat];
+  const base = DEFAULT_STATS[stat] ?? 0;
   const modifier = card.statModifiers[stat] ?? 0;
   return base + modifier;
 }

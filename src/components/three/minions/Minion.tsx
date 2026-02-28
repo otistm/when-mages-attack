@@ -16,11 +16,12 @@ import { useCombatStore } from '@/stores/combatStore';
 import { useGameStore } from '@/stores/gameStore';
 import { useDamageStore } from '@/stores/damageStore';
 import { useBattleStatsStore } from '@/stores/battleStatsStore';
-import { useUIStore } from '@/stores/uiStore';
+
 import { resolveCollisions } from './separation';
 import { minionPositions } from '@/utils/minionPositionRegistry';
-import { ARENA_BOUNDS } from '@/types';
+import { ARENA_BOUNDS, ARENA } from '@/types';
 import type { CombatMinion } from '@/stores/combatStore';
+import type { MinionComponentProps } from '@/data/minionRegistry';
 
 const _hpBgGeo = new THREE.PlaneGeometry(0.8, 0.15);
 const _hpFillGeo = new THREE.PlaneGeometry(1, 0.12);
@@ -28,6 +29,8 @@ const _hpBgMat = new THREE.MeshBasicMaterial({ color: '#000000', opacity: 0.6, t
 
 interface MinionProps {
   data: CombatMinion;
+  sizeScale?: number;
+  onFire?: MinionComponentProps['onFire'];
   modelPath?: string;
   modelScale?: number;
 }
@@ -83,8 +86,7 @@ export function Minion({ data, modelPath, modelScale = 1 }: MinionProps) {
       tz = enemy.position[2];
       isMinion = true;
     } else {
-      const ui = useUIStore.getState();
-      tz = me.team === 'player' ? ui.enemyHPBarWorldZ : ui.playerHPBarWorldZ;
+      tz = me.team === 'player' ? ARENA.enemyThroneZ : ARENA.playerThroneZ;
       tx = targetXOffset.current;
       tz = Math.max(ARENA_BOUNDS.minZ, Math.min(ARENA_BOUNDS.maxZ, tz));
       tx = Math.max(ARENA_BOUNDS.minX, Math.min(ARENA_BOUNDS.maxX, tx));
@@ -107,7 +109,7 @@ export function Minion({ data, modelPath, modelScale = 1 }: MinionProps) {
 
     const enemyRadius = enemy ? (minionPositions.get(enemy.id)?.radius ?? 0.75) : 0;
     const meleeRange = me.collisionRadius + enemyRadius + 0.5;
-    const range = isMinion ? Math.max(me.attackRange, meleeRange) : me.attackRange;
+    const range = isMinion ? Math.max(me.attackRange, meleeRange) : me.collisionRadius * 0.5;
 
     if (dist <= range) {
       const now = state.clock.elapsedTime;

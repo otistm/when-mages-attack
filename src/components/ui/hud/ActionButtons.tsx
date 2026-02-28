@@ -3,7 +3,7 @@
  */
 
 import { useGameStore } from '@/stores/gameStore';
-import { useArenaStore } from '@/stores/arenaStore';
+import { useCombatStore } from '@/stores/combatStore';
 import { useCraftingStore } from '@/stores/craftingStore';
 import { v4 as uuid } from 'uuid';
 
@@ -13,9 +13,8 @@ export function ActionButtons() {
   const startNewRun = useGameStore((state) => state.startNewRun);
   const advanceTurn = useGameStore((state) => state.advanceTurn);
   
-  const spawnMinion = useArenaStore((state) => state.spawnMinion);
-  const startCombat = useArenaStore((state) => state.startCombat);
-  const clearArena = useArenaStore((state) => state.clearArena);
+  const startCombat = useCombatStore((state) => state.startCombat);
+  const resetCombat = useCombatStore((state) => state.reset);
   
   const addCard = useCraftingStore((state) => state.addCard);
   
@@ -37,8 +36,6 @@ export function ActionButtons() {
         break;
         
       case 'deploy':
-        // Spawn test minions
-        spawnTestMinions();
         setPhase('combat');
         startCombat();
         break;
@@ -48,7 +45,7 @@ export function ActionButtons() {
         break;
         
       case 'result':
-        clearArena();
+        resetCombat();
         advanceTurn();
         break;
     }
@@ -73,55 +70,6 @@ export function ActionButtons() {
         experience: 0,
       });
     });
-  };
-  
-  // Spawn test minions (5 per side for 5 card slots)
-  const spawnTestMinions = () => {
-    // Player minions
-    for (let i = 0; i < 5; i++) {
-      spawnMinion(
-        { cardInstanceId: `test-${i}`, team: 'player', slotIndex: i },
-        {
-          name: `Player Unit ${i + 1}`,
-          cardDefinitionId: 'test',
-          stats: {
-            hp: 20,
-            maxHp: 20,
-            attack: 5,
-            speed: 2,
-            mass: 1,
-            range: 1.5,
-            attackSpeed: 1,
-          },
-          tags: [],
-          abilities: [],
-          color: '#00ff88',
-        }
-      );
-    }
-    
-    // Enemy minions
-    for (let i = 0; i < 5; i++) {
-      spawnMinion(
-        { cardInstanceId: `enemy-${i}`, team: 'enemy', slotIndex: i },
-        {
-          name: `Enemy Unit ${i + 1}`,
-          cardDefinitionId: 'enemy',
-          stats: {
-            hp: 15,
-            maxHp: 15,
-            attack: 4,
-            speed: 1.8,
-            mass: 1,
-            range: 1.5,
-            attackSpeed: 1.2,
-          },
-          tags: [],
-          abilities: [],
-          color: '#ff4444',
-        }
-      );
-    }
   };
   
   const getButtonLabel = () => {

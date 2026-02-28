@@ -3,13 +3,7 @@ import { useGameStore } from '@/stores/gameStore';
 import { CARD_DEFINITIONS, SYNTHESIS_RECIPES } from '@/data/cards';
 import { CardDefinition } from '@/types';
 
-const STATUS_EFFECT_META: Record<string, { icon: string; colorVar: string; label: string }> = {
-  burn:     { icon: '🔥', colorVar: 'var(--status-burn)',   label: 'Burn' },
-  freeze:   { icon: '❄️', colorVar: 'var(--status-freeze)', label: 'Freeze' },
-  poison:   { icon: '☠️', colorVar: 'var(--status-poison)', label: 'Poison' },
-  blighted: { icon: '🦠', colorVar: 'var(--status-blight)', label: 'Blight' },
-  shocked:  { icon: '⚡', colorVar: 'var(--status-shock)',  label: 'Shock' },
-};
+import { STATUS_EFFECT_META } from '@/data/constants';
 
 const TYPE_LABELS: Record<string, string> = {
   CONSTRUCT: 'Autonomous Construct',

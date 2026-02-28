@@ -17,10 +17,15 @@ import { GrimoireScreen } from '@/components/ui/GrimoireScreen';
 import { CraftingScene } from '@/components/ui/crafting/CraftingScene';
 import { HandheldCraftingScene } from '@/components/ui/crafting/HandheldCraftingScene';
 import { UIScaleControl } from '@/components/ui/hud/UIScaleControl';
+import { ErrorBoundary, CanvasFallback } from '@/components/ui/ErrorBoundary';
 import { useGameStore } from '@/stores/gameStore';
 import { initUIScale } from '@/hooks/useUIScale';
 import { useLayoutMode } from '@/hooks/useLayoutMode';
 import { initializeAudio, AudioCues, useAudioStore } from '@/stores/audioStore';
+import { preloadPhaseAssets } from '@/utils/assetPreloader';
+import { usePhaseRouter } from '@/hooks/usePhaseRouter';
+import { DebugSpawnPanel } from '@/components/ui/debug/DebugSpawnPanel';
+import '@/data/minionRegistrations';
 
 // Initialize UI scale before first render (reads localStorage / detects handheld)
 initUIScale();
@@ -34,12 +39,19 @@ function App() {
   const { isHandheld } = useLayoutMode();
   const isDev = import.meta.env.DEV;
 
+  // Sync gameStore.phase ↔ browser URL
+  usePhaseRouter();
+
   // Crafting music disabled
   // useEffect(() => {
   //   AudioCues.onCraftingStart();
   // }, []);
 
-  // Layer arena voices on/off during combat
+  // Preload assets for upcoming phase
+  useEffect(() => {
+    preloadPhaseAssets(phase);
+  }, [phase]);
+
   useEffect(() => {
     if (phase === 'combat') {
       AudioCues.onBattleStart();
@@ -70,35 +82,25 @@ function App() {
     }
   }, [hasBurnActive, phase]);
 
-  // Start screen
   if (phase === 'start') {
-    return <StartScreen />;
+    return <ErrorBoundary name="StartScreen"><StartScreen /></ErrorBoundary>;
   }
 
-  // Mage allegiance selection
   if (phase === 'allegiance') {
-    return <AllegianceScreen />;
+    return <ErrorBoundary name="AllegianceScreen"><AllegianceScreen /></ErrorBoundary>;
   }
 
-  // Grimoire browser
   if (phase === 'grimoire') {
-    return <GrimoireScreen />;
+    return <ErrorBoundary name="GrimoireScreen"><GrimoireScreen /></ErrorBoundary>;
   }
 
-  // Crafting phase renders its own full-screen scene
   if (phase === 'crafting') {
     return (
-      <>
+      <ErrorBoundary name="CraftingScene">
         {isHandheld ? <HandheldCraftingScene /> : <CraftingScene />}
         {!isHandheld && <CardLorePanel />}
         <UIScaleControl />
-        {/* Phase indicator (dev) */}
-        {isDev && (
-          <div className="fixed top-2 right-2 bg-arcane-purple/80 px-2 py-0.5 rounded text-xs font-mono z-[100] invisible">
-            Phase: {phase} · {isHandheld ? 'Handheld' : 'Desktop'}
-          </div>
-        )}
-      </>
+      </ErrorBoundary>
     );
   }
 
@@ -106,46 +108,43 @@ function App() {
   const LayoutComponent = isHandheld ? HandheldGameLayout : GameLayout;
 
   return (
-    <LayoutComponent>
-      {/* 3D Canvas - fills the arena section of the layout */}
-      <Canvas
-        shadows={{ type: THREE.BasicShadowMap }}
-        camera={{ position: [0, 32, 18.5], fov: 45 }}
-        gl={{ antialias: true, alpha: false }}
-        className="!absolute inset-0 w-full h-full"
-        style={{ background: '#1a1a2e' }}
-      >
-        {isDev && <Stats />}
-        
-        <Suspense fallback={null}>
-          <Physics gravity={[0, -9.81, 0]}>
-            <CameraRig />
-            <Arena />
-          </Physics>
+    <ErrorBoundary name="CombatLayout">
+      <LayoutComponent>
+        <ErrorBoundary name="3DCanvas" fallback={<CanvasFallback />}>
+          <Canvas
+            shadows={{ type: THREE.BasicShadowMap }}
+            camera={{ position: [0, 38, 22], fov: 45 }}
+            gl={{ antialias: true, alpha: false }}
+            className="!absolute inset-0 w-full h-full"
+            style={{ background: '#1a1a2e' }}
+          >
+            {isDev && <Stats />}
+            
+            <Suspense fallback={null}>
+              <Physics gravity={[0, -9.81, 0]}>
+                <CameraRig />
+                <Arena />
+              </Physics>
+            </Suspense>
+          </Canvas>
+        </ErrorBoundary>
+
+        <Suspense fallback={<LoadingScreen />}>
+          <div />
         </Suspense>
-      </Canvas>
 
-      {/* Loading screen overlay */}
-      <Suspense fallback={<LoadingScreen />}>
-        <div /> {/* Empty div to trigger suspense boundary */}
-      </Suspense>
+        {!isHandheld && <CardLorePanel />}
 
-      {/* Card Lore Panel (floating overlay) - only on desktop */}
-      {!isHandheld && <CardLorePanel />}
+        <ErrorBoundary name="GameOverOverlay">
+          <GameOverOverlay />
+        </ErrorBoundary>
 
-      {/* Game over screen */}
-      <GameOverOverlay />
+        <UIScaleControl />
 
-      {/* UI Scale control */}
-      <UIScaleControl />
+        {isDev && <DebugSpawnPanel />}
 
-      {/* Phase indicator (dev) */}
-      {isDev && (
-        <div className="absolute top-2 right-2 bg-arcane-purple/80 px-2 py-0.5 rounded text-xs font-mono z-50">
-          Phase: {phase} · {isHandheld ? 'Handheld' : 'Desktop'}
-        </div>
-      )}
-    </LayoutComponent>
+      </LayoutComponent>
+    </ErrorBoundary>
   );
 }
 

@@ -149,3 +149,13 @@ export const ARENA_BOUNDS = {
   minZ:  ARENA.enemyThroneZ + 1,   // -11
   maxZ:  ARENA.playerThroneZ - 1,  //  11
 } as const;
+
+/**
+ * Canonical 3D target position for the HP bar of a given team.
+ * All minion and projectile targeting should use this as the single
+ * source of truth when targeting the opponent's HP bar.
+ */
+export function getHPBarTargetPosition(team: 'player' | 'enemy'): [number, number, number] {
+  const z = team === 'player' ? ARENA.playerThroneZ : ARENA.enemyThroneZ;
+  return [0, 1.5, z];
+}

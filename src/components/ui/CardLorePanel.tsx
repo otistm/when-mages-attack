@@ -13,13 +13,7 @@
 
 import { useUIStore } from '@/stores/uiStore';
 
-const STATUS_EFFECT_META: Record<string, { icon: string; colorVar: string; label: string }> = {
-  burn:     { icon: '🔥', colorVar: 'var(--status-burn)',   label: 'Burn' },
-  freeze:   { icon: '❄️', colorVar: 'var(--status-freeze)', label: 'Freeze' },
-  poison:   { icon: '☠️', colorVar: 'var(--status-poison)', label: 'Poison' },
-  blighted: { icon: '🦠', colorVar: 'var(--status-blight)', label: 'Blight' },
-  shocked:  { icon: '⚡', colorVar: 'var(--status-shock)',  label: 'Shock' },
-};
+import { STATUS_EFFECT_META } from '@/data/constants';
 
 export function CardLorePanel() {
   const hoveredCard = useUIStore((state) => state.hoveredCard);

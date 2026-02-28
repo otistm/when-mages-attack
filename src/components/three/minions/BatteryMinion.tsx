@@ -19,10 +19,11 @@ import { useCombatStore } from '@/stores/combatStore';
 import { useGameStore } from '@/stores/gameStore';
 import { useDamageStore } from '@/stores/damageStore';
 import { useBattleStatsStore } from '@/stores/battleStatsStore';
-import { useUIStore } from '@/stores/uiStore';
+
 import { resolveCollisions } from './separation';
 import { minionPositions } from '@/utils/minionPositionRegistry';
-import { ARENA_BOUNDS } from '@/types';
+import { ARENA_BOUNDS, ARENA } from '@/types';
+import type { MinionComponentProps } from '@/data/minionRegistry';
 import type { CombatMinion } from '@/stores/combatStore';
 
 const BATTERY_RADIUS = 0.6;
@@ -34,6 +35,17 @@ const AURA_COOLDOWN = 1.0;
 
 const BOLT_SEGMENTS = 8;
 
+// Cluster explosion constants
+const CLUSTER_SIZE = 3;
+const COLLISION_OVERLAP_FACTOR = 0.85; // fraction of combined radii — must physically overlap, not just touch
+const EXPLOSION_DAMAGE = 15;
+const EXPLOSION_AOE_RADIUS = 5.0;
+const EXPLOSION_BOLT_COUNT = 12;
+
+// Prevents multiple batteries in the same cluster from each triggering the explosion
+const _explodedThisFrame = new Set<string>();
+let _lastExplodeFrame = -1;
+
 const _lightningMat = new THREE.LineBasicMaterial({
   color: 0x00ffff,
   transparent: true,
@@ -43,6 +55,8 @@ const _lightningMat = new THREE.LineBasicMaterial({
 
 interface BatteryMinionProps {
   data: CombatMinion;
+  sizeScale?: number;
+  onFire?: MinionComponentProps['onFire'];
 }
 
 export function BatteryMinion({ data }: BatteryMinionProps) {
@@ -79,6 +93,28 @@ export function BatteryMinion({ data }: BatteryMinionProps) {
 
   const chainBoltTimers = useRef<number[]>(new Array(MAX_CHAIN_TARGETS + 1).fill(0));
   const auraCooldowns = useRef<Map<string, number>>(new Map());
+
+  // Explosion bolts — radial arcs from detonation point
+  const explosionBolts = useMemo(() => {
+    return Array.from({ length: EXPLOSION_BOLT_COUNT }, () => {
+      const geo = new THREE.BufferGeometry();
+      const positions = new Float32Array(BOLT_SEGMENTS * 3);
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const mat = new THREE.LineBasicMaterial({
+        color: isPlayer ? 0x00ffff : 0xff4444,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        linewidth: 2,
+      });
+      const line = new THREE.Line(geo, mat);
+      line.frustumCulled = false;
+      line.visible = false;
+      return line;
+    });
+  }, [isPlayer]);
+  const explosionBoltTimers = useRef<number[]>(new Array(EXPLOSION_BOLT_COUNT).fill(0));
+  const hasExploded = useRef(false);
 
   const [spawnSpring, spawnApi] = useSpring(() => ({
     scale: 0,
@@ -117,8 +153,7 @@ export function BatteryMinion({ data }: BatteryMinionProps) {
       tz = enemy.position[2];
       isMinion = true;
     } else {
-      const ui = useUIStore.getState();
-      tz = me.team === 'player' ? ui.enemyHPBarWorldZ : ui.playerHPBarWorldZ;
+      tz = me.team === 'player' ? ARENA.enemyThroneZ : ARENA.playerThroneZ;
       tx = targetXOffset.current;
       tz = Math.max(ARENA_BOUNDS.minZ, Math.min(ARENA_BOUNDS.maxZ, tz));
       tx = Math.max(ARENA_BOUNDS.minX, Math.min(ARENA_BOUNDS.maxX, tx));
@@ -142,7 +177,7 @@ export function BatteryMinion({ data }: BatteryMinionProps) {
 
     const enemyRadius = enemy ? (minionPositions.get(enemy.id)?.radius ?? 0.75) : 0;
     const meleeRange = me.collisionRadius + enemyRadius + 0.5;
-    const range = isMinion ? Math.max(me.attackRange, meleeRange) : me.attackRange;
+    const range = isMinion ? Math.max(me.attackRange, meleeRange) : me.collisionRadius * 0.5;
 
     // Chain lightning attack — fires while rolling, doesn't stop
     const now = state.clock.elapsedTime;
@@ -230,6 +265,19 @@ export function BatteryMinion({ data }: BatteryMinionProps) {
       }
     }
 
+    // Fade out explosion bolts
+    for (let i = 0; i < EXPLOSION_BOLT_COUNT; i++) {
+      if (explosionBoltTimers.current[i] > 0) {
+        explosionBoltTimers.current[i] -= delta;
+        const bolt = explosionBolts[i];
+        const mat = bolt.material as THREE.LineBasicMaterial;
+        mat.opacity = Math.max(0, explosionBoltTimers.current[i] / 0.35) * 0.95;
+        if (explosionBoltTimers.current[i] <= 0) {
+          bolt.visible = false;
+        }
+      }
+    }
+
     // Discharge aura — shock enemies on contact (no direct damage, status only)
     const enemyTeamAura = me.team === 'player' ? 'enemy' : 'player';
     const auraEnemies = store.getMinionsByTeam(enemyTeamAura);
@@ -247,6 +295,132 @@ export function BatteryMinion({ data }: BatteryMinionProps) {
 
       auraCooldowns.current.set(target.id, now);
       store.applyMinionStatus(target.id, 'shocked', { duration: 1.0, damagePerTick: 0, tickInterval: 0.5 });
+    }
+
+    // ── Cluster Explosion: 3 batteries collide → electric burst ────
+    // Reset per-frame guard on new frame
+    const frameId = Math.round(state.clock.elapsedTime * 1000);
+    if (frameId !== _lastExplodeFrame) {
+      _explodedThisFrame.clear();
+      _lastExplodeFrame = frameId;
+    }
+
+    if (!hasExploded.current && !_explodedThisFrame.has(idRef.current)) {
+      const allies = store.getMinionsByTeam(me.team);
+      const myRadius = me.collisionRadius;
+
+      // Find other batteries that are physically colliding with this one
+      // (center distance < sum of radii * overlap factor)
+      const collidingBatteries: CombatMinion[] = [];
+
+      for (const ally of allies) {
+        if (ally.id === idRef.current) continue;
+        if (ally.cardDefinitionId !== 'old_battery') continue;
+        if (_explodedThisFrame.has(ally.id)) continue;
+
+        const adx = ally.position[0] - cx;
+        const adz = ally.position[2] - cz;
+        const aDist = Math.sqrt(adx * adx + adz * adz);
+        const collisionThreshold = (myRadius + ally.collisionRadius) * COLLISION_OVERLAP_FACTOR;
+        if (aDist <= collisionThreshold) {
+          collidingBatteries.push(ally);
+        }
+      }
+
+      if (collidingBatteries.length >= CLUSTER_SIZE - 1) {
+        // Pick the closest CLUSTER_SIZE-1 batteries
+        collidingBatteries.sort((a, b) => {
+          const da = (a.position[0] - cx) ** 2 + (a.position[2] - cz) ** 2;
+          const db = (b.position[0] - cx) ** 2 + (b.position[2] - cz) ** 2;
+          return da - db;
+        });
+        const cluster = collidingBatteries.slice(0, CLUSTER_SIZE - 1);
+
+        // Verify all pairs in the cluster are actually colliding
+        let allColliding = true;
+        for (let i = 0; i < cluster.length && allColliding; i++) {
+          for (let j = i + 1; j < cluster.length; j++) {
+            const pdx = cluster[i].position[0] - cluster[j].position[0];
+            const pdz = cluster[i].position[2] - cluster[j].position[2];
+            const pDist = Math.sqrt(pdx * pdx + pdz * pdz);
+            const pairThreshold = (cluster[i].collisionRadius + cluster[j].collisionRadius) * COLLISION_OVERLAP_FACTOR;
+            if (pDist > pairThreshold) {
+              allColliding = false;
+              break;
+            }
+          }
+        }
+        if (allColliding) {
+          _explodedThisFrame.add(idRef.current);
+          for (const m of cluster) _explodedThisFrame.add(m.id);
+          hasExploded.current = true;
+
+          // Compute explosion center
+          let epx = cx, epz = cz;
+          for (const m of cluster) {
+            epx += m.position[0];
+            epz += m.position[2];
+          }
+          epx /= CLUSTER_SIZE;
+          epz /= CLUSTER_SIZE;
+
+          // Fire radial explosion bolts from center
+          for (let i = 0; i < EXPLOSION_BOLT_COUNT; i++) {
+            const angle = (i / EXPLOSION_BOLT_COUNT) * Math.PI * 2;
+            const boltLen = EXPLOSION_AOE_RADIUS * (0.6 + Math.random() * 0.4);
+            fireExplosionBolt(
+              i,
+              epx, py + 0.5, epz,
+              epx + Math.cos(angle) * boltLen,
+              py + 0.3 + Math.random() * 1.5,
+              epz + Math.sin(angle) * boltLen,
+            );
+          }
+
+          // AoE damage to all enemies in explosion radius
+          const enemyTeam = me.team === 'player' ? 'enemy' : 'player';
+          const targets = store.getMinionsByTeam(enemyTeam);
+          for (const t of targets) {
+            const tdx = t.position[0] - epx;
+            const tdz = t.position[2] - epz;
+            const tDist = Math.sqrt(tdx * tdx + tdz * tdz);
+            if (tDist <= EXPLOSION_AOE_RADIUS) {
+              const falloff = 1 - (tDist / EXPLOSION_AOE_RADIUS) * 0.5;
+              const dmg = Math.max(1, Math.floor(EXPLOSION_DAMAGE * falloff));
+              store.damageMinion(t.id, dmg, 'shocked');
+              useDamageStore.getState().addDamageEvent(dmg, t.team, t.position);
+            }
+          }
+
+          // Also damage the HP bar if close enough
+          const hpZ = me.team === 'player' ? ARENA.enemyThroneZ : ARENA.playerThroneZ;
+          const hpDist = Math.abs(epz - hpZ);
+          if (hpDist <= EXPLOSION_AOE_RADIUS) {
+            const falloff = 1 - (hpDist / EXPLOSION_AOE_RADIUS) * 0.5;
+            const dmg = Math.max(1, Math.floor(EXPLOSION_DAMAGE * falloff));
+            const tgt = me.team === 'player' ? 'enemy' : 'player';
+            const gs = useGameStore.getState();
+            if (tgt === 'enemy') gs.dealDamageToEnemy(dmg);
+            else gs.dealDamageToPlayer(dmg);
+            useDamageStore.getState().addDamageEvent(dmg, tgt, [epx, py, hpZ]);
+            gs.applyStatusEffect(tgt, {
+              type: 'shocked',
+              damagePerTick: 0,
+              tickInterval: 0.5,
+              duration: 2.0,
+            }, me.cardDefinitionId);
+          }
+
+          useGameStore.getState().addCameraTrauma(0.35);
+          useBattleStatsStore.getState().recordDamage(me.cardDefinitionId, EXPLOSION_DAMAGE);
+
+          // Kill all batteries in the cluster (including self)
+          store.damageMinion(idRef.current, 9999);
+          for (const m of cluster) {
+            store.damageMinion(m.id, 9999);
+          }
+        }
+      }
     }
 
     minionPositions.set(
@@ -294,6 +468,42 @@ export function BatteryMinion({ data }: BatteryMinionProps) {
     bolt.geometry.attributes.position.needsUpdate = true;
   }
 
+  function fireExplosionBolt(
+    boltIndex: number,
+    sx: number, sy: number, sz: number,
+    ex: number, ey: number, ez: number,
+  ) {
+    const bolt = explosionBolts[boltIndex];
+    if (!bolt) return;
+
+    bolt.visible = true;
+    explosionBoltTimers.current[boltIndex] = 0.35;
+    (bolt.material as THREE.LineBasicMaterial).opacity = 0.95;
+
+    const positions = bolt.geometry.attributes.position.array as Float32Array;
+    const gx = positionRef.current[0];
+    const gy = positionRef.current[1];
+    const gz = positionRef.current[2];
+
+    for (let j = 0; j < BOLT_SEGMENTS; j++) {
+      const t = j / (BOLT_SEGMENTS - 1);
+      let x = (sx - gx) + ((ex - gx) - (sx - gx)) * t;
+      let y = (sy - gy) + ((ey - gy) - (sy - gy)) * t;
+      let z = (sz - gz) + ((ez - gz) - (sz - gz)) * t;
+
+      if (j > 0 && j < BOLT_SEGMENTS - 1) {
+        x += (Math.random() - 0.5) * 1.2;
+        y += (Math.random() - 0.5) * 1.2;
+        z += (Math.random() - 0.5) * 1.2;
+      }
+
+      positions[j * 3] = x;
+      positions[j * 3 + 1] = y;
+      positions[j * 3 + 2] = z;
+    }
+    bolt.geometry.attributes.position.needsUpdate = true;
+  }
+
   const healthPercent = data.currentHp / data.stats.hp;
 
   return (
@@ -310,6 +520,11 @@ export function BatteryMinion({ data }: BatteryMinionProps) {
         {/* Chain lightning bolt visuals */}
         {chainBolts.map((bolt, i) => (
           <primitive key={`chain-${i}`} object={bolt} />
+        ))}
+
+        {/* Cluster explosion bolt visuals */}
+        {explosionBolts.map((bolt, i) => (
+          <primitive key={`explode-${i}`} object={bolt} />
         ))}
 
         {/* Health ring */}

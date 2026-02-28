@@ -22,6 +22,7 @@ import { getMageDefinition } from '@/data/mages';
 import { v4 as uuid } from 'uuid';
 import { useBattleStatsStore } from '@/stores/battleStatsStore';
 import { useCombatStore } from '@/stores/combatStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 /**
  * Active status effects for each team
@@ -100,7 +101,7 @@ interface GameState {
   addCameraTrauma: (amount: number) => void;
   decayCameraTrauma: (delta: number) => void;
   
-  // Settings
+  // Settings (delegates to settingsStore, kept here for backward compat)
   updateSettings: (settings: Partial<GameSettings>) => void;
   
   // Reset
@@ -153,7 +154,7 @@ export const useGameStore = create<GameState>()(
         enemy: { ...DEFAULT_PLAYER },
         isDebugArena: true,
         phase: 'combat',
-        combatPhase: 'battling',
+        combatPhase: 'active',
       });
     },
 
@@ -561,8 +562,8 @@ export const useGameStore = create<GameState>()(
       });
     },
 
-    // Settings
     updateSettings: (newSettings) => {
+      useSettingsStore.getState().updateSettings(newSettings);
       set((state) => ({
         settings: { ...state.settings, ...newSettings },
       }));

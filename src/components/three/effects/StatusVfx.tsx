@@ -8,6 +8,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore } from '@/stores/gameStore';
 import { ARENA } from '@/types';
+import { STATUS_COLORS_3D } from '@/data/constants';
 
 const MAX_PARTICLES = 16;
 
@@ -23,11 +24,7 @@ interface StatusParticle {
   vz: number;
 }
 
-const STATUS_COLORS: Record<string, number> = {
-  burn: 0xff6622,
-  freeze: 0x44bbff,
-  poison: 0x44ff44,
-};
+const STATUS_COLORS = STATUS_COLORS_3D;
 
 const particleGeo = new THREE.IcosahedronGeometry(0.12, 0);
 
@@ -67,7 +64,7 @@ function StatusCloud({ effect, zCenter }: { effect: string; zCenter: number }) {
     })),
   );
 
-  const color = STATUS_COLORS[effect] ?? 0xffffff;
+  const color = STATUS_COLORS[effect as keyof typeof STATUS_COLORS] ?? 0xffffff;
 
   const mat = useMemo(
     () =>

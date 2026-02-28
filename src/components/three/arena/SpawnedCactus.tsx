@@ -6,13 +6,14 @@
  * Fires spine projectiles on cooldown with swell animation.
  */
 
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { useSpring, animated } from '@react-spring/three';
+import { animated } from '@react-spring/three';
 import * as THREE from 'three';
 import { CardSlotConfig, ARENA } from '@/types';
 import { useCardStore } from '@/stores/cardStore';
-import { useCombatStore } from '@/stores/combatStore';
+import { useConstructLifecycle } from '@/hooks/useConstructLifecycle';
+import { useDamageFlash } from '@/hooks/useDamageFlash';
 import { LowPolyCactus } from '../models/LowPolyCactus';
 
 const NEEDLE_COUNT = 5;
@@ -37,59 +38,14 @@ export function SpawnedCactus({
   onDestroy,
 }: SpawnedCactusProps) {
   const groupRef = useRef<THREE.Group>(null);
-  const [spawned, setSpawned] = useState(false);
-  const [isDying, setIsDying] = useState(false);
-  const [isDamaged, setIsDamaged] = useState(false);
   const lastFireRef = useRef(0);
-  const hasCalledDestroy = useRef(false);
   const swellRef = useRef(0);
-  const prevHpRef = useRef<number | null>(null);
 
-  const combatData = useCombatStore((state) => state.minions.get(combatId));
-  const maxHp = combatData?.stats?.hp ?? 1;
-  const currentHp = combatData?.currentHp ?? 0;
-  const healthPercent = maxHp > 0 ? currentHp / maxHp : 0;
-  const combatState = combatData?.state;
+  const { spawned, isDying, springProps, currentHp, healthPercent, combatState } =
+    useConstructLifecycle(combatId, onDestroy);
 
+  const isDamaged = useDamageFlash(currentHp);
   const updateCooldown = useCardStore((state) => state.updateCooldown);
-
-  const [springProps, springApi] = useSpring(() => ({
-    scale: 0,
-    positionY: -1,
-    config: { tension: 300, friction: 20 },
-  }));
-
-  useEffect(() => {
-    setSpawned(true);
-    springApi.start({ scale: 1, positionY: 0 });
-  }, [springApi]);
-
-  // Detect damage for flash
-  useEffect(() => {
-    if (prevHpRef.current !== null && currentHp < prevHpRef.current) {
-      setIsDamaged(true);
-      const timer = setTimeout(() => setIsDamaged(false), 300);
-      prevHpRef.current = currentHp;
-      return () => clearTimeout(timer);
-    }
-    prevHpRef.current = currentHp;
-  }, [currentHp]);
-
-  useEffect(() => {
-    if (isDying) return;
-    if (!combatData || combatState === 'dying' || combatState === 'dead') {
-      setIsDying(true);
-      springApi.start({
-        scale: 0,
-        positionY: -1,
-        config: { tension: 200, friction: 20 },
-      });
-      if (!hasCalledDestroy.current) {
-        hasCalledDestroy.current = true;
-        setTimeout(() => { onDestroy?.(); }, 600);
-      }
-    }
-  }, [combatData, combatState, isDying, springApi, onDestroy]);
 
   const zPosition = team === 'player'
     ? ARENA.playerThroneZ - 2
@@ -112,7 +68,7 @@ export function SpawnedCactus({
     }
   }, [slot.xPosition, zPosition, onFire, damage]);
 
-  useFrame(({ clock }, delta) => {
+  useFrame(({ clock }) => {
     const time = clock.elapsedTime;
     if (!spawned || isDying) return;
 
@@ -123,9 +79,7 @@ export function SpawnedCactus({
 
     const elapsed = time - lastFireRef.current;
     const progress = Math.min(elapsed / cooldown, 1);
-
     updateCooldown(slot.index, team, progress, false);
-
     swellRef.current = progress;
 
     if (progress >= 1) {
@@ -135,8 +89,6 @@ export function SpawnedCactus({
       updateCooldown(slot.index, team, 0, false);
     }
   });
-
-  const isPlayer = team === 'player';
 
   return (
     <animated.group
@@ -154,7 +106,6 @@ export function SpawnedCactus({
         swellRef={swellRef}
       />
 
-      {/* Circular health ring */}
       <group position={[2.0, 1.2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <mesh>
           <ringGeometry args={[0.32, 0.48, 32, 1, 0, Math.PI * 2]} />
@@ -163,12 +114,11 @@ export function SpawnedCactus({
         {healthPercent > 0 && (
           <mesh position={[0, 0, 0.01]}>
             <ringGeometry args={[0.34, 0.46, 32, 1, Math.PI / 2, healthPercent * Math.PI * 2]} />
-            <meshBasicMaterial color={isPlayer ? '#4ade80' : '#f87171'} side={THREE.DoubleSide} />
+            <meshBasicMaterial color={team === 'player' ? '#4ade80' : '#f87171'} side={THREE.DoubleSide} />
           </mesh>
         )}
       </group>
 
-      {/* Needle burst flash */}
       {swellRef.current > 0.8 && !isDying && (
         <pointLight
           position={[0, 1.8, 0]}

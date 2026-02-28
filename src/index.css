@@ -30,12 +30,15 @@
   --slot-height-enemy: calc(clamp(60px, 10vh, 90px) * var(--ui-scale));
   --hp-bar-height: calc(clamp(16px, 2.5vh, 24px) * var(--ui-scale));
   --panel-width: calc(clamp(280px, 24vw, 400px) * var(--ui-scale));
-  --craft-slot-w: calc(clamp(200px, 22vw, 300px) * var(--ui-scale));
-  --craft-slot-h: calc(clamp(130px, 18vh, 200px) * var(--ui-scale));
+  --craft-slot-w: calc(clamp(140px, 15vw, 220px) * var(--ui-scale));
+  --craft-slot-h: calc(clamp(90px, 13vh, 155px) * var(--ui-scale));
   --page-w: calc(clamp(180px, 18vw, 280px) * var(--ui-scale));
   --page-h: calc(clamp(120px, 16vh, 180px) * var(--ui-scale));
-  --craft-page-w: calc(clamp(160px, 16vw, 260px) * var(--ui-scale));
-  --craft-page-h: calc(clamp(110px, 15vh, 170px) * var(--ui-scale));
+  --craft-page-w: calc(clamp(120px, 11vw, 170px) * var(--ui-scale));
+  --craft-page-h: calc(clamp(80px, 10vh, 130px) * var(--ui-scale));
+  --grid-page-w: calc(clamp(100px, 11vw, 160px) * var(--ui-scale));
+  --grid-page-h: calc(clamp(120px, 14vh, 190px) * var(--ui-scale));
+  --deck-slot-h: calc(clamp(70px, 10vh, 110px) * var(--ui-scale));
 
   /* Blob sizing (decorative backgrounds) - scaled by --ui-scale */
   --blob-lg: calc(clamp(300px, 50vw, 800px) * var(--ui-scale));
@@ -261,6 +264,25 @@ body {
   background: rgba(212, 175, 55, 0.5);
 }
 
+/* Specimen grid scrollbar */
+.specimen-grid::-webkit-scrollbar {
+  width: 5px;
+}
+
+.specimen-grid::-webkit-scrollbar-track {
+  background: rgba(30, 20, 10, 0.3);
+  border-radius: 3px;
+}
+
+.specimen-grid::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.2);
+  border-radius: 3px;
+}
+
+.specimen-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.4);
+}
+
 /* Ember glow pulse */
 @keyframes emberPulse {
   0%, 100% {
@@ -269,4 +291,58 @@ body {
   50% {
     box-shadow: 0 0 12px rgba(255,150,0,1), 0 0 24px rgba(255,200,0,0.7);
   }
+}
+
+/* ─── ACCESSIBILITY ────────────────────────────────────────────────────── */
+
+/* Visible focus ring for keyboard navigation (WCAG 2.4.7) */
+*:focus-visible {
+  outline: 2px solid var(--arcane-gold, #d4af37);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Remove outlines for mouse users */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Skip to main content link (visible only on focus) */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  z-index: 9999;
+}
+
+.skip-link:focus {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: auto;
+  height: auto;
+  padding: 0.5rem 1.5rem;
+  background: #1a1a2e;
+  color: #d4af37;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 2px solid #d4af37;
+  border-radius: 0 0 0.5rem 0.5rem;
+  z-index: 9999;
+}
+
+/* Ensure WCAG AA contrast for text on dark backgrounds */
+.high-contrast .text-white\/30,
+.high-contrast .text-white\/40,
+.high-contrast .text-white\/50 {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+.high-contrast .text-gray-400,
+.high-contrast .text-gray-500 {
+  color: rgba(255, 255, 255, 0.7) !important;
 }

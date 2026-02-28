@@ -10,10 +10,185 @@
  */
 
 import { create } from 'zustand';
-import { MinionData, MinionState, Team, CARD_SLOTS, ARENA, StatusEffect } from '@/types';
+import { MinionData, MinionState, Team, CARD_SLOTS, ARENA, StatusEffect, SpawnRequest, AttackEvent, DeathEvent } from '@/types';
 import { CardDefinition, StatusEffectType, StatusEffectConfig } from '@/types';
+import { SynergyDefinition, ActiveSynergy, SynergyBonusType } from '@/types';
+import { Tag } from '@/types/card';
 import { useVfxStore } from '@/stores/vfxStore';
 import { minionPositions } from '@/utils/minionPositionRegistry';
+
+// ─── SYNERGY DEFINITIONS ────────────────────────────────────────────────────
+
+const SYNERGY_DEFINITIONS: SynergyDefinition[] = [
+  // Element synergies
+  {
+    id: 'inferno',
+    name: 'Inferno',
+    description: 'Burn damage +50%, burn duration +1s',
+    requiredTags: ['fire'],
+    requiredCount: 2,
+    bonusType: 'burn_damage_mult',
+    bonusValue: 1.5,
+  },
+  {
+    id: 'inferno_duration',
+    name: 'Inferno',
+    description: 'Burn duration +1s',
+    requiredTags: ['fire'],
+    requiredCount: 2,
+    bonusType: 'burn_duration_add',
+    bonusValue: 1.0,
+  },
+  {
+    id: 'miasma',
+    name: 'Miasma',
+    description: 'Poison spreads to 1 adjacent enemy on tick',
+    requiredTags: ['poison'],
+    requiredCount: 2,
+    bonusType: 'poison_spread',
+    bonusValue: 1,
+  },
+  {
+    id: 'overload',
+    name: 'Overload',
+    description: 'Shocked enemies take +25% damage from all sources',
+    requiredTags: ['electric'],
+    requiredCount: 2,
+    bonusType: 'shocked_vuln_mult',
+    bonusValue: 1.25,
+  },
+
+  // Role synergies
+  {
+    id: 'ambush',
+    name: 'Ambush',
+    description: 'Assassin units deal +30% damage while a tank is alive',
+    requiredTags: ['tank', 'assassin'],
+    requiredCount: 1,
+    bonusType: 'damage_mult',
+    bonusValue: 1.3,
+    affectedTags: ['assassin'],
+  },
+  {
+    id: 'frontline_melee',
+    name: 'Frontline',
+    description: 'Melee units gain +20% HP',
+    requiredTags: ['melee', 'ranged'],
+    requiredCount: 1,
+    bonusType: 'hp_mult',
+    bonusValue: 1.2,
+    affectedTags: ['melee'],
+  },
+  {
+    id: 'frontline_ranged',
+    name: 'Frontline',
+    description: 'Ranged units gain +10% attack',
+    requiredTags: ['melee', 'ranged'],
+    requiredCount: 1,
+    bonusType: 'attack_mult',
+    bonusValue: 1.1,
+    affectedTags: ['ranged'],
+  },
+
+  // Material synergies
+  {
+    id: 'living_army',
+    name: 'Living Army',
+    description: 'All bio units regenerate 1 HP every 5s',
+    requiredTags: ['bio'],
+    requiredCount: 3,
+    bonusType: 'regen_per_5s',
+    bonusValue: 1,
+    affectedTags: ['bio'],
+  },
+  {
+    id: 'overclocked',
+    name: 'Overclocked',
+    description: 'Mechanical units attack 15% faster',
+    requiredTags: ['mechanical'],
+    requiredCount: 2,
+    bonusType: 'attack_speed_mult',
+    bonusValue: 1.15,
+    affectedTags: ['mechanical'],
+  },
+  {
+    id: 'fortified_line',
+    name: 'Fortified Line',
+    description: 'Stone units take 15% less damage',
+    requiredTags: ['stone'],
+    requiredCount: 2,
+    bonusType: 'damage_reduction',
+    bonusValue: 0.85,
+    affectedTags: ['stone'],
+  },
+];
+
+/**
+ * Calculate active synergies from a set of card tags.
+ * Tags are collected from all cards in the player's active grimoire.
+ */
+export function calculateSynergies(allTags: Tag[]): ActiveSynergy[] {
+  const tagCounts = new Map<string, number>();
+  for (const tag of allTags) {
+    tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+  }
+
+  const active: ActiveSynergy[] = [];
+
+  for (const def of SYNERGY_DEFINITIONS) {
+    // For synergies needing multiple different tags (e.g. tank + assassin),
+    // check that ALL required tags are present at least requiredCount times.
+    // For synergies needing the same tag multiple times, check count.
+    const allDistinct = new Set(def.requiredTags).size === def.requiredTags.length;
+
+    if (allDistinct && def.requiredTags.length > 1) {
+      // Multi-tag synergy: need at least 1 of each
+      const allPresent = def.requiredTags.every(t => (tagCounts.get(t) ?? 0) >= 1);
+      if (allPresent) {
+        const minCount = Math.min(...def.requiredTags.map(t => tagCounts.get(t) ?? 0));
+        active.push({ definition: def, matchedCount: minCount });
+      }
+    } else {
+      // Single-tag synergy: need requiredCount of the tag
+      const tag = def.requiredTags[0];
+      const count = tagCounts.get(tag) ?? 0;
+      if (count >= def.requiredCount) {
+        active.push({ definition: def, matchedCount: count });
+      }
+    }
+  }
+
+  return active;
+}
+
+/**
+ * Check if a synergy bonus applies to a minion based on its tags.
+ */
+export function getSynergyBonuses(
+  minionTags: Tag[],
+  activeSynergies: ActiveSynergy[],
+  bonusType: SynergyBonusType
+): number {
+  let result = bonusType.endsWith('_mult') || bonusType === 'damage_reduction' ? 1 : 0;
+
+  for (const syn of activeSynergies) {
+    if (syn.definition.bonusType !== bonusType) continue;
+
+    // Check if minion has affected tags (if specified)
+    if (syn.definition.affectedTags) {
+      const hasTag = syn.definition.affectedTags.some(t => minionTags.includes(t as Tag));
+      if (!hasTag) continue;
+    }
+
+    if (bonusType.endsWith('_mult') || bonusType === 'damage_reduction') {
+      result *= syn.definition.bonusValue;
+    } else {
+      result += syn.definition.bonusValue;
+    }
+  }
+
+  return result;
+}
 
 const DEFAULT_STATUS_CONFIGS: Record<StatusEffectType, Omit<StatusEffectConfig, 'type'>> = {
   shocked: { damagePerTick: 0, tickInterval: 0.5, duration: 1.0 },
@@ -54,6 +229,20 @@ interface CombatStore {
   // HP bar status effects
   playerStatusEffects: HPStatusEffect[];
   enemyStatusEffects: HPStatusEffect[];
+
+  // Synergies
+  activeSynergies: ActiveSynergy[];
+
+  // Combat events (for VFX/audio triggers)
+  lastAttackEvent: AttackEvent | null;
+  lastDeathEvent: DeathEvent | null;
+
+  // Combat lifecycle
+  isCombatActive: boolean;
+  combatTime: number;
+
+  // Spawn queue
+  spawnQueue: SpawnRequest[];
   
   // Actions
   spawnMinion: (card: CardDefinition, team: Team, slotIndex: number, positionOverride?: [number, number, number]) => string;
@@ -69,6 +258,19 @@ interface CombatStore {
   // HP bar status effects
   applyStatusToHPBar: (team: Team, effect: HPStatusEffect) => void;
   tickStatusEffects: (delta: number) => void;
+
+  // Synergy actions
+  computeSynergies: (playerCards: CardDefinition[]) => void;
+  getActiveSynergies: () => ActiveSynergy[];
+
+  // Combat lifecycle actions
+  startCombat: () => void;
+  endCombat: () => void;
+  updateCombatTime: (delta: number) => void;
+
+  // Spawn queue actions
+  queueSpawn: (request: SpawnRequest) => void;
+  processSpawnQueue: () => void;
   
   // Queries
   getMinion: (id: string) => CombatMinion | undefined;
@@ -88,6 +290,12 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   minions: new Map(),
   playerStatusEffects: [],
   enemyStatusEffects: [],
+  activeSynergies: [],
+  lastAttackEvent: null,
+  lastDeathEvent: null,
+  isCombatActive: false,
+  combatTime: 0,
+  spawnQueue: [],
   
   spawnMinion: (card, team, slotIndex, positionOverride?) => {
     const id = `minion-${minionIdCounter++}`;
@@ -217,6 +425,8 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   },
   
   damageMinion: (id, damage, statusEffect) => {
+    const minionBefore = get().getMinion(id);
+
     set((state) => {
       const minion = state.minions.get(id);
       if (!minion || minion.state === 'dying' || minion.state === 'dead') {
@@ -236,13 +446,30 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       return { minions: newMinions };
     });
 
+    if (minionBefore) {
+      const attackEvent: AttackEvent = {
+        attackerId: '',
+        targetId: id,
+        damage,
+        isCritical: false,
+        position: minionBefore.position,
+      };
+      set({ lastAttackEvent: attackEvent });
+    }
+
     if (statusEffect) {
       get().applyMinionStatus(id, statusEffect);
     }
     
-    // Handle death — spawn VFX and remove after animation
     const minion = get().getMinion(id);
     if (minion && minion.currentHp <= 0) {
+      const deathEvent: DeathEvent = {
+        minionId: id,
+        killerId: '',
+        position: minion.position,
+      };
+      set({ lastDeathEvent: deathEvent });
+
       useVfxStore.getState().spawnEffect('death', minion.position, {
         color: minion.team === 'player' ? '#4ade80' : '#f87171',
       });
@@ -481,6 +708,53 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
     const enemyTeam = team === 'player' ? 'enemy' : 'player';
     return get().getMinionsByTeam(enemyTeam).length > 0;
   },
+
+  startCombat: () => {
+    set({ isCombatActive: true, combatTime: 0 });
+    const { minions } = get();
+    minions.forEach((minion, id) => {
+      if (minion.state === 'spawning' || minion.state === 'idle') {
+        get().updateMinion(id, { state: 'moving' });
+      }
+    });
+  },
+
+  endCombat: () => {
+    set({ isCombatActive: false });
+  },
+
+  updateCombatTime: (delta) => {
+    set((state) => ({ combatTime: state.combatTime + delta }));
+  },
+
+  queueSpawn: (request) => {
+    set((state) => ({
+      spawnQueue: [...state.spawnQueue, request],
+    }));
+  },
+
+  processSpawnQueue: () => {
+    const { spawnQueue } = get();
+    if (spawnQueue.length === 0) return;
+    set((state) => ({
+      spawnQueue: state.spawnQueue.slice(1),
+    }));
+  },
+
+  computeSynergies: (playerCards) => {
+    const allTags: Tag[] = [];
+    for (const card of playerCards) {
+      if (card.tags) {
+        allTags.push(...card.tags);
+      }
+    }
+    const synergies = calculateSynergies(allTags);
+    set({ activeSynergies: synergies });
+  },
+
+  getActiveSynergies: () => {
+    return get().activeSynergies;
+  },
   
   reset: () => {
     minionPositions.clear();
@@ -488,6 +762,12 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       minions: new Map(),
       playerStatusEffects: [],
       enemyStatusEffects: [],
+      activeSynergies: [],
+      lastAttackEvent: null,
+      lastDeathEvent: null,
+      isCombatActive: false,
+      combatTime: 0,
+      spawnQueue: [],
     });
   },
 }));

@@ -164,3 +164,38 @@ export interface ParticleEvent {
   count?: number;
   scale?: number;
 }
+
+/**
+ * Combat synergy definition
+ */
+export interface SynergyDefinition {
+  id: string;
+  name: string;
+  description: string;
+  requiredTags: string[];
+  requiredCount: number;
+  bonusType: SynergyBonusType;
+  bonusValue: number;
+  /** Which tagged units receive the bonus (undefined = all) */
+  affectedTags?: string[];
+}
+
+export type SynergyBonusType =
+  | 'burn_damage_mult'
+  | 'burn_duration_add'
+  | 'poison_spread'
+  | 'shocked_vuln_mult'
+  | 'damage_mult'
+  | 'hp_mult'
+  | 'attack_mult'
+  | 'attack_speed_mult'
+  | 'damage_reduction'
+  | 'regen_per_5s';
+
+/**
+ * Active synergy during combat
+ */
+export interface ActiveSynergy {
+  definition: SynergyDefinition;
+  matchedCount: number;
+}

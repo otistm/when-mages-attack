@@ -12,13 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CardDefinition } from '@/types';
 
-const STATUS_EFFECT_META: Record<string, { icon: string; color: string; label: string }> = {
-  burn:     { icon: '🔥', color: '#ef4444', label: 'Burn' },
-  freeze:   { icon: '❄️', color: '#60a5fa', label: 'Freeze' },
-  poison:   { icon: '☠️', color: '#7cfc00', label: 'Poison' },
-  blighted: { icon: '🦠', color: '#a855f7', label: 'Blight' },
-  shocked:  { icon: '⚡', color: '#fbbf24', label: 'Shock' },
-};
+import { STATUS_EFFECT_META } from '@/data/constants';
 
 interface CardBottomSheetProps {
   card: CardDefinition | null;

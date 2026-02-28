@@ -28,7 +28,8 @@ const ARRIVE_THRESHOLD = 6.0;
 
 interface ToasterMinionProps {
   data: CombatMinion;
-  onFire: (
+  sizeScale?: number;
+  onFire?: (
     position: [number, number, number],
     damage: number,
     card?: CardDefinition,
@@ -146,7 +147,7 @@ export function ToasterMinion({ data, onFire }: ToasterMinionProps) {
           positionRef.current[1] + 0.5,
           positionRef.current[2],
         ];
-        onFire(firePos, me.stats.attack, cardDef, me.team);
+        onFire?.(firePos, me.stats.attack, cardDef, me.team);
 
         useBattleStatsStore.getState().recordDamage(me.cardDefinitionId, me.stats.attack);
       }

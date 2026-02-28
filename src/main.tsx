@@ -1,15 +1,17 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import { initAccessibilityPrefs, subscribeAccessibilitySync } from '@/stores/preferencesStore';
 
-// Detect OS preferences and apply stored settings before first render
 initAccessibilityPrefs();
 subscribeAccessibilitySync();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
   </React.StrictMode>
 );

@@ -5,14 +5,15 @@
  * Hovers menacingly, launches upward and slams down on fire cooldown.
  */
 
-import { useRef, useState, useEffect } from 'react';
-import { useFrame } from '@react-three/fiber';
-import { useSpring, animated } from '@react-spring/three';
+import { useRef, useState, useCallback } from 'react';
+import { animated } from '@react-spring/three';
 import * as THREE from 'three';
-import { CardSlotConfig, ARENA } from '@/types';
-import { useCardStore } from '@/stores/cardStore';
-import { useCombatStore } from '@/stores/combatStore';
+import { CardSlotConfig } from '@/types';
+import { useConstructLifecycle } from '@/hooks/useConstructLifecycle';
+import { useConstructFiring } from '@/hooks/useConstructFiring';
+import { useDamageFlash } from '@/hooks/useDamageFlash';
 import { LowPolyBrick } from '../models/LowPolyBrick';
+import { HealthRing } from './HealthRing';
 
 interface SpawnedBrickProps {
   slot: CardSlotConfig;
@@ -35,95 +36,21 @@ export function SpawnedBrick({
 }: SpawnedBrickProps) {
   const groupRef = useRef<THREE.Group>(null);
   const [isReady, setIsReady] = useState(false);
-  const [spawned, setSpawned] = useState(false);
-  const [isDying, setIsDying] = useState(false);
-  const [isDamaged, setIsDamaged] = useState(false);
-  const lastFireRef = useRef(0);
-  const hasCalledDestroy = useRef(false);
-  const prevHpRef = useRef<number | null>(null);
 
-  const combatData = useCombatStore((state) => state.minions.get(combatId));
-  const maxHp = combatData?.stats?.hp ?? 1;
-  const currentHp = combatData?.currentHp ?? 0;
-  const healthPercent = maxHp > 0 ? currentHp / maxHp : 0;
-  const combatState = combatData?.state;
+  const { spawned, isDying, springProps, currentHp, healthPercent, combatState } =
+    useConstructLifecycle(combatId, onDestroy);
 
-  const updateCooldown = useCardStore((state) => state.updateCooldown);
-  const shouldFireOnSpawn = useRef(true);
+  const isDamaged = useDamageFlash(currentHp);
 
-  const [springProps, springApi] = useSpring(() => ({
-    scale: 0,
-    positionY: -1,
-    config: { tension: 300, friction: 20 },
-  }));
+  const handleBeforeFire = useCallback(() => {
+    setIsReady(true);
+    setTimeout(() => setIsReady(false), 800);
+  }, []);
 
-  useEffect(() => {
-    setSpawned(true);
-    springApi.start({ scale: 1, positionY: 0 });
-  }, [springApi]);
-
-  useEffect(() => {
-    if (prevHpRef.current !== null && currentHp < prevHpRef.current) {
-      setIsDamaged(true);
-      const timer = setTimeout(() => setIsDamaged(false), 300);
-      prevHpRef.current = currentHp;
-      return () => clearTimeout(timer);
-    }
-    prevHpRef.current = currentHp;
-  }, [currentHp]);
-
-  useEffect(() => {
-    if (isDying) return;
-    if (!combatData || combatState === 'dying' || combatState === 'dead') {
-      setIsDying(true);
-      springApi.start({
-        scale: 0,
-        positionY: -1,
-        config: { tension: 200, friction: 20 },
-      });
-      if (!hasCalledDestroy.current) {
-        hasCalledDestroy.current = true;
-        setTimeout(() => { onDestroy?.(); }, 600);
-      }
-    }
-  }, [combatData, combatState, isDying, springApi, onDestroy]);
-
-  const zPosition = team === 'player'
-    ? ARENA.playerThroneZ - 2
-    : ARENA.enemyThroneZ + 2;
-
-  useFrame(({ clock }) => {
-    const time = clock.elapsedTime;
-    if (!spawned || isDying) return;
-
-    if (lastFireRef.current === 0) {
-      lastFireRef.current = time;
-      if (shouldFireOnSpawn.current) {
-        shouldFireOnSpawn.current = false;
-        setIsReady(true);
-        onFire([slot.xPosition, 0.5, zPosition], damage);
-        updateCooldown(slot.index, team, 0, false);
-        setTimeout(() => setIsReady(false), 800);
-      }
-      return;
-    }
-
-    const elapsed = time - lastFireRef.current;
-    const progress = Math.min(elapsed / cooldown, 1);
-    updateCooldown(slot.index, team, progress, false);
-
-    if (progress >= 1) {
-      setIsReady(true);
-      lastFireRef.current = time;
-      onFire([slot.xPosition, 0.5, zPosition], damage);
-      setTimeout(() => {
-        setIsReady(false);
-        updateCooldown(slot.index, team, 0, false);
-      }, 800);
-    }
+  const { zPosition } = useConstructFiring({
+    spawned, isDying, slot, team, cooldown, damage, onFire,
+    onBeforeFire: handleBeforeFire,
   });
-
-  const isPlayer = team === 'player';
 
   return (
     <animated.group
@@ -140,18 +67,7 @@ export function SpawnedBrick({
         state={combatState}
         isReady={isReady}
       />
-
-      {/* Health bar */}
-      <group position={[0, 2.8, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <mesh>
-          <planeGeometry args={[1.6, 0.22]} />
-          <meshBasicMaterial color="#000000" opacity={0.6} transparent />
-        </mesh>
-        <mesh position={[(healthPercent - 1) * 0.8, 0, 0.01]}>
-          <planeGeometry args={[1.56 * healthPercent, 0.18]} />
-          <meshBasicMaterial color={isPlayer ? '#4ade80' : '#f87171'} />
-        </mesh>
-      </group>
+      <HealthRing healthPercent={healthPercent} team={team} yOffset={2.8} />
     </animated.group>
   );
 }

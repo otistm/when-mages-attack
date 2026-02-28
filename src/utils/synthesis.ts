@@ -106,8 +106,8 @@ export function mergeStats(
   statsB: Partial<CardStats>,
   multiplier: number
 ): CardStats {
-  const getA = (key: keyof CardStats) => statsA[key] ?? DEFAULT_STATS[key];
-  const getB = (key: keyof CardStats) => statsB[key] ?? DEFAULT_STATS[key];
+  const getA = (key: keyof CardStats): number => (statsA[key] ?? DEFAULT_STATS[key]) ?? 0;
+  const getB = (key: keyof CardStats): number => (statsB[key] ?? DEFAULT_STATS[key]) ?? 0;
   
   return {
     hp: Math.floor((getA('hp') + getB('hp')) * 0.5 * multiplier),

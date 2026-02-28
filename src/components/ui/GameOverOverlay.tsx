@@ -44,6 +44,8 @@ export function GameOverOverlay() {
   const selectedMage = useGameStore((state) => state.selectedMage);
   const setPhase = useGameStore((state) => state.setPhase);
   const selectMage = useGameStore((state) => state.selectMage);
+  const isDebugArena = useGameStore((state) => state.isDebugArena);
+  const startDebugArena = useGameStore((state) => state.startDebugArena);
   const resetGame = useGameStore((state) => state.reset);
   const resetCombat = useCombatStore((state) => state.reset);
   const clearAllCards = useCardStore((state) => state.clearAll);
@@ -106,6 +108,13 @@ export function GameOverOverlay() {
   const isPlayerWin = winner === 'player';
   
   const handlePlayAgain = () => {
+    if (isDebugArena) {
+      resetCombat();
+      resetBattleStats();
+      clearAllCards();
+      startDebugArena();
+      return;
+    }
     const mageId = selectedMage?.id;
     resetGame();
     resetCrafting();
@@ -415,7 +424,7 @@ export function GameOverOverlay() {
                   textTransform: 'uppercase',
                 }}
               >
-                Return to Grimoire
+                {isDebugArena ? 'Start Over' : 'Return to Grimoire'}
               </button>
               
               <button

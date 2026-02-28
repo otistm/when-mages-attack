@@ -9,14 +9,14 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import { RigidBody } from '@react-three/rapier';
 import { Box } from '@react-three/drei';
-import * as THREE from 'three';
 
 import { ArenaLighting } from './ArenaLighting';
 import { ArenaEnvironment } from './ArenaEnvironment';
 import { ArenaFloor } from './ArenaFloor';
+import { ArenaMage } from './ArenaMage';
 import { CardSlotTracker } from './CardSlotTracker';
 import { SpawnedToaster } from './SpawnedToaster';
 import { SpawnedCactus } from './SpawnedCactus';
@@ -33,13 +33,13 @@ import { useCameraShake } from '@/hooks/useCameraShake';
 import { shallow } from 'zustand/shallow';
 import { useCombatStore } from '@/stores/combatStore';
 import { useGameStore } from '@/stores/gameStore';
-import { useUIStore } from '@/stores/uiStore';
+
 import { useCardStore } from '@/stores/cardStore';
 import { buildCollisionGrid } from '../minions/separation';
 import { useBattleStatsStore } from '@/stores/battleStatsStore';
 import { AudioCues } from '@/stores/audioStore';
 import { useVfxStore } from '@/stores/vfxStore';
-import { ARENA, CARD_SLOTS, CardDefinition, CardSlotConfig, StatusEffectConfig } from '@/types';
+import { ARENA, CARD_SLOTS, CardDefinition, CardSlotConfig, StatusEffectConfig, getHPBarTargetPosition } from '@/types';
 import { getCardDefinition } from '@/data/cards';
 
 // ============================================================
@@ -101,81 +101,10 @@ const ESPRESSO_FAMILY = new Set([
   'espresso_shot', 'double_shot', 'caffeine_bomb',
 ]);
 
-const _raycaster = new THREE.Raycaster();
-const _ndc = new THREE.Vector2();
-const _groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-const _target = new THREE.Vector3();
-
-function screenToWorld(
-  screenX: number, 
-  screenY: number, 
-  camera: THREE.Camera,
-  canvasWidth: number,
-  canvasHeight: number
-): THREE.Vector3 {
-  _ndc.set((screenX / canvasWidth) * 2 - 1, -(screenY / canvasHeight) * 2 + 1);
-  _raycaster.setFromCamera(_ndc, camera);
-  _raycaster.ray.intersectPlane(_groundPlane, _target);
-  return _target;
-}
-
 export function Arena() {
   // Apply camera shake effect
   useCameraShake();
   
-  // Get camera, viewport, and gl context for screen-to-world conversion
-  const { camera, size, gl } = useThree();
-  
-  // HP bar screen positions from UI store
-  const playerHPBarRect = useUIStore((state) => state.playerHPBarRect);
-  const enemyHPBarRect = useUIStore((state) => state.enemyHPBarRect);
-  const canvasBounds = useUIStore((state) => state.canvasBounds);
-  const setCanvasRect = useUIStore((state) => state.setCanvasRect);
-  const setCanvasBounds = useUIStore((state) => state.setCanvasBounds);
-  
-  // Update canvas dimensions and bounds in store
-  useEffect(() => {
-    setCanvasRect(size.width, size.height);
-    
-    // Get canvas element bounding rect
-    const canvas = gl.domElement;
-    const updateBounds = () => {
-      const rect = canvas.getBoundingClientRect();
-      setCanvasBounds(rect.left, rect.top, rect.width, rect.height);
-    };
-    
-    updateBounds();
-    window.addEventListener('resize', updateBounds);
-    const interval = setInterval(updateBounds, 500);
-    
-    return () => {
-      window.removeEventListener('resize', updateBounds);
-      clearInterval(interval);
-    };
-  }, [size.width, size.height, gl.domElement, setCanvasRect, setCanvasBounds]);
-  
-  // Compute HP bar 3D world Z positions and store them for minions to read
-  useEffect(() => {
-    if (!canvasBounds || canvasBounds.width === 0 || canvasBounds.height === 0) return;
-    
-    const computeWorldZ = (hpBarRect: typeof enemyHPBarRect) => {
-      if (!hpBarRect) return null;
-      const canvasRelativeX = hpBarRect.centerX - canvasBounds.x;
-      const canvasRelativeY = hpBarRect.centerY - canvasBounds.y;
-      const worldPos = screenToWorld(canvasRelativeX, canvasRelativeY, camera, canvasBounds.width, canvasBounds.height);
-      return worldPos.z;
-    };
-    
-    const enemyZ = computeWorldZ(enemyHPBarRect);
-    if (enemyZ !== null) {
-      useUIStore.getState().setHPBarWorldZ('enemy', enemyZ);
-    }
-    const playerZ = computeWorldZ(playerHPBarRect);
-    if (playerZ !== null) {
-      useUIStore.getState().setHPBarWorldZ('player', playerZ);
-    }
-  }, [enemyHPBarRect, playerHPBarRect, canvasBounds, camera]);
-
   // Combat store for minion management
   const hasEnemyMinions = useCombatStore((state) => state.hasEnemyMinions);
   const getClosestEnemy = useCombatStore((state) => state.getClosestEnemy);
@@ -573,28 +502,9 @@ export function Arena() {
       return closestEnemy.position;
     }
     
-    // 3. No enemy minions — fall back to HP bar
-    const hpBarRect = proj.targetTeam === 'enemy' ? enemyHPBarRect : playerHPBarRect;
-    
-    if (hpBarRect && canvasBounds && canvasBounds.width > 0 && canvasBounds.height > 0) {
-      const canvasRelativeX = hpBarRect.centerX - canvasBounds.x;
-      const canvasRelativeY = hpBarRect.centerY - canvasBounds.y;
-      
-      const worldPos = screenToWorld(
-        canvasRelativeX,
-        canvasRelativeY,
-        camera,
-        canvasBounds.width,
-        canvasBounds.height
-      );
-      
-      return [worldPos.x, 0.5, worldPos.z];
-    }
-    
-    // Fallback if HP bar position not yet tracked
-    const targetZ = proj.targetTeam === 'enemy' ? ARENA.enemyThroneZ + 2 : ARENA.playerThroneZ - 2;
-    return [0, 0.5, targetZ];
-  }, [camera, canvasBounds, enemyHPBarRect, playerHPBarRect]);
+    // 3. No enemy minions — target the mage model directly
+    return getHPBarTargetPosition(proj.targetTeam);
+  }, []);
 
   return (
     <group>
@@ -606,6 +516,10 @@ export function Arena() {
       
       {/* Arena floor - combat zone */}
       <ArenaFloor />
+
+      {/* 3D mage figures (targetable HP bar replacements) */}
+      <ArenaMage side="player" />
+      <ArenaMage side="enemy" />
 
       {/* Player card position trackers */}
       {playerCardSlots.map((entry) => {

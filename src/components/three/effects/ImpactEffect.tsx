@@ -5,10 +5,10 @@
 import { useRef, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useArenaStore } from '@/stores/arenaStore';
+import { useCombatStore } from '@/stores/combatStore';
 
 export function ImpactEffects() {
-  const lastAttackEvent = useArenaStore((state) => state.lastAttackEvent);
+  const lastAttackEvent = useCombatStore((state) => state.lastAttackEvent);
   const [effects, setEffects] = useState<ImpactData[]>([]);
   
   // Listen for attack events

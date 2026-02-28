@@ -10,26 +10,11 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore } from '@/stores/gameStore';
 import { CARD_SLOTS, ARENA, StatusEffectType } from '@/types';
+import { STATUS_COLORS_HEX as STATUS_COLORS, STATUS_PRIORITY } from '@/data/constants';
 
 interface FloorHealthBarProps {
   side: 'player' | 'enemy';
 }
-
-const STATUS_COLORS: Record<StatusEffectType, string> = {
-  burn: '#ff6b3d',
-  freeze: '#66ccff',
-  poison: '#6bff66',
-  blighted: '#7a3cff',
-  shocked: '#ffd166',
-};
-
-const STATUS_PRIORITY: StatusEffectType[] = [
-  'shocked',
-  'burn',
-  'freeze',
-  'poison',
-  'blighted',
-];
 
 // Status effect visual descriptions (per Narrative Designer)
 const STATUS_VISUALS: Record<StatusEffectType, { 

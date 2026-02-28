@@ -18,11 +18,12 @@ import { useCombatStore } from '@/stores/combatStore';
 import { useGameStore } from '@/stores/gameStore';
 import { useDamageStore } from '@/stores/damageStore';
 import { useBattleStatsStore } from '@/stores/battleStatsStore';
-import { useUIStore } from '@/stores/uiStore';
+
 import { resolveCollisions } from './separation';
 import { minionPositions } from '@/utils/minionPositionRegistry';
 import { getCardDefinition } from '@/data/cards';
-import { ARENA_BOUNDS } from '@/types';
+import type { MinionComponentProps } from '@/data/minionRegistry';
+import { ARENA_BOUNDS, ARENA } from '@/types';
 import type { CombatMinion } from '@/stores/combatStore';
 
 const trailGeo = new THREE.CircleGeometry(0.4, 6);
@@ -39,6 +40,7 @@ interface TrailSlot {
 interface SentientSlimeProps {
   data: CombatMinion;
   sizeScale?: number;
+  onFire?: MinionComponentProps['onFire'];
 }
 
 export function SentientSlime({ data, sizeScale = 1 }: SentientSlimeProps) {
@@ -167,10 +169,8 @@ export function SentientSlime({ data, sizeScale = 1 }: SentientSlimeProps) {
       tz = enemy.position[2];
       isMinion = true;
     } else {
-      const ui = useUIStore.getState();
-      tz = me.team === 'player' ? ui.enemyHPBarWorldZ : ui.playerHPBarWorldZ;
+      tz = me.team === 'player' ? ARENA.enemyThroneZ : ARENA.playerThroneZ;
       tx = targetXOffset.current;
-      // Clamp to arena bounds so melee units can physically reach the target
       tz = Math.max(ARENA_BOUNDS.minZ, Math.min(ARENA_BOUNDS.maxZ, tz));
       tx = Math.max(ARENA_BOUNDS.minX, Math.min(ARENA_BOUNDS.maxX, tx));
     }
@@ -193,7 +193,7 @@ export function SentientSlime({ data, sizeScale = 1 }: SentientSlimeProps) {
 
     const enemyRadius = enemy ? (minionPositions.get(enemy.id)?.radius ?? 0.75) : 0;
     const meleeRange = me.collisionRadius + enemyRadius + 0.5;
-    const range = isMinion ? Math.max(me.attackRange, meleeRange) : me.attackRange;
+    const range = isMinion ? Math.max(me.attackRange, meleeRange) : me.collisionRadius * 0.5;
 
     // Ram attack animation constants
     const WINDUP_DUR = 0.3;

@@ -28,7 +28,8 @@ const SPREAD_RADIUS = 0.6;
 
 interface CactusMinionProps {
   data: CombatMinion;
-  onFire: (
+  sizeScale?: number;
+  onFire?: (
     position: [number, number, number],
     damage: number,
     card?: CardDefinition,
@@ -93,7 +94,7 @@ export function CactusMinion({ data, onFire }: CactusMinionProps) {
         pos[2] + offsetZ,
       ];
       setTimeout(() => {
-        onFire(firePos, me.stats.attack, cardDef, me.team);
+        onFire?.(firePos, me.stats.attack, cardDef, me.team);
       }, i * 40);
     }
 

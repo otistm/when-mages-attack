@@ -3,7 +3,7 @@
  */
 
 import { create } from 'zustand';
-import { CardDefinition, ARENA } from '@/types';
+import { CardDefinition } from '@/types';
 import { AudioCues } from '@/stores/audioStore';
 
 interface HoveredCard {
@@ -29,21 +29,10 @@ interface UIState {
   selectedCardForPlacement: string | null;
   setSelectedCardForPlacement: (cardId: string | null) => void;
   
-  // HP bar position tracking
+  // HP bar position tracking (used by HTML HP bar components for display)
   playerHPBarRect: HPBarRect | null;
   enemyHPBarRect: HPBarRect | null;
   setHPBarRect: (side: 'player' | 'enemy', rect: HPBarRect) => void;
-  
-  // HP bar 3D world positions (computed from screen coords by Arena)
-  playerHPBarWorldZ: number;
-  enemyHPBarWorldZ: number;
-  setHPBarWorldZ: (side: 'player' | 'enemy', z: number) => void;
-  
-  // Canvas/viewport info for coordinate conversion
-  canvasRect: { width: number; height: number } | null;
-  canvasBounds: { x: number; y: number; width: number; height: number } | null;
-  setCanvasRect: (width: number, height: number) => void;
-  setCanvasBounds: (x: number, y: number, width: number, height: number) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -64,7 +53,7 @@ export const useUIStore = create<UIState>((set) => ({
     }
   },
   
-  // HP bar positions
+  // HP bar positions (used by HTML HP bar components for display)
   playerHPBarRect: null,
   enemyHPBarRect: null,
   setHPBarRect: (side, rect) => {
@@ -73,26 +62,5 @@ export const useUIStore = create<UIState>((set) => ({
     } else {
       set({ enemyHPBarRect: rect });
     }
-  },
-  
-  // HP bar 3D world Z positions (defaults until Arena computes them)
-  playerHPBarWorldZ: ARENA.playerThroneZ - 2,
-  enemyHPBarWorldZ: ARENA.enemyThroneZ + 2,
-  setHPBarWorldZ: (side, z) => {
-    if (side === 'player') {
-      set({ playerHPBarWorldZ: z });
-    } else {
-      set({ enemyHPBarWorldZ: z });
-    }
-  },
-  
-  // Canvas dimensions and position
-  canvasRect: null,
-  canvasBounds: null as { x: number; y: number; width: number; height: number } | null,
-  setCanvasRect: (width, height) => {
-    set({ canvasRect: { width, height } });
-  },
-  setCanvasBounds: (x: number, y: number, width: number, height: number) => {
-    set({ canvasBounds: { x, y, width, height } });
   },
 }));

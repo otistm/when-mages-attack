@@ -18,7 +18,7 @@ export function CameraRig({
 
   useFrame(() => {
     if (isDebug) {
-      camera.position.set(0, 32, 18.5);
+      camera.position.set(0, 38, 22);
       (camera as THREE.PerspectiveCamera).fov = 45;
       camera.updateProjectionMatrix();
     }

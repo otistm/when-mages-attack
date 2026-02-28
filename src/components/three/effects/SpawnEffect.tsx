@@ -5,10 +5,10 @@
 import { useRef, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useArenaStore } from '@/stores/arenaStore';
+import { useCombatStore } from '@/stores/combatStore';
 
 export function SpawnEffects() {
-  const minions = useArenaStore((state) => state.minions);
+  const minions = useCombatStore((state) => state.minions);
   const [effects, setEffects] = useState<SpawnData[]>([]);
   const seenIds = useRef(new Set<string>());
   

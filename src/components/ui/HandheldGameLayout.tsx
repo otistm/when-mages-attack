@@ -16,21 +16,12 @@ import { HandheldCardTray } from './HandheldCardTray';
 import { CardBottomSheet } from './CardBottomSheet';
 import { KeepsakeButton } from './hud/KeepsakeButton';
 import { CardDefinition, StatusEffectType } from '@/types';
+import { STATUS_EFFECT_META } from '@/data/constants';
+import { MageArenaPortrait } from './MageArenaPortrait';
 
 interface HandheldGameLayoutProps {
-  children: ReactNode; // The 3D Canvas and overlays
+  children: ReactNode;
 }
-
-const STATUS_CONFIG: Record<StatusEffectType, {
-  color: string;
-  icon: string;
-}> = {
-  burn: { color: '#ff6b35', icon: '🔥' },
-  freeze: { color: '#67e8f9', icon: '❄️' },
-  shocked: { color: '#fbbf24', icon: '⚡' },
-  poison: { color: '#a3e635', icon: '☠️' },
-  blighted: { color: '#9333ea', icon: '💀' },
-};
 
 export function HandheldGameLayout({ children }: HandheldGameLayoutProps) {
   const [selectedCard, setSelectedCard] = useState<CardDefinition | null>(null);
@@ -54,6 +45,9 @@ export function HandheldGameLayout({ children }: HandheldGameLayoutProps) {
 
         {/* Player HP bar overlay - compact, above card tray */}
         <CompactHPBar side="player" position="bottom" />
+
+        {/* Mage portrait above player HP bar */}
+        <MageArenaPortrait />
 
         {/* Keepsake button overlay - bottom right of arena */}
         <div className="absolute bottom-8 right-3 z-40">
@@ -150,10 +144,10 @@ function CompactHPBar({ side, position }: { side: 'player' | 'enemy'; position: 
         {uniqueStatuses.length > 0 && (
           <div className="flex gap-1">
             {uniqueStatuses.map((e) => {
-              const cfg = STATUS_CONFIG[e.type];
-              return cfg ? (
-                <span key={e.type} className="text-game-caption" style={{ filter: `drop-shadow(0 0 4px ${cfg.color})` }}>
-                  {cfg.icon}
+              const meta = STATUS_EFFECT_META[e.type];
+              return meta ? (
+                <span key={e.type} className="text-game-caption" style={{ filter: `drop-shadow(0 0 4px ${meta.color})` }}>
+                  {meta.icon}
                 </span>
               ) : null;
             })}

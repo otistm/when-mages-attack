@@ -40,6 +40,17 @@ export interface KeepsakeTrial {
   targetCount: number;
 }
 
+export type LoyaltyBonusType = 'cooldown_reduction' | 'effect_boost' | 'duration_boost' | 'new_ability';
+
+export interface KeepsakeLoyaltyTier {
+  level: number;
+  name: string;
+  loyaltyRequired: number;
+  bonus: string;
+  bonusType: LoyaltyBonusType;
+  bonusValue: number;
+}
+
 export interface KeepsakeDefinition {
   id: string;
   name: string;
@@ -50,6 +61,7 @@ export interface KeepsakeDefinition {
   abilityType: KeepsakeAbilityType;
   effectConfig: KeepsakeEffectConfig;
   trial: KeepsakeTrial;
+  loyaltyTiers: KeepsakeLoyaltyTier[];
   modelPath?: string;
   imagePath?: string;
 }
@@ -66,6 +78,8 @@ export interface MageDefinition {
   victoryQuote: string;
   defeatQuote: string;
   imagePath: string;
+  arenaImagePath?: string;
+  modelComponent?: string;
   color: string;
   emissiveColor: string;
   keepsake: KeepsakeDefinition;
