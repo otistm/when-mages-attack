@@ -123,18 +123,28 @@ export function SentientSlime({ data, sizeScale = 1 }: SentientSlimeProps) {
 
           const deathPos: [number, number, number] = [...positionRef.current];
           const deathTeam = teamRef.current;
+          const popCap = slimeDef.populationCap ?? Infinity;
+          const popFamily = slimeDef.populationFamily ?? [slimeDef.id];
 
           setTimeout(() => {
             const store = useCombatStore.getState();
+            const alive = store.getMinionsByTeam(deathTeam);
+            const familyCount = alive.filter((m) => popFamily.includes(m.cardDefinitionId)).length;
+            const slotsAvailable = popCap - familyCount;
+            if (slotsAvailable <= 0) return;
+
             const offsetX = 0.8;
             const id1 = store.spawnMinion(miniSlimeDef, deathTeam, 0);
             store.updateMinion(id1, {
               position: [deathPos[0] - offsetX, deathPos[1], deathPos[2]],
             });
-            const id2 = store.spawnMinion(miniSlimeDef, deathTeam, 0);
-            store.updateMinion(id2, {
-              position: [deathPos[0] + offsetX, deathPos[1], deathPos[2]],
-            });
+
+            if (slotsAvailable >= 2) {
+              const id2 = store.spawnMinion(miniSlimeDef, deathTeam, 0);
+              store.updateMinion(id2, {
+                position: [deathPos[0] + offsetX, deathPos[1], deathPos[2]],
+              });
+            }
           }, 200);
         }
       }

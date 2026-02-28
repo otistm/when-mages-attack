@@ -28,6 +28,7 @@ import { MinionManager } from '../minions/MinionManager';
 import { ImpactEffects, SpawnEffects, ToastProjectile, ShivProjectile, SpineProjectile, DamageNumbers } from '../effects';
 import { VfxManager } from '../effects/VfxManager';
 import { StatusVfx } from '../effects/StatusVfx';
+import { ArenaVortex, VORTEX_TRIGGER_TIME, VORTEX_WARNING_LEAD_TIME } from '../effects/ArenaVortex';
 import { ShivRotationDebug } from '../debug/ShivRotationDebug';
 import { useCameraShake } from '@/hooks/useCameraShake';
 import { shallow } from 'zustand/shallow';
@@ -136,13 +137,49 @@ export function Arena() {
   const tickKeepsakeCooldown = useGameStore((state) => state.tickKeepsakeCooldown);
   const tickMinionStatuses = useCombatStore((state) => state.tickMinionStatuses);
 
-  // Tick status effects, keepsake cooldown, minion statuses, and rebuild collision grid
+  // Combat timer & vortex drain
+  const combatTimeRef = useRef(0);
+  const [combatTime, setCombatTime] = useState(0);
+  const vortexDrainAccum = useRef(0);
+  const vortexActive = !gameOver && combatTimeRef.current >= VORTEX_TRIGGER_TIME;
+
+  // Tick status effects, keepsake cooldown, minion statuses, vortex, and rebuild collision grid
   useFrame((_, delta) => {
     if (!gameOver) {
       buildCollisionGrid();
       tickStatusEffects(delta);
       tickKeepsakeCooldown(delta);
       tickMinionStatuses(delta);
+
+      // Advance combat clock
+      combatTimeRef.current += delta;
+      setCombatTime(combatTimeRef.current);
+
+      // Camera rumble during warning phase
+      const warningStart = VORTEX_TRIGGER_TIME - VORTEX_WARNING_LEAD_TIME;
+      if (combatTimeRef.current >= warningStart && combatTimeRef.current < VORTEX_TRIGGER_TIME) {
+        const progress = (combatTimeRef.current - warningStart) / VORTEX_WARNING_LEAD_TIME;
+        addCameraTrauma(0.02 * progress * delta * 10);
+      }
+
+      // Eruption shake
+      if (combatTimeRef.current >= VORTEX_TRIGGER_TIME && combatTimeRef.current - delta < VORTEX_TRIGGER_TIME) {
+        addCameraTrauma(0.7);
+      }
+
+      // Vortex HP drain — 10 % of maxHP per second to both sides
+      if (combatTimeRef.current >= VORTEX_TRIGGER_TIME) {
+        vortexDrainAccum.current += delta;
+        const tickInterval = 1;
+        while (vortexDrainAccum.current >= tickInterval) {
+          vortexDrainAccum.current -= tickInterval;
+          const playerDrain = Math.ceil(player.maxHealth * 0.10);
+          const enemyDrain = Math.ceil(enemy.maxHealth * 0.10);
+          damagePlayer(playerDrain);
+          damageEnemy(enemyDrain);
+          addCameraTrauma(0.12);
+        }
+      }
     }
   });
 
@@ -150,12 +187,16 @@ export function Arena() {
   const projectileMapRef = useRef<Map<string, Projectile>>(new Map());
   const [constructs, setConstructs] = useState<SpawnedConstruct[]>([]);
   
-  // Clear constructs and projectiles when game is over
+  // Clear constructs, projectiles, and reset timer when game is over
   useEffect(() => {
     if (gameOver) {
       setConstructs([]);
       setProjectiles([]);
       projectileMapRef.current.clear();
+    } else {
+      combatTimeRef.current = 0;
+      vortexDrainAccum.current = 0;
+      setCombatTime(0);
     }
   }, [gameOver]);
 
@@ -520,6 +561,9 @@ export function Arena() {
       {/* 3D mage figures (targetable HP bar replacements) */}
       <ArenaMage side="player" />
       <ArenaMage side="enemy" />
+
+      {/* End-game vortex (erupts at 2 min) */}
+      <ArenaVortex combatTime={combatTime} active={!gameOver} />
 
       {/* Player card position trackers */}
       {playerCardSlots.map((entry) => {

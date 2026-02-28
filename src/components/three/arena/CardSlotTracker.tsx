@@ -4,6 +4,10 @@
  *
  * Screen position is written to a mutable registry (no Zustand set()).
  * Cooldown is only written to the store when it meaningfully changes.
+ *
+ * Supports populationCap — when the number of alive minions matching
+ * the card's populationFamily reaches the cap, cooldown freezes until
+ * one dies.
  */
 
 import { useRef, useEffect } from 'react';
@@ -11,6 +15,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CardDefinition, CardSlotConfig } from '@/types';
 import { useCardStore } from '@/stores/cardStore';
+import { useCombatStore } from '@/stores/combatStore';
 import { cardScreenPositions } from '@/utils/cardScreenPositions';
 
 interface CardSlotTrackerProps {
@@ -36,6 +41,7 @@ export function CardSlotTracker({
   const lastTriggerRef = useRef(0);
   const lastWrittenProgress = useRef(-1);
   const lastWrittenReady = useRef(false);
+  const pausedAtRef = useRef<number | null>(null);
 
   const { camera, size } = useThree();
 
@@ -43,6 +49,8 @@ export function CardSlotTracker({
   const updateCooldown = useCardStore((state) => state.updateCooldown);
 
   const cooldownDuration = card.cooldown ?? 5;
+  const popCap = card.populationCap;
+  const popFamily = card.populationFamily;
 
   useEffect(() => {
     addCard(slot.index, card, team);
@@ -60,6 +68,31 @@ export function CardSlotTracker({
     const y = (-_vec3.y * 0.5 + 0.5) * size.height;
 
     cardScreenPositions.set(slot.index, team, x, y);
+
+    // Population cap check — freeze cooldown while at cap
+    if (popCap != null && popFamily) {
+      const alive = useCombatStore.getState().getMinionsByTeam(team);
+      const familyCount = alive.filter((m) => popFamily.includes(m.cardDefinitionId)).length;
+
+      if (familyCount >= popCap) {
+        if (pausedAtRef.current === null) {
+          pausedAtRef.current = time;
+        }
+        // Keep cooldown bar visually full (ready) but don't fire
+        if (lastWrittenProgress.current !== 1 || lastWrittenReady.current !== false) {
+          lastWrittenProgress.current = 1;
+          lastWrittenReady.current = false;
+          updateCooldown(slot.index, team, 1, false);
+        }
+        return;
+      }
+
+      // Resumed from pause — shift the trigger time so cooldown restarts
+      if (pausedAtRef.current !== null) {
+        lastTriggerRef.current = time;
+        pausedAtRef.current = null;
+      }
+    }
 
     const elapsed = time - lastTriggerRef.current;
     const progress = Math.min(elapsed / cooldownDuration, 1);

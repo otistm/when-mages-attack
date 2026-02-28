@@ -182,6 +182,11 @@ export interface CardDefinition {
   color: string;           // Primary color (hex)
   emissiveColor?: string;  // Glow color (hex)
   
+  /** Max alive units of this family allowed per team. Cooldown pauses at cap. */
+  populationCap?: number;
+  /** Card IDs that count toward this card's population cap (includes self). */
+  populationFamily?: string[];
+
   // Art direction
   _art_prompts?: string;   // Art direction for image generation (Weavy)
 }
