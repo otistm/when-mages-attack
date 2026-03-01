@@ -23,6 +23,7 @@ import { SpawnedCactus } from './SpawnedCactus';
 import { SpawnedBattery } from './SpawnedBattery';
 import { SpawnedBrick } from './SpawnedBrick';
 import { SpawnedEspresso } from './SpawnedEspresso';
+import { SpawnedMagnifyingGlass } from './SpawnedMagnifyingGlass';
 import { SpawnedConstruct as GenericConstruct } from './SpawnedConstruct';
 import { MinionManager } from '../minions/MinionManager';
 import { ImpactEffects, SpawnEffects, ToastProjectile, ShivProjectile, SpineProjectile, DamageNumbers } from '../effects';
@@ -100,6 +101,12 @@ const BRICK_FAMILY = new Set([
 
 const ESPRESSO_FAMILY = new Set([
   'espresso_shot', 'double_shot', 'caffeine_bomb',
+]);
+
+const MAGNIFYING_GLASS_FAMILY = new Set([
+  'magnifying_glass', 'laser_beam', 'solar_lens', 'eagle_eye',
+  'miasma_lens', 'focus_brew', 'sniper_bolt', 'observation_tower',
+  'lens_jelly', 'arc_projector', 'specimen_jar',
 ]);
 
 export function Arena() {
@@ -332,12 +339,12 @@ export function Arena() {
     }
     
     const slot = CARD_SLOTS[slotIndex];
-    
-    // Spawn constructs near their respective HP bars
-    const zPosition = team === 'player'
-      ? ARENA.playerThroneZ - 2
-      : ARENA.enemyThroneZ + 2;
-    const position: [number, number, number] = [slot.xPosition, 0.5, zPosition];
+
+    // Magnifying glass family spawns at center arena (one-shot AoE)
+    const isOneShot = MAGNIFYING_GLASS_FAMILY.has(card.id);
+    const position: [number, number, number] = isOneShot
+      ? [0, 0.5, 0]
+      : [slot.xPosition, 0.5, team === 'player' ? ARENA.playerThroneZ - 2 : ARENA.enemyThroneZ + 2];
     
     // Register in combat store so minions can target this construct
     const combatId = registerConstruct(card, team, position);
@@ -651,6 +658,11 @@ export function Arena() {
         // Espresso family
         if (ESPRESSO_FAMILY.has(cardId)) {
           return <SpawnedEspresso {...sharedProps} />;
+        }
+
+        // Magnifying glass family
+        if (MAGNIFYING_GLASS_FAMILY.has(cardId)) {
+          return <SpawnedMagnifyingGlass {...sharedProps} />;
         }
 
         // Everything else: generic construct with shape derived from card tags

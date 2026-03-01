@@ -12,6 +12,7 @@ export interface CardState {
   cooldownProgress: number; // 0-1
   isReady: boolean;
   hasSpawned: boolean;
+  isExhausted: boolean;
   screenPosition: { x: number; y: number };
 }
 
@@ -23,6 +24,7 @@ interface CardStore {
   removeCard: (slotIndex: number, team: 'player' | 'enemy') => void;
   updateCooldown: (slotIndex: number, team: 'player' | 'enemy', progress: number, isReady: boolean) => void;
   setSpawned: (slotIndex: number, team: 'player' | 'enemy', spawned: boolean) => void;
+  exhaustCard: (slotIndex: number, team: 'player' | 'enemy') => void;
   updateScreenPosition: (slotIndex: number, team: 'player' | 'enemy', x: number, y: number) => void;
   getCard: (slotIndex: number, team: 'player' | 'enemy') => CardState | undefined;
   clearAll: () => void;
@@ -45,6 +47,7 @@ export const useCardStore = create<CardStore>((set, get) => ({
           cooldownProgress: 0,
           isReady: false,
           hasSpawned: false,
+          isExhausted: false,
           screenPosition: { x: 0, y: 0 },
         }]
       };
@@ -72,6 +75,16 @@ export const useCardStore = create<CardStore>((set, get) => ({
       cards: state.cards.map(c => 
         c.slotIndex === slotIndex && c.team === team
           ? { ...c, hasSpawned: spawned }
+          : c
+      )
+    }));
+  },
+  
+  exhaustCard: (slotIndex, team) => {
+    set((state) => ({
+      cards: state.cards.map(c => 
+        c.slotIndex === slotIndex && c.team === team
+          ? { ...c, isExhausted: true, cooldownProgress: 0, isReady: false }
           : c
       )
     }));

@@ -517,7 +517,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
         powerCost: 2,
       },
     ],
-    cooldown: 6,
+    cooldown: 10,
     color: '#87CEEB',
     emissiveColor: '#FFD700',
     iconPath: '/assets/cards/magnifying_glass.png',

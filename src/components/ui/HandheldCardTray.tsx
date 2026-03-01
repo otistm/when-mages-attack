@@ -94,7 +94,7 @@ interface HandheldCard2DProps {
 }
 
 function HandheldCard2D({ cardState, isEnemy, onTap }: HandheldCard2DProps) {
-  const { card, cooldownProgress, isReady } = cardState;
+  const { card, cooldownProgress, isReady, isExhausted } = cardState;
   const [pressed, setPressed] = useState(false);
 
   const setHoveredCard = useUIStore((state) => state.setHoveredCard);
@@ -103,17 +103,17 @@ function HandheldCard2D({ cardState, isEnemy, onTap }: HandheldCard2DProps) {
     if (onTap) {
       onTap(card);
     } else {
-      // Fallback: set hovered card for bottom sheet
       setHoveredCard(card, window.innerWidth / 2, window.innerHeight / 2);
     }
   }, [card, onTap, setHoveredCard]);
 
-  const fillPercent = cooldownProgress * 100;
+  const fillPercent = isExhausted ? 0 : cooldownProgress * 100;
   const isConstruct = card.type === 'CONSTRUCT';
   const accentColor = card.emissiveColor ?? '#ff6a00';
-  const borderColor = isReady ? accentColor : '#3a3a5a';
+  const borderColor = isExhausted ? '#2a2a3a' : (isReady ? accentColor : '#3a3a5a');
 
   const getStatusText = () => {
+    if (isExhausted) return 'SPENT';
     if (isReady) return 'FIRE!';
     const cooldown = card.cooldown ?? 5;
     return `${Math.ceil(cooldown * (1 - cooldownProgress))}s`;
@@ -170,10 +170,18 @@ function HandheldCard2D({ cardState, isEnemy, onTap }: HandheldCard2DProps) {
         />
 
         {/* Ready flash */}
-        {isReady && (
+        {isReady && !isExhausted && (
           <div
             className="absolute inset-0 pointer-events-none"
             style={{ backgroundColor: accentColor, opacity: 0.15 }}
+          />
+        )}
+
+        {/* Exhausted overlay */}
+        {isExhausted && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ backgroundColor: '#000', opacity: 0.6 }}
           />
         )}
 

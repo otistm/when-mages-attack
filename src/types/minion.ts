@@ -138,7 +138,7 @@ export const ARENA = {
   playerSlotZ: 8,          // Where player card slots are
   enemySlotZ: -8,          // Where enemy card slots are
   playerThroneZ: 12,       // Player's throne position
-  enemyThroneZ: -12,       // Enemy's throne position
+  enemyThroneZ: -16,       // Enemy's throne position
   combatZoneStart: -6,     // Where combat happens (z range)
   combatZoneEnd: 6,
 } as const;

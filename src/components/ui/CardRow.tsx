@@ -73,7 +73,7 @@ interface Card2DProps {
 }
 
 function Card2D({ cardState, isEnemy }: Card2DProps) {
-  const { card, cooldownProgress, isReady } = cardState;
+  const { card, cooldownProgress, isReady, isExhausted } = cardState;
   const [hovered, setHovered] = useState(false);
   
   const setHoveredCard = useUIStore((state) => state.setHoveredCard);
@@ -88,12 +88,13 @@ function Card2D({ cardState, isEnemy }: Card2DProps) {
     setHoveredCard(null);
   }, [setHoveredCard]);
   
-  const fillPercent = cooldownProgress * 100;
+  const fillPercent = isExhausted ? 0 : cooldownProgress * 100;
   const isConstruct = card.type === 'CONSTRUCT';
   const accentColor = card.emissiveColor ?? '#ff6a00';
-  const borderColor = hovered || isReady ? accentColor : '#3a3a5a';
+  const borderColor = isExhausted ? '#2a2a3a' : (hovered || isReady ? accentColor : '#3a3a5a');
   
   const getStatusText = () => {
+    if (isExhausted) return 'SPENT';
     if (isReady) return 'FIRE!';
     const cooldown = card.cooldown ?? 5;
     return `${Math.ceil(cooldown * (1 - cooldownProgress))}s`;
@@ -156,10 +157,18 @@ function Card2D({ cardState, isEnemy }: Card2DProps) {
         />
         
         {/* Ready flash */}
-        {isReady && (
+        {isReady && !isExhausted && (
           <div
             className="absolute inset-0 pointer-events-none"
             style={{ backgroundColor: accentColor, opacity: 0.15 }}
+          />
+        )}
+        
+        {/* Exhausted overlay */}
+        {isExhausted && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ backgroundColor: '#000', opacity: 0.6 }}
           />
         )}
         
