@@ -64,7 +64,7 @@ export const useCardStore = create<CardStore>((set, get) => ({
     set((state) => ({
       cards: state.cards.map(c => 
         c.slotIndex === slotIndex && c.team === team
-          ? { ...c, cooldownProgress: progress, isReady }
+          ? { ...c, cooldownProgress: progress, isReady, isExhausted: false }
           : c
       )
     }));

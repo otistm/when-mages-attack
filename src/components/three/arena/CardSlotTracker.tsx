@@ -47,9 +47,6 @@ export function CardSlotTracker({
 
   const addCard = useCardStore((state) => state.addCard);
   const updateCooldown = useCardStore((state) => state.updateCooldown);
-  const isExhausted = useCardStore((state) => 
-    state.cards.find(c => c.slotIndex === slot.index && c.team === team)?.isExhausted ?? false
-  );
 
   const cooldownDuration = card.cooldown ?? 5;
   const popCap = card.populationCap;
@@ -61,7 +58,6 @@ export function CardSlotTracker({
 
   useFrame(({ clock }) => {
     if (!groupRef.current) return;
-    if (isExhausted) return;
 
     const time = clock.elapsedTime;
 

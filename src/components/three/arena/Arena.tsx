@@ -328,27 +328,31 @@ export function Arena() {
     team: 'player' | 'enemy'
   ) => {
     const slotKey = `${team}-${slotIndex}`;
-    
-    // Check if a living construct already exists for this slot
-    const existingCombatId = constructCombatIds.current.get(slotKey);
-    if (existingCombatId) {
-      const entity = useCombatStore.getState().getMinion(existingCombatId);
-      if (entity && entity.state !== 'dying' && entity.state !== 'dead') {
-        return; // Still alive, skip
+    const isMagnifyingFamily = MAGNIFYING_GLASS_FAMILY.has(card.id);
+
+    if (!isMagnifyingFamily) {
+      // Check if a living construct already exists for this slot
+      const existingCombatId = constructCombatIds.current.get(slotKey);
+      if (existingCombatId) {
+        const entity = useCombatStore.getState().getMinion(existingCombatId);
+        if (entity && entity.state !== 'dying' && entity.state !== 'dead') {
+          return;
+        }
       }
     }
     
     const slot = CARD_SLOTS[slotIndex];
 
-    // Magnifying glass family spawns at center arena (one-shot AoE)
-    const isOneShot = MAGNIFYING_GLASS_FAMILY.has(card.id);
-    const position: [number, number, number] = isOneShot
+    const position: [number, number, number] = isMagnifyingFamily
       ? [0, 0.5, 0]
       : [slot.xPosition, 0.5, team === 'player' ? ARENA.playerThroneZ - 2 : ARENA.enemyThroneZ + 2];
     
-    // Register in combat store so minions can target this construct
-    const combatId = registerConstruct(card, team, position);
-    constructCombatIds.current.set(slotKey, combatId);
+    // Magnifying glass family is untargetable — skip combat store registration
+    let combatId = '';
+    if (!isMagnifyingFamily) {
+      combatId = registerConstruct(card, team, position);
+      constructCombatIds.current.set(slotKey, combatId);
+    }
     
     setConstructs(prev => [...prev, {
       id: `construct-${constructIdCounter++}`,

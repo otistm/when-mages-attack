@@ -493,9 +493,9 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
     tier: 1,
     tags: ['glass', 'tech', 'ranged', 'fire'],
     baseStats: {
-      hp: 4,
-      maxHp: 4,
-      attack: 4,
+      hp: 0,
+      maxHp: 0,
+      attack: 10,
       speed: 0.5,
       mass: 0.3,
       range: 5,

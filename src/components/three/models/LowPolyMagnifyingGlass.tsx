@@ -234,7 +234,7 @@ export function LowPolyMagnifyingGlass({
       mag.position.x = (Math.random() - 0.5) * 0.05;
       mag.position.z = (Math.random() - 0.5) * 0.05;
 
-      // Spawn sparks at ground hit point
+      // Spawn sparks at hit point
       if (Math.random() > 0.3) {
         const inactive = sparkPool.current.find(p => !p.active);
         if (inactive) {
@@ -396,7 +396,6 @@ export function LowPolyMagnifyingGlass({
         </mesh>
       </group>
 
-      {/* Ground effects (positioned at y=0) */}
       {/* Hit glow */}
       <mesh ref={hitGlowRef} geometry={hitGlowGeo} material={materials.laserGlow} position={[0, 0.1, 0]} scale={0.01} />
       <mesh ref={hitCoreRef} geometry={hitGlowGeo} material={materials.laserCore} position={[0, 0.1, 0]} scale={0.01} />
